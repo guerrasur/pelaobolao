@@ -1,33 +1,108 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
-    function gameMember(gameId) {
-      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.memberIds;
+    function signed() { return request.auth != null; }
+    function own(uid) { return signed() && request.auth.uid == uid; }
+    function room(id) { return get(/databases/$(database)/documents/rooms/$(id)).data; }
+    function member(r) { return signed() && request.auth.uid in r.members && !r.members[request.auth.uid].left; }
+    function host(r) { return member(r) && r.hostId == request.auth.uid; }
+    function game(id) { return get(/databases/$(database)/documents/games/$(id)).data; }
+    function participant(g) { return signed() && request.auth.uid in g.memberIds && member(room(g.roomId)); }
+    function gameHost(g) { return host(room(g.roomId)) && room(g.roomId).gameId != null; }
+    function validMember(m) {
+      return m.keys().hasOnly(['name','joinedAt','lastSeenAt','left'])
+        && m.name is string && m.name.size() > 0 && m.name.size() <= 24
+        && m.joinedAt is number && m.lastSeenAt is timestamp && m.left is bool;
     }
     match /profiles/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
+      allow read: if own(uid);
+      allow create: if own(uid) && request.resource.data.keys().hasOnly(['name','schemaVersion','dataVersion','createdAt','updatedAt'])
+        && validProfile() && request.resource.data.createdAt == request.time;
+      allow update: if own(uid) && resource.data.schemaVersion == 1 && validProfile()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','schemaVersion','dataVersion','updatedAt']);
+      function validProfile() {
+        let d = request.resource.data;
+        return d.schemaVersion == 1 && d.dataVersion == 1 && d.name is string && d.name.size() > 0 && d.name.size() <= 24
+          && d.updatedAt == request.time;
+      }
     }
-    match /progress/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
-    }
+    match /progress/{uid} { allow read: if own(uid); allow write: if false; }
     match /sessions/{uid} {
-      allow get: if signedIn() && request.auth.uid == uid;
+      allow read: if own(uid);
+      allow create, update: if own(uid) && request.resource.data.keys().hasOnly(['roomId','updatedAt','clockAt'])
+        && (!('roomId' in request.resource.data) || request.resource.data.roomId == null || request.resource.data.roomId is string)
+        && (!('clockAt' in request.resource.data) || request.resource.data.clockAt is timestamp);
     }
-    match /rooms/{roomId} {
-      allow get: if signedIn() && request.auth.uid in resource.data.members;
+    match /rooms/{id} {
+      // Exact-code lobby lookup is required to join. No enumeration is allowed.
+      allow get: if signed() && (!exists(/databases/$(database)/documents/rooms/$(id)) || resource.data.status == 'lobby'
+        || request.auth.uid in resource.data.members);
+      allow list: if false;
+      allow create: if signed() && id.matches('^[A-Z2-9]{6}$') && validRoom()
+        && request.resource.data.hostId == request.auth.uid && request.resource.data.status == 'lobby'
+        && request.resource.data.gameId == null && request.resource.data.members.keys().hasOnly([request.auth.uid])
+        && validMember(request.resource.data.members[request.auth.uid])
+        && !request.resource.data.members[request.auth.uid].left
+        && request.resource.data.members[request.auth.uid].lastSeenAt == request.time;
+      allow update: if signed() && validRoom() && request.resource.data.code == resource.data.code
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (host(resource.data) || selfChange() || takeover());
+      function validRoom() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['schemaVersion','code','hostId','status','gameId','members','createdAt','updatedAt'])
+          && d.schemaVersion == 2 && d.code == id && d.members is map && d.members.size() <= 6
+          && d.status in ['lobby','playing','finished','closed'] && d.updatedAt == request.time
+          && (d.status == 'closed' || (d.hostId in d.members && !d.members[d.hostId].left));
+      }
+      function ownMemberChange() {
+        let uid = request.auth.uid;
+        let d = request.resource.data;
+        return d.members.diff(resource.data.members).affectedKeys().hasOnly([uid])
+          && ((uid in d.members && validMember(d.members[uid]) && d.members[uid].lastSeenAt == request.time
+            && ((uid in resource.data.members && d.members[uid].joinedAt == resource.data.members[uid].joinedAt)
+              || (resource.data.status == 'lobby' && !d.members[uid].left)))
+          || (!(uid in d.members) && uid in resource.data.members && resource.data.status == 'lobby'));
+      }
+      function selfChange() {
+        return resource.data.status != 'closed' && ownMemberChange()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members','updatedAt']);
+      }
+      function takeover() {
+        let old = resource.data;
+        return member(old) && request.resource.data.hostId == request.auth.uid
+          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(45,'s'))
+          && ownMemberChange()
+          && request.resource.data.diff(old).affectedKeys().hasOnly(['hostId','members','updatedAt']);
+      }
     }
-    match /games/{gameId} {
-      allow get: if signedIn() && request.auth.uid in resource.data.memberIds;
+    match /games/{id} {
+      allow read: if participant(resource.data);
+      allow create: if signed() && room(request.resource.data.roomId).hostId == request.auth.uid
+        && room(request.resource.data.roomId).status == 'lobby'
+        && request.resource.data.schemaVersion == 2 && request.resource.data.memberIds.size() >= 2
+        && request.resource.data.memberIds.size() <= 6;
+      allow update: if signed() && participant(resource.data) && room(resource.data.roomId).hostId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','turn','deadline']);
       match /intents/{uid} {
-        allow get: if signedIn() && request.auth.uid == uid && gameMember(gameId);
+        allow get: if participant(game(id)) && (own(uid) || (request.auth.uid == room(game(id).roomId).hostId && request.time.toMillis() >= game(id).deadline));
+        allow list: if false;
+        allow create, update: if own(uid) && participant(game(id)) && validIntent();
+        function validIntent() {
+          let g = game(id); let d = request.resource.data;
+          return g.phase == 'choosing' && request.time.toMillis() < g.deadline && g.players[uid].hair > 0
+            && d.keys().hasOnly(['turn','action','target','requestId','revision','submittedAt'])
+            && d.turn == g.turn && d.requestId is string && d.revision is int
+            && ((d.action in ['air','hide'] && d.target == null)
+              || (d.action == 'blow' && d.target is string && d.target != uid && d.target in g.memberIds && g.players[uid].breath > 0));
+        }
       }
-      match /rounds/{roundId} {
-        allow read: if gameMember(gameId);
+      match /rounds/{turnId} {
+        allow read: if participant(game(id));
+        allow create: if signed() && participant(game(id)) && room(game(id).roomId).hostId == request.auth.uid
+          && turnId == string(game(id).turn);
+        allow update, delete: if false;
       }
     }
-    // All writes go through authenticated callables, with exact payload validation.
-    // In particular: no client writes hair, breath, roles, membership or results.
     match /{document=**} { allow read, write: if false; }
   }
 }

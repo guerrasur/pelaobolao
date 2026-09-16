@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, setPersistence, signInAnonymously, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from 'firebase/functions';
+import { createClient } from './client.js';
 
 const emulator = import.meta.env.VITE_USE_EMULATORS === 'true';
 const config = emulator ? {
@@ -20,15 +20,16 @@ export async function connect() {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = getFirestore(app);
-  const functions = getFunctions(app, 'us-central1');
   if (emulator) {
     const host = location.hostname;
     connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(db, host, 8080);
-    connectFunctionsEmulator(functions, host, 5001);
   }
   await setPersistence(auth, browserLocalPersistence);
   await auth.authStateReady();
   if (!auth.currentUser) await signInAnonymously(auth);
-  return { db, uid: auth.currentUser.uid, call: (name, data) => httpsCallable(functions, name, { timeout: 15000 })(data).then(r => r.data) };
+  const uid = auth.currentUser.uid;
+  const client = createClient(db, uid);
+  await client.syncClock();
+  return { db, uid, ...client };
 }

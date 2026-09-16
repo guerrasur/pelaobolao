@@ -1,109 +1,116 @@
 import { before, after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initializeApp, deleteApp } from '../functions/node_modules/firebase-admin/lib/esm/app/index.js';
-import { getFirestore } from '../functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
-import { createService } from '../functions/src/service.js';
-
-let app, db, service, time = 100000;
-before(() => {
-  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Integration tests require the emulator.');
-  app = initializeApp({ projectId: 'demo-pelaobolao' }, 'integration');
-  db = getFirestore(app); service = createService(db, () => time);
+import { readFile } from 'node:fs/promises';
+import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import { doc, getDoc, getDocs, collection, updateDoc, Timestamp } from 'firebase/firestore';
+import { createClient } from '../src/client.js';
+let env, seq = 0;
+before(async () => {
+  env = await initializeTestEnvironment({ projectId: 'demo-pelaobolao', firestore: { rules: await readFile('firestore.rules','utf8') } });
 });
-after(async () => { await db.terminate(); await deleteApp(app); });
-let sequence = 0;
-async function pair() {
-  const a = `a${++sequence}`, b = `b${sequence}`;
-  await service.saveProfile(a, { name: 'A' }); await service.saveProfile(b, { name: 'B' });
-  const { roomId } = await service.roomCommand(a, { command: 'create' });
-  const room = (await db.doc(`rooms/${roomId}`).get()).data();
-  await service.roomCommand(b, { command: 'join', code: room.code });
-  return { a, b, roomId, code: room.code };
-}
-async function started() {
-  const pairInfo = await pair();
-  await service.roomCommand(pairInfo.a, { command: 'start', roomId: pairInfo.roomId });
-  return { ...pairInfo, gameId: (await db.doc(`rooms/${pairInfo.roomId}`).get()).data().gameId };
-}
-const intent = (gameId, turn, action, target = null, requestId = `req${++sequence}`, expectedRevision = 0) => ({ gameId, turn, action, target, requestId, expectedRevision });
-
-test('creación y comienzo duplicados son idempotentes; solo host inicia', async () => {
-  const { a, b, roomId } = await pair();
-  const duplicates = await Promise.all(Array.from({ length: 4 }, () => service.roomCommand(a, { command: 'create' })));
-  assert.ok(duplicates.every(r => r.roomId === roomId));
-  await assert.rejects(service.roomCommand(b, { command: 'start', roomId }));
-  await Promise.all([service.roomCommand(a, { command: 'start', roomId }), service.roomCommand(a, { command: 'start', roomId })]);
-  const games = await db.collection('games').where('roomId', '==', roomId).get();
-  assert.equal(games.size, 1);
-});
-test('intención provisional, replay, revisión y acción tardía', async () => {
-  const { a, gameId } = await started();
-  const first = intent(gameId, 1, 'air');
-  const receipts = await Promise.all([service.submitIntent(a, first), service.submitIntent(a, first)]);
-  assert.equal(receipts[0].revision, 1); assert.equal(receipts[1].revision, 1);
-  await service.submitIntent(a, intent(gameId, 1, 'hide', null, 'second', 1));
-  assert.equal((await db.doc(`games/${gameId}`).get()).data().players[a].breath, 0);
-  await assert.rejects(service.submitIntent(a, intent(gameId, 1, 'air', null, 'old', 0)));
-  time += 8000;
-  await assert.rejects(service.submitIntent(a, intent(gameId, 1, 'air', null, 'late', 2)));
-  await assert.rejects(service.submitIntent(a, first));
-});
-test('resolutores concurrentes crean un solo resultado y gastan una sola vez', async () => {
-  const { a, b, gameId } = await started();
-  await db.doc(`games/${gameId}`).update({ [`players.${a}.breath`]: 1, [`players.${b}.breath`]: 1 });
-  await service.submitIntent(a, intent(gameId, 1, 'blow', b));
-  await service.submitIntent(b, intent(gameId, 1, 'blow', a));
-  time += 8000;
-  const results = await Promise.all(Array.from({ length: 10 }, () => service.advance(gameId, { turn: 1, phase: 'choosing' })));
-  assert.equal(results.filter(r => r.advanced).length, 1);
-  const state = (await db.doc(`games/${gameId}`).get()).data();
-  assert.equal(state.players[a].hair, 2); assert.equal(state.players[b].hair, 2);
-  assert.equal(state.players[a].breath, 0); assert.equal(state.players[b].breath, 0);
-  assert.equal((await db.collection(`games/${gameId}/rounds`).get()).size, 1);
-  assert.equal((await db.collection('jobs').where('gameId', '==', gameId).get()).size, 2);
-  time += 2500;
-  await Promise.all([service.advance(gameId, { turn: 1, phase: 'reveal' }), service.advance(gameId, { turn: 1, phase: 'reveal' })]);
-  assert.equal((await db.doc(`games/${gameId}`).get()).data().turn, 2);
-  assert.equal((await service.advance(gameId, { turn: 1, phase: 'choosing' })).advanced, false);
-});
-test('partida completa de 2 jugadores, ganador y revancha sin modificar perfiles', async () => {
-  const { a, b, gameId, roomId } = await started();
-  const profileBefore = (await db.doc(`profiles/${a}`).get()).data();
-  for (let turn = 1; turn <= 6; turn++) {
-    await service.submitIntent(a, intent(gameId, turn, turn % 2 ? 'air' : 'blow', turn % 2 ? null : b));
-    time += 8000; await service.advance(gameId);
-    if (turn < 6) { time += 2500; await service.advance(gameId); }
+after(async () => env.cleanup());
+const read = async (db,path) => (await getDoc(doc(db,path))).data();
+const seed = fn => env.withSecurityRulesDisabled(ctx => fn(ctx.firestore()));
+const patch = (path,data) => seed(db => updateDoc(doc(db,path),data));
+async function pair(count=2) {
+  const players = [];
+  for(let i=0;i<count;i++) {
+    const uid = `p${++seq}`, db = env.authenticatedContext(uid).firestore(), client = createClient(db,uid);
+    await client.call('saveProfile',{name:uid}); players.push({uid,db,client});
   }
-  const state = (await db.doc(`games/${gameId}`).get()).data();
-  assert.equal(state.winnerId, a); assert.equal(state.players[b].hair, 0); assert.equal(state.phase, 'finished');
-  assert.deepEqual((await db.doc(`profiles/${a}`).get()).data(), profileBefore);
-  await service.roomCommand(b, { command: 'touch', roomId });
-  // a returns and its own lease is refreshed before host election.
-  await service.roomCommand(a, { command: 'touch', roomId });
-  const hostId = (await db.doc(`rooms/${roomId}`).get()).data().hostId;
-  await service.roomCommand(hostId, { command: 'lobby', roomId });
-  await service.roomCommand(hostId, { command: 'start', roomId });
-  assert.notEqual((await db.doc(`rooms/${roomId}`).get()).data().gameId, gameId);
+  const [a,b] = players;
+  const {roomId} = await a.client.call('roomCommand',{command:'create'});
+  for(const p of players.slice(1)) await p.client.call('roomCommand',{command:'join',code:roomId});
+  return {a,b,players,roomId};
+}
+async function started(count=2) {
+  const p=await pair(count);
+  await p.a.client.call('roomCommand',{command:'start',roomId:p.roomId});
+  return {...p,gameId:(await read(p.a.db,`rooms/${p.roomId}`)).gameId};
+}
+const choose = (p,gameId,turn,action,target=null,revision=0,requestId=crypto.randomUUID()) =>
+  p.client.call('submitIntent',{gameId,turn,action,target,expectedRevision:revision,requestId});
+async function advance(p, gameId) {
+  const g=await read(p.db,`games/${gameId}`);
+  await patch(`games/${gameId}`,{[g.phase==='choosing'?'deadline':'nextTurnAt']:Date.now()-100});
+  return p.client.call('advanceGame',{gameId,turn:g.turn,phase:g.phase});
+}
+test('creación y comienzo concurrentes idempotentes; solo host inicia',async()=>{
+  const {a,b,roomId}=await pair();
+  const duplicates=await Promise.all([a.client.call('roomCommand',{command:'create'}),a.client.call('roomCommand',{command:'create'})]);
+  assert.ok(duplicates.every(r=>r.roomId===roomId));
+  await assert.rejects(b.client.call('roomCommand',{command:'start',roomId}));
+  await Promise.all([a.client.call('roomCommand',{command:'start',roomId}),a.client.call('roomCommand',{command:'start',roomId})]);
+  await seed(async db => assert.equal((await getDocs(collection(db,'games'))).docs.filter(d=>d.data().roomId===roomId).length,1));
 });
-test('abandono explícito y lease transfieren host, reingreso restaura sesión', async () => {
-  const { a, b, roomId, code } = await pair();
-  await service.roomCommand(a, { command: 'leave', roomId });
-  assert.equal((await db.doc(`rooms/${roomId}`).get()).data().hostId, b);
-  await service.roomCommand(a, { command: 'join', code });
-  assert.equal((await db.doc(`sessions/${a}`).get()).data().roomId, roomId);
-  time += 46000;
-  await service.roomCommand(a, { command: 'touch', roomId });
-  assert.equal((await db.doc(`rooms/${roomId}`).get()).data().hostId, a);
+test('cambio secreto, replay, revisión obsoleta y cierre de intenciones',async()=>{
+  const {a,b,gameId}=await started();
+  const requestId=crypto.randomUUID();
+  const receipts=await Promise.all([choose(a,gameId,1,'air',null,0,requestId),choose(a,gameId,1,'air',null,0,requestId)]);
+  assert.equal(receipts[0].revision,1);assert.equal(receipts[1].revision,1);
+  await choose(a,gameId,1,'hide',null,1);
+  await assert.rejects(choose(a,gameId,1,'air',null,0));
+  assert.equal((await read(a.db,`games/${gameId}`)).players[a.uid].breath,0);
+  await choose(b,gameId,1,'air');
+  await assert.rejects(getDoc(doc(a.db,`games/${gameId}/intents/${b.uid}`)));
+  await patch(`games/${gameId}`,{deadline:Date.now()-100});
+  await assert.rejects(choose(a,gameId,1,'air',null,2));
 });
-test('partida queda abandonada si todos desaparecen por 2 minutos', async () => {
-  const { gameId } = await started(); time += 120001;
-  await service.advance(gameId);
-  assert.equal((await db.doc(`games/${gameId}`).get()).data().phase, 'abandoned');
+test('seis jugadores, resoluciones concurrentes y repetidas no duplican daño ni resultados',async()=>{
+  const {a,b,players,gameId}=await started(6);
+  await patch(`games/${gameId}`,Object.fromEntries(players.map(p=>[`players.${p.uid}.breath`,1])));
+  for(const p of players) await choose(p,gameId,1,'blow',p===b?a.uid:b.uid);
+  await patch(`games/${gameId}`,{deadline:Date.now()-100});
+  await assert.rejects(b.client.call('advanceGame',{gameId,turn:1,phase:'choosing'}));
+  const results=await Promise.all(Array.from({length:5},()=>a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})));
+  assert.equal(results.filter(r=>r.advanced).length,1);
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.resolvedTurn,1);assert.equal(g.players[a.uid].hair,2);assert.equal(g.players[b.uid].hair,0);
+  for(const p of players) assert.equal(g.players[p.uid].breath,0);
+  assert.equal((await getDocs(collection(a.db,`games/${gameId}/rounds`))).size,1);
+  await advance(a,gameId);
+  assert.equal((await read(a.db,`games/${gameId}`)).turn,2);
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})).advanced,false);
 });
-test('no se aceptan campos extra, nombres inválidos ni acceso ajeno', async () => {
-  await assert.rejects(service.saveProfile('evil', { name: 'x', hair: 999 }));
-  await assert.rejects(service.saveProfile('evil', { name: ' ' }));
-  const { gameId } = await started();
-  await assert.rejects(service.submitIntent('outsider', intent(gameId, 1, 'air')));
-  await assert.rejects(service.advance(gameId, null, 'outsider'));
+test('partida completa, ganador, revancha y perfil persistente intacto',async()=>{
+  const {a,b,gameId,roomId}=await started();
+  const old=await read(a.db,`profiles/${a.uid}`);
+  for(let t=1;t<=6;t++) {
+    await choose(a,gameId,t,t%2?'air':'blow',t%2?null:b.uid);
+    await advance(a,gameId);if(t<6) await advance(a,gameId);
+  }
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.winnerId,a.uid);assert.equal(g.phase,'finished');
+  assert.deepEqual(await read(a.db,`profiles/${a.uid}`),old);
+  await a.client.call('roomCommand',{command:'lobby',roomId});
+  await a.client.call('roomCommand',{command:'start',roomId});
+  assert.notEqual((await read(a.db,`rooms/${roomId}`)).gameId,gameId);
+});
+test('host sale del lobby: transferencia y reingreso',async()=>{
+  const {a,b,roomId}=await pair();
+  await a.client.call('roomCommand',{command:'leave',roomId});
+  assert.equal((await read(b.db,`rooms/${roomId}`)).hostId,b.uid);
+  await a.client.call('roomCommand',{command:'join',code:roomId});
+  assert.equal((await read(a.db,`sessions/${a.uid}`)).roomId,roomId);
+});
+test('host desconectado durante partida: elección concurrente, antiguo host rechazado y turno intacto',async()=>{
+  const {a,b,players,gameId,roomId}=await started(3);
+  await choose(a,gameId,1,'air');
+  await patch(`rooms/${roomId}`,{[`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-46000)});
+  await Promise.all(players.slice(1).map(p=>p.client.call('roomCommand',{command:'touch',roomId})));
+  const r=await read(b.db,`rooms/${roomId}`), host=players.find(p=>p.uid===r.hostId);
+  assert.notEqual(host.uid,a.uid);
+  await patch(`games/${gameId}`,{deadline:Date.now()-100});
+  await assert.rejects(a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'}));
+  await host.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
+  assert.equal((await read(host.db,`games/${gameId}`)).players[a.uid].breath,1);
+  await a.client.call('roomCommand',{command:'touch',roomId});
+  assert.equal((await read(b.db,`rooms/${roomId}`)).hostId,host.uid);
+});
+test('salida explícita del host en partida mantiene recursos y transfiere',async()=>{
+  const {a,b,gameId,roomId}=await started();
+  await a.client.call('roomCommand',{command:'leave',roomId});
+  assert.equal((await read(b.db,`rooms/${roomId}`)).hostId,b.uid);
+  await advance(b,gameId);
+  assert.equal((await read(b.db,`games/${gameId}`)).players[a.uid].hair,3);
 });

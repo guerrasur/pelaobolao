@@ -1,6 +1,7 @@
 import './style.css';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { connect } from './firebase.js';
+import { millis } from './game.js';
 
 const app = document.querySelector('#app');
 const notice = document.querySelector('#notice');
@@ -10,7 +11,7 @@ const s = { profile: undefined, room: null, roomId: null, game: null, gameId: nu
   online: navigator.onLine, busy: false, targeting: false, choice: null, offset: 0, ready: false };
 let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
-const now = () => Date.now() + s.offset;
+const now = () => api?.now() ?? Date.now();
 const message = text => { notice.textContent = text; };
 const actionName = action => ({ air: 'Tomar aire', hide: 'Esconderse', blow: 'Soplar', distracted: 'Distraído' }[action] ?? 'Sin elegir');
 
@@ -22,7 +23,7 @@ async function call(name, data) {
   return result;
 }
 function showError(error) {
-  const code = error.code?.replace('functions/', '');
+  const code = error.code;
   const friendly = {
     unavailable: 'No hay conexión con el servidor. Reintentá cuando vuelva.',
     'permission-denied': 'No tenés acceso a esa sala. Volvé a entrar con el código.',
@@ -64,7 +65,7 @@ function subscribeRoom(id) {
       roomOff?.(); s.roomId = null; s.room = null; subscribeGame(null);
       message('Saliste de la sala. Podés crear otra o volver con el código.'); render(); return;
     }
-    s.room = room;
+    s.room = { ...room, members: Object.fromEntries(Object.entries(room.members).map(([uid, m]) => [uid, { ...m, lastSeenAt: millis(m.lastSeenAt) }])) };
     subscribeGame(room.gameId);
     render();
   }, error => {
@@ -161,7 +162,7 @@ function render() {
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
     const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : `Turno ${game.turn}`;
-    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${terminal ? game.phase === 'abandoned' ? 'No hubo jugadores conectados durante 2 minutos.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Acciones reveladas · preparando el siguiente turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado. Podés seguir mirando.'}</p><div class="players">${Object.entries(game.players).map(([uid, p]) => `<button class="player ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''} aria-label="${esc(p.name)}, Pelo ${p.hair}, Soplos ${p.breath}"><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair}</span><span>Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : s.room.members[uid]?.left || now() - (s.room.members[uid]?.lastSeenAt ?? 0) > 25000 ? 'Reconectando…' : 'En juego'}</small></button>`).join('')}</div>${!terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air" ${!canChoose() ? 'disabled' : ''}>Tomar aire <small>+1 Soplo</small></button><button data-action="hide" ${!canChoose() ? 'disabled' : ''}>Esconderse <small>Abajo del banco</small></button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar <small>Arrastrá o tocá y elegí</small></button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${actionName(choice.action)}${choice.target ? ` → ${esc(game.players[choice.target]?.name)}` : ''}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${resultHtml(game)}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
+    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${terminal ? game.phase === 'abandoned' ? 'La partida fue cerrada.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Acciones reveladas · preparando el siguiente turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado. Podés seguir mirando.'}</p><div class="players">${Object.entries(game.players).map(([uid, p]) => `<button class="player ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''} aria-label="${esc(p.name)}, Pelo ${p.hair}, Soplos ${p.breath}"><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair}</span><span>Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : s.room.members[uid]?.left || now() - (s.room.members[uid]?.lastSeenAt ?? 0) > 25000 ? 'Reconectando…' : 'En juego'}</small></button>`).join('')}</div>${!terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air" ${!canChoose() ? 'disabled' : ''}>Tomar aire <small>+1 Soplo</small></button><button data-action="hide" ${!canChoose() ? 'disabled' : ''}>Esconderse <small>Abajo del banco</small></button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar <small>Arrastrá o tocá y elegí</small></button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${actionName(choice.action)}${choice.target ? ` → ${esc(game.players[choice.target]?.name)}` : ''}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${resultHtml(game)}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
   }
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -248,12 +249,12 @@ function tick() {
   const timer = document.querySelector('#timer');
   if (timer) timer.textContent = `${seconds}s`;
   if (s.game.phase === 'choosing' && seconds === 0) {
-    document.querySelector('#turn-status').textContent = 'Tiempo terminado · esperando resolución del servidor';
+    document.querySelector('#turn-status').textContent = 'Tiempo terminado · esperando resolución del host';
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
   }
-  // This only wakes the server; it cannot choose a deadline or compute a result.
-  if (s.online && ['choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 1000 && Date.now() - lastNudge > 4000) {
-    lastNudge = Date.now(); call('advanceGame', { gameId: s.gameId }).catch(() => {});
+  // Only the current host attempts resolution. Firestore rechecks authority atomically.
+  if (s.room?.hostId === api.uid && s.online && ['choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 150 && Date.now() - lastNudge > 1500) {
+    lastNudge = Date.now(); call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase }).catch(showError);
   }
 }
 

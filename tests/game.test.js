@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RULES, newGame, resolveRound, validateIntent, pruneLobby } from '../functions/src/game.js';
+import { RULES, newGame, resolveRound, validateIntent, pruneLobby } from '../src/game.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
 const game = (count = 2) => newGame('room', members(count), 1000);

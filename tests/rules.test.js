@@ -1,52 +1,65 @@
 import { before, after, test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, setDoc, collection } from 'firebase/firestore';
-
-let env;
-before(async () => {
-  env = await initializeTestEnvironment({ projectId: 'demo-pelaobolao', firestore: { rules: await readFile('firestore.rules', 'utf8') } });
-  await env.withSecurityRulesDisabled(async context => {
-    const db = context.firestore();
-    await setDoc(doc(db, 'profiles/alice'), { schemaVersion: 1, name: 'Alice' });
-    await setDoc(doc(db, 'sessions/alice'), { roomId: 'safe-room' });
-    await setDoc(doc(db, 'rooms/safe-room'), { members: { alice: {}, bob: {} } });
-    await setDoc(doc(db, 'games/safe-game'), { memberIds: ['alice', 'bob'], players: { alice: { hair: 3 } } });
-    await setDoc(doc(db, 'games/safe-game/intents/alice'), { action: 'hide', turn: 1 });
-    await setDoc(doc(db, 'games/safe-game/intents/bob'), { action: 'air', turn: 1 });
-    await setDoc(doc(db, 'games/safe-game/rounds/1'), { turn: 1 });
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { createClient } from '../src/client.js';
+let env, roomId, gameId, a, b, outsider;
+before(async()=>{
+  env=await initializeTestEnvironment({projectId:'demo-pelaobolao',firestore:{rules:await readFile('firestore.rules','utf8')}});
+  a=env.authenticatedContext('alice').firestore();b=env.authenticatedContext('bob').firestore();outsider=env.authenticatedContext('outsider').firestore();
+  for(const [db,uid] of [[a,'alice'],[b,'bob']]) await createClient(db,uid).call('saveProfile',{name:uid});
+  ({roomId}=await createClient(a,'alice').call('roomCommand',{command:'create'}));
+  await createClient(b,'bob').call('roomCommand',{command:'join',code:roomId});
+  await createClient(a,'alice').call('roomCommand',{command:'start',roomId});
+  gameId=(await getDoc(doc(a,'rooms',roomId))).data().gameId;
+  await env.withSecurityRulesDisabled(async ctx=>{
+    const db=ctx.firestore();
+    await updateDoc(doc(db,'games',gameId),{deadline:Date.now()+600000});
+    for(const uid of ['alice','bob']) await setDoc(doc(db,'games',gameId,'intents',uid),{action:'hide',target:null,turn:1,revision:1,requestId:'seed',submittedAt:Timestamp.now()});
   });
 });
-after(async () => { await env.cleanup(); });
-test('solo el propietario lee su perfil, sesión e intención', async () => {
-  const db = env.authenticatedContext('alice').firestore();
-  await assertSucceeds(getDoc(doc(db, 'profiles/alice')));
-  await assertSucceeds(getDoc(doc(db, 'sessions/alice')));
-  await assertSucceeds(getDoc(doc(db, 'games/safe-game/intents/alice')));
-  await assertFails(getDoc(doc(db, 'profiles/bob')));
-  await assertFails(getDoc(doc(db, 'sessions/bob')));
-  await assertFails(getDoc(doc(db, 'games/safe-game/intents/bob')));
-  await assertFails(getDocs(collection(db, 'games/safe-game/intents')));
+after(async()=>env.cleanup());
+test('perfil y sesión solo propios; progreso reservado',async()=>{
+  await assertSucceeds(getDoc(doc(a,'profiles/alice')));
+  await assertFails(getDoc(doc(b,'profiles/alice')));
+  await assertFails(updateDoc(doc(b,'profiles/alice'),{name:'intruso',updatedAt:serverTimestamp()}));
+  await assertSucceeds(createClient(a,'alice').call('saveProfile',{name:'Ana'}));
+  await assertFails(updateDoc(doc(a,'profiles/alice'),{hair:99}));
+  await assertFails(setDoc(doc(a,'progress/alice'),{wins:99}));
+  await assertFails(getDoc(doc(b,'sessions/alice')));
 });
-test('miembros ven el estado público y resultados; ajenos no', async () => {
-  for (const uid of ['alice', 'bob']) {
-    const db = env.authenticatedContext(uid).firestore();
-    await assertSucceeds(getDoc(doc(db, 'rooms/safe-room')));
-    await assertSucceeds(getDoc(doc(db, 'games/safe-game')));
-    await assertSucceeds(getDoc(doc(db, 'games/safe-game/rounds/1')));
-  }
-  for (const db of [env.authenticatedContext('outsider').firestore(), env.unauthenticatedContext().firestore()]) {
-    await assertFails(getDoc(doc(db, 'rooms/safe-room')));
-    await assertFails(getDoc(doc(db, 'games/safe-game')));
-    await assertFails(getDoc(doc(db, 'games/safe-game/intents/alice')));
-    await assertFails(getDoc(doc(db, 'games/safe-game/rounds/1')));
-  }
+test('ni host ni otro jugador ven decisiones ajenas durante el turno',async()=>{
+  await assertSucceeds(getDoc(doc(a,'games',gameId,'intents','alice')));
+  await assertFails(getDoc(doc(a,'games',gameId,'intents','bob')));
+  await assertFails(getDoc(doc(b,'games',gameId,'intents','alice')));
+  await assertFails(getDocs(collection(a,'games',gameId,'intents')));
 });
-test('ni el dueño escribe estado, intenciones, identidad, progreso o tareas directamente', async () => {
-  const db = env.authenticatedContext('alice').firestore();
-  for (const path of ['profiles/alice', 'progress/alice', 'sessions/alice', 'rooms/safe-room', 'roomCodes/ABC234',
-    'games/safe-game', 'games/safe-game/intents/alice', 'games/safe-game/rounds/1', 'jobs/fake']) {
-    await assertFails(setDoc(doc(db, path), { hair: 999, hostId: 'alice' }));
+test('propietario cambia solo intención propia válida; no estado ni resultados ni autoridad',async()=>{
+  const intent={turn:1,action:'air',target:null,requestId:'new',revision:2,submittedAt:serverTimestamp()};
+  await assertSucceeds(setDoc(doc(b,'games',gameId,'intents','bob'),intent));
+  await assertFails(setDoc(doc(b,'games',gameId,'intents','alice'),intent));
+  for(const fields of [{action:'blow',target:'alice'},{turn:2},{target:'alice'},{hair:99}])
+    await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{...intent,revision:3,...fields}));
+  await assertFails(updateDoc(doc(b,'games',gameId),{'players.alice.hair':0}));
+  await assertFails(setDoc(doc(b,'games',gameId,'rounds','1'),{turn:1}));
+  await assertFails(updateDoc(doc(b,'rooms',roomId),{hostId:'bob',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(b,'rooms',roomId),{'members.alice.left':true,updatedAt:serverTimestamp()}));
+});
+test('ajenos y anónimos sin autenticar no acceden a partida; salas no enumerables',async()=>{
+  for(const db of [outsider,env.unauthenticatedContext().firestore()]) {
+    for(const path of [`games/${gameId}`,`games/${gameId}/intents/alice`,`games/${gameId}/rounds/1`,`rooms/${roomId}`])
+      await assertFails(getDoc(doc(db,path)));
   }
-  await assertFails(getDocs(collection(db, 'rooms')));
+  await assertFails(getDocs(collection(a,'rooms')));
+});
+test('después del cierre host lee; intenciones tardías, resolución prematura y reescritura bloqueadas',async()=>{
+  await assertFails(updateDoc(doc(a,'games',gameId),{resolvedTurn:1,phase:'reveal'}));
+  await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{deadline:Date.now()-100}));
+  await assertSucceeds(getDoc(doc(a,'games',gameId,'intents','bob')));
+  await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{turn:1,action:'air',target:null,requestId:'late',revision:3,submittedAt:serverTimestamp()}));
+  await createClient(a,'alice').call('advanceGame',{gameId,turn:1,phase:'choosing'});
+  await assertSucceeds(getDoc(doc(b,'games',gameId,'rounds','1')));
+  await assertFails(updateDoc(doc(a,'games',gameId,'rounds','1'),{turn:999}));
+  await assertFails(deleteDoc(doc(a,'games',gameId,'rounds','1')));
+  await assertFails(updateDoc(doc(a,'games',gameId),{'players.bob.hair':0}));
 });
