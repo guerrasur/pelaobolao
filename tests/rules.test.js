@@ -16,7 +16,7 @@ before(async()=>{
   gameId=(await getDoc(doc(a,'rooms',roomId))).data().gameId;
   await env.withSecurityRulesDisabled(async ctx=>{
     const db=ctx.firestore();
-    await updateDoc(doc(db,'games',gameId),{deadline:Date.now()+600000});
+    await updateDoc(doc(db,'games',gameId),{phase:'choosing',countdownEndsAt:null,deadline:Date.now()+600000});
     for(const uid of ['alice','bob']) await setDoc(doc(db,'games',gameId,'intents',uid),{action:'hide',target:null,turn:1,revision:1,requestId:'seed',submittedAt:Timestamp.now()});
   });
 });
@@ -56,7 +56,7 @@ test('ajenos y anónimos sin autenticar no acceden a partida; salas no enumerabl
 });
 test('después del cierre host lee; intenciones tardías, resolución prematura y reescritura bloqueadas',async()=>{
   await assertFails(updateDoc(doc(a,'games',gameId),{resolvedTurn:1,phase:'reveal'}));
-  await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{deadline:Date.now()-100}));
+  await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{deadline:Date.now()-5000}));
   await assertSucceeds(getDoc(doc(a,'games',gameId,'intents','bob')));
   await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{turn:1,action:'air',target:null,requestId:'late',revision:3,submittedAt:serverTimestamp()}));
   await createClient(a,'alice').call('advanceGame',{gameId,turn:1,phase:'choosing'});

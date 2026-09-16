@@ -267,6 +267,9 @@ input {
 .result ul { margin:2px 0 0; padding-left:18px; }
 .result li { margin:2px 0; }
 .state { text-align:center; padding-top:18vh; }
+.state .quiet { margin-top:8px; }
+.update-gate { max-width:440px; margin-inline:auto; }
+.update-gate button { margin-top:18px; }
 .spinner { width:28px; height:28px; margin:auto; border:3px solid #c7cec7; border-top-color:#192d27; border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .ready { color:#287447; }

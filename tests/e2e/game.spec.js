@@ -13,13 +13,20 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   }
   await a.getByRole('button', { name: 'Crear sala' }).click();
   const code = await a.locator('.code').textContent();
+  expect(code).toMatch(/^[A-Z2-9]{4}$/);
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
-  await b.getByLabel('Código de sala').fill(code);
+  await b.goto(`http://127.0.0.1:5173/?s=${code}`);
+  await expect(b.getByLabel('Nombre', { exact: true })).toHaveValue('Beto');
+  await b.getByRole('button', { name: 'Continuar' }).click();
+  await expect(b.getByLabel('Código de sala')).toHaveValue(code);
   await b.getByRole('button', { name: 'Unirse a sala' }).click();
   await expect(a.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
   await a.reload();
+  await expect(a.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
+  await a.getByRole('button', { name: 'Continuar' }).click();
   await expect(a.locator('.lobby-list')).toContainText('Ana (vos)');
-  await expect(a.getByLabel('Nombre', { exact: true })).toHaveCount(0);
+  for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
+  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
   await a.getByRole('button', { name: 'Iniciar partida' }).click();
   const turn = async n => {
     for (const page of [a, b]) await expect(page.getByRole('heading', { name: `Turno ${n}`, exact: true })).toBeVisible({ timeout: 18000 });
@@ -66,6 +73,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await expect(b.locator('#connection')).toContainText('Sin conexión');
   await contextB.setOffline(false);
   await b.reload();
+  await expect(b.getByLabel('Nombre', { exact: true })).toHaveValue('Beto');
+  await b.getByRole('button', { name: 'Continuar' }).click();
   await expect(b.locator('.players')).toContainText('Beto (vos)');
   await turn(6);
   await blow(a, 'Beto');
@@ -84,4 +93,16 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await expect(a.locator('[data-player]').filter({ hasText: 'Ana' })).toContainText('Pelo 3/4');
   expect(errors).toEqual([]);
   await contextB.close();
+});
+
+test('una versión nueva bloquea el juego hasta actualizar', async ({ page }) => {
+  await page.route('**/version.json*', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ version: '99.0.0' }),
+  }));
+  await page.goto('http://127.0.0.1:5173');
+  await expect(page.getByRole('heading', { name: 'Hay que actualizar para seguir' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Actualizar ahora' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Crear sala' })).toHaveCount(0);
 });

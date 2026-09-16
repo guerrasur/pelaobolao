@@ -1,8 +1,9 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { RULES, LOBBY_LEASE_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis } from './game.js';
 
+export const ROOM_CODE_PATTERN = /^[A-Z2-9]{4}$/;
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const code = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), n => alphabet[n % alphabet.length]).join('');
+export const createRoomCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), n => alphabet[n % alphabet.length]).join('');
 const live = (m, now) => m && !m.left && now - millis(m.lastSeenAt) < LOBBY_LEASE_MS;
 const successor = (members, now) => Object.keys(members).filter(id => live(members[id], now))
   .sort((a, b) => members[a].joinedAt - members[b].joinedAt || a.localeCompare(b))[0] ?? null;
@@ -34,12 +35,12 @@ export function createClient(db, uid, clock = Date.now) {
   async function roomCommand(data) {
     exactObject(data, ['command', 'code', 'roomId', 'ready']);
     const { command } = data;
-    requireThat(['create','join','touch','leave','start','lobby'].includes(command), 'Comando inválido.');
-    if (command === 'join') requireThat(/^[A-Z2-9]{4}$/.test(data.code), 'El código tiene 4 letras o números.');
+    requireThat(['create','join','touch','leave','ready','start','lobby','rename'].includes(command), 'Comando inválido.');
+    if (command === 'join') requireThat(ROOM_CODE_PATTERN.test(data.code), 'El código tiene 4 letras o números.');
     if (!['create','join'].includes(command)) validId(data.roomId);
     const gameRef = doc(db, 'games', crypto.randomUUID());
     for (let attempt = 0; attempt < 5; attempt++) {
-      const candidate = code();
+      const candidate = createRoomCode();
       try {
         return await runTransaction(db, async tx => {
           const time = now();
@@ -86,6 +87,10 @@ export function createClient(db, uid, clock = Date.now) {
             if (command === 'ready') {
               room.members[uid] = { ...room.members[uid], ready: data.ready === true };
             }
+            if (command === 'rename') {
+              requireThat(room.status === 'lobby', 'El nombre no puede cambiar durante la partida.');
+              room.members[uid] = { ...room.members[uid], name: profile.name };
+            }
             if (command === 'start') {
               requireThat(old.hostId === uid, 'Solo el host puede iniciar.', 'permission-denied');
               if (room.status !== 'playing') {
@@ -113,6 +118,11 @@ export function createClient(db, uid, clock = Date.now) {
     }
     throw new Error('No pudimos crear el código. Reintentá.');
   }
+  async function clearRoomSession(data) {
+    exactObject(data, []);
+    await setDoc(sessionRef, { roomId: null, updatedAt: serverTimestamp() }, { merge: true });
+    return { roomId: null };
+  }
   async function submitIntent(data) {
     exactObject(data, ['gameId','turn','action','target','requestId','expectedRevision']);
     validId(data.gameId); validId(data.requestId);
@@ -134,12 +144,25 @@ export function createClient(db, uid, clock = Date.now) {
   }
   async function advanceGame({ gameId, turn, phase }) {
     validId(gameId);
+    let resolvedIntents = {};
+    if (phase === 'choosing') {
+      const preview = (await getDocFromServer(doc(db, 'games', gameId))).data();
+      if (!preview || preview.turn !== turn || preview.phase !== phase || now() < preview.deadline) return { advanced: false };
+      const snapshots = [];
+      // Keep these reads sequential: Firestore applies a stricter rules lookup budget to
+      // batched reads. At most six small documents are loaded once per completed turn.
+      for (const memberId of preview.memberIds) {
+        snapshots.push(await getDocFromServer(doc(db, 'games', gameId, 'intents', memberId)));
+      }
+      resolvedIntents = Object.fromEntries(snapshots.filter(snapshot => snapshot.exists()).map(snapshot => [snapshot.id, snapshot.data()]));
+    }
     return runTransaction(db, async tx => {
       const time = now(), ref = doc(db, 'games', gameId), game = (await tx.get(ref)).data();
       if (!game || !['countdown','choosing','reveal'].includes(game.phase) || game.turn !== turn || game.phase !== phase) return { advanced: false };
       const roomRef = doc(db, 'rooms', game.roomId), room = (await tx.get(roomRef)).data();
       requireThat(room?.hostId === uid && !room.members[uid]?.left, 'Solo el host resuelve.', 'permission-denied');
-      if (room.gameId !== gameId || time < (phase === 'choosing' ? game.deadline : game.nextTurnAt)) return { advanced: false };
+      const phaseDeadline = phase === 'countdown' ? game.countdownEndsAt : phase === 'choosing' ? game.deadline : game.nextTurnAt;
+      if (room.gameId !== gameId || time < phaseDeadline) return { advanced: false };
       if (phase === 'countdown') {
         tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null });
       } else if (phase === 'reveal') {
@@ -148,11 +171,9 @@ export function createClient(db, uid, clock = Date.now) {
         if (game.resolvedTurn >= game.turn) return { advanced: false };
         const resultRef = doc(db, 'games', gameId, 'rounds', String(game.turn));
         if ((await tx.get(resultRef)).exists()) return { advanced: false };
-        // Reading every fixed member document (including missing intentions) inside the
-        // transaction makes concurrent last-second edits and duplicate hosts retry safely.
-        const snapshots = await Promise.all(game.memberIds.map(id => tx.get(doc(db, 'games', gameId, 'intents', id))));
-        const intents = Object.fromEntries(snapshots.filter(s => s.exists()).map(s => [s.id, s.data()]));
-        const result = resolveRound(game, intents);
+        // Intentions are queried once after the deadline. Rules prevent edits after that
+        // instant, while this transaction still protects the game/host/turn authority.
+        const result = resolveRound(game, resolvedIntents);
         tx.set(resultRef, { ...result.result, resolvedBy: uid, resolvedAt: serverTimestamp() });
         tx.update(ref, { players: result.players, lastResult: result.result, resolvedTurn: game.turn,
           phase: result.finished ? 'finished' : 'reveal', winnerId: result.winnerId, draw: result.draw,
@@ -163,7 +184,7 @@ export function createClient(db, uid, clock = Date.now) {
       return { advanced: true };
     });
   }
-  const commands = { saveProfile, roomCommand, submitIntent, advanceGame };
+  const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, advanceGame };
   return { now, syncClock, call: async (name, data) => {
     requireThat(commands[name], 'Comando inválido.');
     return { ...await commands[name](data), serverNow: now() };

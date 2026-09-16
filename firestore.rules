@@ -4,6 +4,7 @@ service cloud.firestore {
     function signed() { return request.auth != null; }
     function own(uid) { return signed() && request.auth.uid == uid; }
     function room(id) { return get(/databases/$(database)/documents/rooms/$(id)).data; }
+    function roomAfter(id) { return getAfter(/databases/$(database)/documents/rooms/$(id)).data; }
     function member(r) { return signed() && request.auth.uid in r.members && !r.members[request.auth.uid].left; }
     function host(r) { return member(r) && r.hostId == request.auth.uid; }
     function game(id) { return get(/databases/$(database)/documents/games/$(id)).data; }
@@ -77,16 +78,46 @@ service cloud.firestore {
     }
     match /games/{id} {
       allow read: if participant(resource.data);
-      allow create: if signed() && room(request.resource.data.roomId).hostId == request.auth.uid
-        && room(request.resource.data.roomId).status == 'lobby'
-        && request.resource.data.schemaVersion == 3 && request.resource.data.memberIds.size() >= 2
-        && request.resource.data.memberIds.size() <= 6;
-      allow update: if signed() && participant(resource.data) && room(resource.data.roomId).hostId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','turn','deadline','countdownEndsAt']);
+      allow create: if validGameCreate();
+      allow update: if signed() && request.auth.uid in resource.data.memberIds && host(room(resource.data.roomId))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','turn','deadline','countdownEndsAt'])
+        && validGameTransition();
+      function validGameCreate() {
+        let d = request.resource.data;
+        let oldRoom = room(d.roomId);
+        let nextRoom = roomAfter(d.roomId);
+        return signed() && oldRoom.hostId == request.auth.uid && oldRoom.status == 'lobby'
+          && nextRoom.status == 'playing' && nextRoom.gameId == id
+          && d.schemaVersion == 3 && d.memberIds.size() >= 2 && d.memberIds.size() <= 6;
+      }
+      function validGameTransition() {
+        let old = resource.data;
+        let d = request.resource.data;
+        return (old.phase == 'countdown'
+            && request.time.toMillis() >= old.countdownEndsAt
+            && d.phase == 'choosing' && d.turn == old.turn && d.resolvedTurn == old.resolvedTurn
+            && d.countdownEndsAt == null && d.deadline > request.time.toMillis()
+            && d.diff(old).affectedKeys().hasOnly(['phase','deadline','countdownEndsAt']))
+          || (old.phase == 'choosing'
+            && request.time.toMillis() >= old.deadline
+            && d.turn == old.turn && d.resolvedTurn == old.turn && d.lastResult.turn == old.turn
+            && d.phase in ['reveal','finished']
+            && existsAfter(/databases/$(database)/documents/games/$(id)/rounds/$(string(old.turn)))
+            && ((d.phase == 'reveal' && d.nextTurnAt > request.time.toMillis())
+              || (d.phase == 'finished' && d.nextTurnAt == null)))
+          || (old.phase == 'reveal'
+            && request.time.toMillis() >= old.nextTurnAt
+            && d.phase == 'choosing' && d.turn == old.turn + 1 && d.resolvedTurn == old.resolvedTurn
+            && d.deadline > request.time.toMillis() && d.nextTurnAt == null
+            && d.diff(old).affectedKeys().hasOnly(['phase','turn','deadline','nextTurnAt']));
+      }
       match /intents/{uid} {
-        allow get: if participant(game(id)) && (own(uid) || (request.auth.uid == room(game(id).roomId).hostId && request.time.toMillis() >= game(id).deadline));
+        allow get: if canReadIntent(uid);
         allow list: if false;
         allow create, update: if own(uid) && participant(game(id)) && validIntent();
+        function canReadIntent(intentUid) {
+          return own(intentUid) || (signed() && request.time.toMillis() >= game(id).deadline);
+        }
         function validIntent() {
           let g = game(id); let d = request.resource.data;
           return g.phase == 'choosing' && request.time.toMillis() < g.deadline && g.players[uid].hair > 0
@@ -98,9 +129,18 @@ service cloud.firestore {
       }
       match /rounds/{turnId} {
         allow read: if participant(game(id));
-        allow create: if signed() && participant(game(id)) && room(game(id).roomId).hostId == request.auth.uid
-          && turnId == string(game(id).turn);
+        allow create: if validRoundCreate();
         allow update, delete: if false;
+        function validRoundCreate() {
+          let g = game(id);
+          let r = room(g.roomId);
+          let d = request.resource.data;
+          return signed() && request.auth.uid in g.memberIds && member(r) && r.hostId == request.auth.uid
+            && g.phase == 'choosing' && request.time.toMillis() >= g.deadline
+            && turnId == string(g.turn)
+            && d.keys().hasOnly(['turn','actions','hits','losses','resolvedBy','resolvedAt'])
+            && d.turn == g.turn && d.resolvedBy == request.auth.uid && d.resolvedAt == request.time;
+        }
       }
     }
     match /{document=**} { allow read, write: if false; }

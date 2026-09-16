@@ -8,6 +8,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: firebase-production
+      cancel-in-progress: true
 
     env:
       VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
@@ -21,9 +24,10 @@ jobs:
 
       - run: npm ci && npm run build
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Autenticar en Firebase
+        uses: google-github-actions/auth@v2
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_PELAOBOLAO }}"
-          projectId: pelaobolao
-          channelId: live
+          credentials_json: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_PELAOBOLAO }}"
+
+      - name: Publicar Hosting, reglas e índices
+        run: npx firebase-tools deploy --only firestore:rules,firestore:indexes,hosting --project pelaobolao --non-interactive
