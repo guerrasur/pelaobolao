@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function gameMember(gameId) {
+      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.memberIds;
+    }
+    match /profiles/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+    }
+    match /progress/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+    }
+    match /sessions/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+    }
+    match /rooms/{roomId} {
+      allow get: if signedIn() && request.auth.uid in resource.data.members;
+    }
+    match /games/{gameId} {
+      allow get: if signedIn() && request.auth.uid in resource.data.memberIds;
+      match /intents/{uid} {
+        allow get: if signedIn() && request.auth.uid == uid && gameMember(gameId);
+      }
+      match /rounds/{roundId} {
+        allow read: if gameMember(gameId);
+      }
+    }
+    // All writes go through authenticated callables, with exact payload validation.
+    // In particular: no client writes hair, breath, roles, membership or results.
+    match /{document=**} { allow read, write: if false; }
+  }
+}
