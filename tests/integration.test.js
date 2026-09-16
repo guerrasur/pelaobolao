@@ -131,3 +131,13 @@ test('salida explícita del host en partida mantiene recursos y transfiere',asyn
   await advance(b,gameId);
   assert.equal((await read(b.db,`games/${gameId}`)).players[a.uid].hair,3);
 });
+
+test('limpiar una sesión vieja no borra la sala nueva',async()=>{
+  const {a,b,roomId}=await pair();
+  await a.client.call('roomCommand',{command:'leave',roomId});
+  const next=await a.client.call('roomCommand',{command:'create'});
+  await a.client.call('clearRoomSession',{roomId});
+  assert.equal((await read(a.db,`sessions/${a.uid}`)).roomId,next.roomId);
+  await a.client.call('clearRoomSession',{roomId:next.roomId});
+  assert.equal((await read(a.db,`sessions/${a.uid}`)).roomId,null);
+});

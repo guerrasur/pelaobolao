@@ -119,8 +119,12 @@ export function createClient(db, uid, clock = Date.now) {
     throw new Error('No pudimos crear el código. Reintentá.');
   }
   async function clearRoomSession(data) {
-    exactObject(data, []);
-    await setDoc(sessionRef, { roomId: null, updatedAt: serverTimestamp() }, { merge: true });
+    exactObject(data, ['roomId']);
+    await runTransaction(db, async tx => {
+      const session = (await tx.get(sessionRef)).data();
+      if ('roomId' in data && session?.roomId !== data.roomId) return;
+      tx.set(sessionRef, { roomId: null, updatedAt: serverTimestamp() }, { merge: true });
+    });
     return { roomId: null };
   }
   async function submitIntent(data) {

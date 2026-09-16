@@ -11,3 +11,10 @@ La versión visible se toma de `package.json`. `public/version.json` permite det
 Publicación: habilitá Auth anónima, Firestore y una Web App; configurá las variables públicas `VITE_FIREBASE_*`; ejecutá `npm ci`, `npm run build` y `npx firebase deploy --only firestore:rules,firestore:indexes,hosting --project TU_ID`. El workflow de GitHub despliega Hosting, reglas e índices usando el secret `FIREBASE_SERVICE_ACCOUNT_PELAOBOLAO`; no usa Functions, Tasks ni servicios pagos.
 
 Para probar: abrí el dominio en dos celulares, creá sala, compartí el código, uní el segundo e iniciá.
+
+
+## Pruebas de recuperación (0.3.1)
+
+`npm test` ejecuta las pruebas unitarias. `npm run test:integration` valida el cliente y las reglas contra Firestore local. Para ejecutar las pruebas de navegador: instalar Java 21 o superior y Chromium con `npx playwright install chromium`, y después ejecutar `npm run test:e2e`. Este último comando inicia Auth y Firestore emulados, y Playwright inicia Vite en el puerto 5173.
+
+Los casos nuevos cubren la reconfirmación del nombre con un turno vencido, actualización durante un arrastre, conservación de la identidad al recargar, nombres con caracteres HTML y recuperación ante una partida desaparecida. Ver `docs/STATUS.md` para los resultados realmente ejecutados en esta entrega.

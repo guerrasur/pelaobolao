@@ -116,7 +116,9 @@ service cloud.firestore {
         allow list: if false;
         allow create, update: if own(uid) && participant(game(id)) && validIntent();
         function canReadIntent(intentUid) {
-          return own(intentUid) || (signed() && request.time.toMillis() >= game(id).deadline);
+          let g = game(id);
+          return participant(g) && (own(intentUid)
+            || (host(room(g.roomId)) && request.time.toMillis() >= g.deadline));
         }
         function validIntent() {
           let g = game(id); let d = request.resource.data;

@@ -62,8 +62,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await touch.detach();
   await expect(a.locator('#selection')).toContainText('Elegido: Soplar → Beto');
   await a.screenshot({ path: 'test-results/mobile-game.png', fullPage: true });
+  await expect(a.locator('.result')).toContainText('bloqueado', { timeout: 12000 });
   await turn(3);
-  await expect(a.locator('.result')).toContainText('bloqueado');
   await choose(a, /Tomar aire/); await blow(b, 'Ana');
   await turn(4);
   await blow(a, 'Beto'); await choose(b, /Tomar aire/);

@@ -58,6 +58,8 @@ test('después del cierre host lee; intenciones tardías, resolución prematura 
   await assertFails(updateDoc(doc(a,'games',gameId),{resolvedTurn:1,phase:'reveal'}));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{deadline:Date.now()-5000}));
   await assertSucceeds(getDoc(doc(a,'games',gameId,'intents','bob')));
+  await assertFails(getDoc(doc(outsider,'games',gameId,'intents','bob')));
+  await assertFails(getDoc(doc(b,'games',gameId,'intents','alice')));
   await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{turn:1,action:'air',target:null,requestId:'late',revision:3,submittedAt:serverTimestamp()}));
   await createClient(a,'alice').call('advanceGame',{gameId,turn:1,phase:'choosing'});
   await assertSucceeds(getDoc(doc(b,'games',gameId,'rounds','1')));

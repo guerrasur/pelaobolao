@@ -12,8 +12,9 @@ const APP_VERSION = packageInfo.version;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const s = { profile: undefined, room: null, roomId: null, game: null, gameId: null, intent: null,
   online: navigator.onLine, busy: false, targeting: false, choice: null, offset: 0, ready: false,
-  nameConfirmed: false, updateRequired: null, updating: false, bootError: null, gameError: null };
+  nameConfirmed: false, resetting: false, updateRequired: null, updating: false, bootError: null, gameError: null };
 let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0;
+let roomGeneration = 0, gameGeneration = 0, advancing = false;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
 const now = () => api?.now() ?? Date.now();
 const message = text => { notice.textContent = text; };
@@ -28,10 +29,11 @@ async function checkVersion() {
     const latest = (await response.json()).version;
     if (typeof latest === 'string' && latest !== APP_VERSION) {
       s.updateRequired = latest;
+      cancelDrag(); pending = null; s.choice = null; s.targeting = false;
       render();
     }
   } catch {
-    // Playing offline is allowed; the next visibility/interval check will retry.
+    // A network failure does not erase an already detected mandatory update.
   }
 }
 
@@ -55,6 +57,9 @@ async function installUpdate() {
 }
 
 async function call(name, data) {
+  if (s.updateRequired && name !== 'clearRoomSession') {
+    throw new Error('Actualizá la aplicación para continuar.');
+  }
   const start = Date.now();
   const result = await api.call(name, data);
   lastContact = Date.now();
@@ -69,19 +74,30 @@ function showError(error) {
   };
   message(friendly[code] || error.message || 'No pudimos completar la operación.');
 }
+function cancelDrag() {
+  const previous = drag;
+  drag = null;
+  const button = document.querySelector('#blow');
+  if (previous && button?.hasPointerCapture(previous.pointerId)) button.releasePointerCapture(previous.pointerId);
+}
 function detachGame() {
+  gameGeneration += 1; cancelDrag();
   gameOff?.(); intentOff?.(); gameOff = null; intentOff = null;
   s.gameId = null; s.game = null; s.intent = null; s.gameError = null;
   s.choice = null; pending = null; s.targeting = false;
 }
 async function resetRoomSession(text = 'Volviste al inicio. Podés crear otra sala o entrar con un código.') {
+  const oldRoomId = s.roomId;
+  roomGeneration += 1;
+  s.resetting = true;
   roomOff?.(); roomOff = null; s.roomId = null; s.room = null; detachGame();
   message(text); render();
-  try { await call('clearRoomSession', {}); }
+  try { await call('clearRoomSession', { roomId: oldRoomId }); }
   catch (error) { showError(error); }
+  finally { s.resetting = false; render(); }
 }
 async function operation(fn) {
-  if (s.busy) return;
+  if (s.busy || s.resetting || s.updateRequired) return;
   s.busy = true; render(); message('');
   try { await fn(); } catch (error) { showError(error); }
   finally { s.busy = false; render(); }
@@ -90,31 +106,40 @@ function subscribeGame(id) {
   if (s.gameId === id) return;
   detachGame(); s.gameId = id; s.gameError = null;
   if (!id) return;
+  const generation = gameGeneration;
   gameOff = onSnapshot(doc(api.db, 'games', id), snap => {
+    if (generation !== gameGeneration) return;
     if (!snap.exists()) {
+      cancelDrag(); s.game = null;
       s.gameError = 'La partida ya no existe o quedó incompleta.';
       render(); return;
     }
     const oldTurn = s.game?.turn;
     s.game = snap.data();
     if (oldTurn !== s.game?.turn || s.game?.phase !== 'choosing') {
-      s.choice = null; pending = null; s.targeting = false;
+      cancelDrag(); s.choice = null; pending = null; s.targeting = false;
       message('');
     }
     render();
-  }, error => { s.gameError = 'No pudimos cargar la partida.'; render(); showError(error); });
+  }, error => {
+    if (generation !== gameGeneration) return;
+    cancelDrag(); s.game = null; s.gameError = 'No pudimos cargar la partida.'; render(); showError(error);
+  });
   intentOff = onSnapshot(doc(api.db, 'games', id, 'intents', api.uid), snap => {
+    if (generation !== gameGeneration) return;
     s.intent = snap.data() ?? null;
     render();
   }, showError);
 }
 function subscribeRoom(id) {
   if (s.roomId === id) return;
+  const generation = ++roomGeneration;
   roomOff?.(); s.roomId = id; s.room = null; subscribeGame(null);
   if (!id) { render(); return; }
   roomOff = onSnapshot(doc(api.db, 'rooms', id), snap => {
+    if (generation !== roomGeneration) return;
     const room = snap.data();
-    if (!room || room.status === 'closed' || !room.members[api.uid] || room.members[api.uid].left) {
+    if (!room || room.status === 'closed' || !room.members?.[api.uid] || room.members[api.uid].left) {
       void resetRoomSession('Esa sala ya no está disponible. Podés crear otra o volver con un código.');
       return;
     }
@@ -122,6 +147,7 @@ function subscribeRoom(id) {
     subscribeGame(room.gameId);
     render();
   }, error => {
+    if (generation !== roomGeneration) return;
     showError(error);
     void resetRoomSession('La sesión anterior no se pudo recuperar. Ya podés volver a entrar.');
   });
@@ -133,9 +159,11 @@ async function roomCommand(command, extra = {}) {
 }
 async function heartbeat() {
   if (!api || !s.roomId || !s.online || s.updateRequired || heartbeatBusy) return;
+  const generation = roomGeneration;
   heartbeatBusy = true;
   try { await roomCommand('touch'); }
   catch (error) {
+    if (generation !== roomGeneration) return;
     if (error.code?.endsWith('permission-denied') || error.code?.endsWith('not-found')) {
       showError(error);
       void resetRoomSession('La sala dejó de estar disponible. Ya podés volver a entrar.');
@@ -144,7 +172,7 @@ async function heartbeat() {
 }
 
 function canChoose() {
-  return s.online && s.game?.phase === 'choosing' && now() < s.game.deadline && s.game.players[api.uid]?.hair > 0;
+  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && s.game?.phase === 'choosing' && now() < s.game.deadline && s.game.players[api.uid]?.hair > 0;
 }
 function accepted() { return s.intent?.turn === s.game?.turn ? s.intent : null; }
 function choose(action, target = null) {
@@ -196,9 +224,9 @@ function render() {
   const focusId = active?.id;
   const inputValue = active instanceof HTMLInputElement ? active.value : null;
   const selection = inputValue !== null ? [active.selectionStart, active.selectionEnd] : null;
-  const disabled = s.busy || !s.online ? 'disabled' : '';
+  const disabled = s.busy || s.resetting || !s.online ? 'disabled' : '';
   if (s.updateRequired) {
-    app.innerHTML = `<section class="state update-gate"><p class="eyebrow">Nueva versión v${esc(s.updateRequired)}</p><h1>Hay que actualizar para seguir</h1><p>La partida queda guardada. Al volver, confirmá tu nombre y continuarás en la misma sala.</p><button id="install-update" ${s.updating ? 'disabled' : ''}>${s.updating ? 'Actualizando…' : 'Actualizar ahora'}</button></section>`;
+    app.innerHTML = `<section class="state update-gate"><p class="eyebrow">Nueva versión v${esc(s.updateRequired)}</p><h1>Hay que actualizar para seguir</h1><p>Tu identidad se conserva. Después de actualizar intentaremos recuperar la sala si sigue disponible.</p><button id="install-update" ${s.updating ? 'disabled' : ''}>${s.updating ? 'Actualizando…' : 'Actualizar ahora'}</button></section>`;
   } else if (s.bootError) {
     app.innerHTML = `<section class="state"><h1>No pudimos iniciar</h1><p>${esc(s.bootError)}</p><button id="reload-app">Reintentar</button></section>`;
   } else if (!s.ready) {
@@ -223,7 +251,7 @@ function render() {
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
     const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const order = [...(game.memberIds || Object.keys(game.players)).filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
-    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : terminal ? game.phase === 'abandoned' ? 'La partida fue cerrada.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado.'}</p><div class="players">${order.map((uid, i) => { const p = game.players[uid]; return `<button class="player seat-${i} ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''}><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair} · Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : uid === api.uid ? 'Tu posición' : 'En juego'}</small></button>`; }).join('')}</div>${game.phase !== 'countdown' && !terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air">Tomar aire</button><button data-action="hide">Esconderse</button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar</button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${choiceName(choice)}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
+    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : terminal ? game.phase === 'abandoned' ? 'La partida fue cerrada.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado.'}</p><div class="players">${order.map((uid, i) => { const p = game.players[uid]; return `<button class="player seat-${i} ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''}><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair} · Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : uid === api.uid ? 'Tu posición' : 'En juego'}</small></button>`; }).join('')}</div>${game.phase !== 'countdown' && !terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air" ${!canChoose() ? 'disabled' : ''}>Tomar aire</button><button data-action="hide" ${!canChoose() ? 'disabled' : ''}>Esconderse</button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar</button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
   }
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -271,6 +299,7 @@ function bind() {
   if (!blow) return;
   blow.addEventListener('click', () => {
     if (suppressClick) { suppressClick = false; return; }
+    if (!canChoose()) return;
     s.targeting = !s.targeting; render();
   });
   blow.addEventListener('pointerdown', event => {
@@ -320,21 +349,25 @@ function tick() {
   const timer = document.querySelector('#timer');
   if (timer) timer.textContent = `${seconds}s`;
   if (s.game.phase === 'choosing' && seconds === 0) {
-    document.querySelector('#turn-status').textContent = 'Tiempo terminado · esperando resolución del host';
+    const status = document.querySelector('#turn-status');
+    if (status) status.textContent = 'Tiempo terminado · esperando resolución del host';
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
-  if (s.room?.hostId === api.uid && s.online && ['countdown', 'choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 150 && Date.now() - lastNudge > 1500) {
-    lastNudge = Date.now(); call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase }).catch(showError);
+  if (!advancing && s.room?.hostId === api?.uid && s.online && ['countdown', 'choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 150 && Date.now() - lastNudge > 1500) {
+    lastNudge = Date.now(); advancing = true;
+    call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase })
+      .catch(showError).finally(() => { advancing = false; });
   }
 }
 
-window.addEventListener('offline', () => { s.online = false; pending = null; s.choice = null; render(); });
+window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
 window.addEventListener('online', () => { s.online = true; heartbeat(); void checkVersion(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { heartbeat(); tick(); void checkVersion(); } });
 setInterval(tick, 200);
 setInterval(heartbeat, 10000);
 setInterval(checkVersion, 60000);
+render();
 void checkVersion();
 try {
   api = await connect();
