@@ -127,7 +127,7 @@ async function flushIntent() {
 function resultHtml(game) {
   const result = game.lastResult;
   if (!result) return '<p class="muted">Las acciones se revelan al terminar el turno.</p>';
-  return `<section class="result" aria-label="Resultado del turno anterior"><h2>Turno ${result.turn} · resultado</h2><ul>${Object.entries(result.actions).map(([uid, action]) => {
+  return `<section class="result" aria-label="Resultado actual"><h2>Resultado actual</h2><ul>${Object.entries(result.actions).map(([uid, action]) => {
     const target = action.target ? ` → ${esc(game.players[action.target]?.name)}` : '';
     const loss = result.losses[uid] ? ` · −${result.losses[uid]} Pelo` : '';
     const blocked = result.hits.find(hit => hit.from === uid)?.blocked ? ' (bloqueado)' : '';
@@ -147,13 +147,13 @@ function render() {
     app.innerHTML = `<section><h1>¿Cómo te llamás?</h1><p>Elegí tu nombre para jugar. Lo recordaremos en este navegador.</p><form id="profile-form"><label for="player-name">Nombre</label><input id="player-name" name="name" maxlength="24" required autocomplete="nickname" placeholder="Tu nombre"><button ${disabled}>Continuar</button></form></section>`;
   } else if (!s.roomId) {
     const joinCode = new URLSearchParams(location.search).get('s') ?? '';
-    app.innerHTML = `<section><p class="eyebrow">Hola, ${esc(s.profile.name)}</p><h1>Que no te vuelen el pelo.</h1><p>De 2 a 6 jugadores. Cada uno, desde su celular.</p><button id="create-room" ${disabled}>Crear sala</button><form id="join-form"><label for="room-code">Código de sala</label><input id="room-code" name="code" maxlength="6" minlength="6" pattern="[A-Za-z2-9]{6}" value="${esc(joinCode)}" placeholder="ABC234" autocapitalize="characters" autocomplete="off" spellcheck="false" required><button class="secondary" ${disabled}>Unirse a sala</button></form></section>`;
+    app.innerHTML = `<section><p class="eyebrow">Hola, ${esc(s.profile.name)}</p><h1>Que no te vuelen el pelo.</h1><p>De 2 a 6 jugadores. Cada uno, desde su celular.</p><button id="create-room" ${disabled}>Crear sala</button><form id="join-form"><label for="room-code">Código de sala</label><input id="room-code" name="code" maxlength="4" minlength="4" pattern="[A-Za-z2-9]{4}" value="${esc(joinCode)}" placeholder="AB7K" autocapitalize="characters" autocomplete="off" spellcheck="false" required><button class="secondary" ${disabled}>Unirse a sala</button></form></section>`;
   } else if (!s.room) {
     app.innerHTML = '<p>Entrando a la sala…</p>';
   } else if (s.room.status === 'lobby') {
     const members = Object.entries(s.room.members);
     const host = s.room.hostId === api.uid;
-    app.innerHTML = `<section><p class="eyebrow">Sala de espera</p><h1>Código <span class="code">${esc(s.room.code)}</span></h1><button id="share-room" class="secondary">Compartir código</button><h2>Jugadores · ${members.length}/6</h2><ul class="lobby-list">${members.map(([uid, m]) => `<li><strong>${esc(m.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>${uid === s.room.hostId ? 'Host · ' : ''}<span data-presence="${uid}">${now() - m.lastSeenAt < 25000 ? 'Conectado' : 'Reconectando…'}</span></span></li>`).join('')}</ul>${host ? `<button id="start-game" ${disabled || (members.length < 2 ? 'disabled' : '')}>Iniciar partida</button><p class="muted">Mínimo 2 jugadores conectados para empezar.</p>` : `<p>El host inicia la partida.</p>`}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
+    app.innerHTML = `<section><p class="eyebrow">Sala de espera</p><h1>Código <span class="code">${esc(s.room.code)}</span></h1><button id="share-room" class="secondary">Compartir sala</button><h2>Jugadores · ${members.length}/6</h2><ul class="lobby-list">${members.map(([uid, m]) => `<li><strong>${esc(m.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>${uid === s.room.hostId ? 'Host · ' : ''}<b>${m.ready ? 'Listo' : 'No listo'}</b></span></li>`).join('')}</ul><button id="ready-toggle" ${disabled}>${s.room.members[api.uid].ready ? 'Marcar no listo' : 'Estoy listo'}</button>${host ? `<button id="start-game" ${disabled || (members.length < 2) || !members.every(([,m]) => m.ready) ? 'disabled' : ''}>Iniciar partida</button><p class="muted">Todos los jugadores deben estar listos.</p>` : `<p class="muted">El host inicia cuando todos estén listos.</p>`}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
   } else if (!s.game) {
     app.innerHTML = '<p>Cargando la partida…</p>';
   } else {
@@ -161,8 +161,9 @@ function render() {
     const me = game.players[api.uid];
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
-    const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : `Turno ${game.turn}`;
-    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${terminal ? game.phase === 'abandoned' ? 'La partida fue cerrada.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Acciones reveladas · preparando el siguiente turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado. Podés seguir mirando.'}</p><div class="players">${Object.entries(game.players).map(([uid, p]) => `<button class="player ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''} aria-label="${esc(p.name)}, Pelo ${p.hair}, Soplos ${p.breath}"><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair}</span><span>Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : s.room.members[uid]?.left || now() - (s.room.members[uid]?.lastSeenAt ?? 0) > 25000 ? 'Reconectando…' : 'En juego'}</small></button>`).join('')}</div>${!terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air" ${!canChoose() ? 'disabled' : ''}>Tomar aire <small>+1 Soplo</small></button><button data-action="hide" ${!canChoose() ? 'disabled' : ''}>Esconderse <small>Abajo del banco</small></button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar <small>Arrastrá o tocá y elegí</small></button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${actionName(choice.action)}${choice.target ? ` → ${esc(game.players[choice.target]?.name)}` : ''}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${resultHtml(game)}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
+    const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : game.phase === 'countdown' ? 'Preparados' : 'En juego';
+    const order = [...(game.memberIds || Object.keys(game.players)).filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
+    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : terminal ? game.phase === 'abandoned' ? 'La partida fue cerrada.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado.'}</p><div class="players">${order.map((uid, i) => { const p = game.players[uid]; return `<button class="player seat-${i} ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''}><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair} · Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : uid === api.uid ? 'Tu posición' : 'En juego'}</small></button>`; }).join('')}</div>${game.phase !== 'countdown' && !terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air">Tomar aire</button><button data-action="hide">Esconderse</button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar</button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${actionName(choice.action)}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
   }
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -183,6 +184,7 @@ function bind() {
     event.preventDefault(); const code = new FormData(event.target).get('code').trim().toUpperCase();
     operation(() => roomCommand('join', { code }));
   });
+  document.getElementById('ready-toggle')?.addEventListener('click', () => operation(() => roomCommand('ready', { ready: !s.room.members[api.uid].ready })));
   for (const [id, command] of [['create-room', 'create'], ['start-game', 'start'], ['leave-room', 'leave'], ['back-lobby', 'lobby']]) {
     document.getElementById(id)?.addEventListener('click', () => operation(() => roomCommand(command)));
   }
@@ -244,7 +246,7 @@ function tick() {
     el.textContent = member && now() - member.lastSeenAt < 25000 ? 'Conectado' : 'Reconectando…';
   });
   if (!s.game) return;
-  const deadline = s.game.phase === 'reveal' ? s.game.nextTurnAt : s.game.deadline;
+  const deadline = s.game.phase === 'countdown' ? s.game.countdownEndsAt : s.game.phase === 'reveal' ? s.game.nextTurnAt : s.game.deadline;
   const seconds = Math.max(0, Math.ceil((deadline - now()) / 1000));
   const timer = document.querySelector('#timer');
   if (timer) timer.textContent = `${seconds}s`;
@@ -253,7 +255,7 @@ function tick() {
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
-  if (s.room?.hostId === api.uid && s.online && ['choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 150 && Date.now() - lastNudge > 1500) {
+  if (s.room?.hostId === api.uid && s.online && ['countdown', 'choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 150 && Date.now() - lastNudge > 1500) {
     lastNudge = Date.now(); call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase }).catch(showError);
   }
 }

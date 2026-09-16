@@ -12,6 +12,8 @@ body {
   margin:0;
   padding:0 16px max(24px,env(safe-area-inset-bottom));
   line-height:1.45;
+  min-height:100svh;
+  overscroll-behavior:none;
 }
 header,main,#connection,#notice {
   max-width:640px;
@@ -74,6 +76,7 @@ button,input {
   border:1px solid #192d27;
   border-radius:10px;
   padding:12px 14px;
+  touch-action:manipulation;
 }
 button {
   background:#192d27;
@@ -242,6 +245,32 @@ input {
 .result li {
   margin:8px 0;
 }
+
+/* Mobile table layout: the local player is always the bottom seat. */
+.game { min-height:calc(100svh - 92px); display:flex; flex-direction:column; padding-block:4px 0; }
+.game .turn-header { flex:0 0 auto; }
+.game .turn-header h1 { margin:4px 0 6px; }
+.game .turn-header + #turn-status { margin:4px 0 8px; font-size:14px; }
+.players { position:relative; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:4px 0; }
+.players::before { content:'●'; position:absolute; z-index:0; left:50%; top:50%; transform:translate(-50%,-50%); width:54px; height:54px; display:grid; place-items:center; border-radius:50%; background:#d78012; color:#fff; font-size:28px; box-shadow:0 0 0 8px #d7801222; pointer-events:none; }
+.player { position:relative; z-index:1; }
+.player { min-height:76px; padding:9px 10px; border-width:2px; }
+.player strong { font-size:14px; }
+.player span { font-size:12px; }
+.player small { font-size:11px; }
+.central-object { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:54px; height:54px; display:grid; place-items:center; border-radius:50%; background:#d78012; color:#fff; font-size:28px; box-shadow:0 0 0 8px #d7801222; pointer-events:none; }
+.controls { margin-top:auto; grid-template-columns:repeat(3,1fr); gap:7px; }
+.controls button { min-height:58px; padding:9px 5px; font-size:13px; }
+#selection { min-height:26px; margin:6px 0; font-size:12px; }
+.result { margin-top:4px; padding-top:5px; font-size:12px; max-height:86px; overflow:auto; }
+.result h2 { font-size:14px; margin:0 0 2px; }
+.result ul { margin:2px 0 0; padding-left:18px; }
+.result li { margin:2px 0; }
+.state { text-align:center; padding-top:18vh; }
+.spinner { width:28px; height:28px; margin:auto; border:3px solid #c7cec7; border-top-color:#192d27; border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.ready { color:#287447; }
+@media(max-width:380px) { body { padding-inline:10px; } header { padding-block:10px; } .player { min-height:70px; } .central-object { width:44px; height:44px; font-size:22px; } }
 #notice {
   position:sticky;
   bottom:8px;

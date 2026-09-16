@@ -11,4 +11,4 @@ npx firebase login
 npx firebase deploy --only firestore:rules,firestore:indexes,hosting --project TU_ID
 ```
 
-Para GitHub Actions configurá las variables `FIREBASE_PROJECT_ID`, `FIREBASE_WEB_CONFIG`, `DEPLOY_ENABLED=true` y el secret `FIREBASE_TOKEN`.
+Para GitHub Actions configurá las variables públicas `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_MESSAGING_SENDER_ID` y el secret `FIREBASE_SERVICE_ACCOUNT_PELAOBOLAO`.

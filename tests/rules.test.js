@@ -10,6 +10,8 @@ before(async()=>{
   for(const [db,uid] of [[a,'alice'],[b,'bob']]) await createClient(db,uid).call('saveProfile',{name:uid});
   ({roomId}=await createClient(a,'alice').call('roomCommand',{command:'create'}));
   await createClient(b,'bob').call('roomCommand',{command:'join',code:roomId});
+  await createClient(a,'alice').call('roomCommand',{command:'ready',roomId,ready:true});
+  await createClient(b,'bob').call('roomCommand',{command:'ready',roomId,ready:true});
   await createClient(a,'alice').call('roomCommand',{command:'start',roomId});
   gameId=(await getDoc(doc(a,'rooms',roomId))).data().gameId;
   await env.withSecurityRulesDisabled(async ctx=>{

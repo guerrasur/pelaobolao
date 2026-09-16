@@ -2,7 +2,7 @@ import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from '
 import { RULES, LOBBY_LEASE_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis } from './game.js';
 
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const code = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), n => alphabet[n % alphabet.length]).join('');
+const code = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), n => alphabet[n % alphabet.length]).join('');
 const live = (m, now) => m && !m.left && now - millis(m.lastSeenAt) < LOBBY_LEASE_MS;
 const successor = (members, now) => Object.keys(members).filter(id => live(members[id], now))
   .sort((a, b) => members[a].joinedAt - members[b].joinedAt || a.localeCompare(b))[0] ?? null;
@@ -32,10 +32,10 @@ export function createClient(db, uid, clock = Date.now) {
     return { name };
   }
   async function roomCommand(data) {
-    exactObject(data, ['command', 'code', 'roomId']);
+    exactObject(data, ['command', 'code', 'roomId', 'ready']);
     const { command } = data;
     requireThat(['create','join','touch','leave','start','lobby'].includes(command), 'Comando inválido.');
-    if (command === 'join') requireThat(/^[A-Z2-9]{6}$/.test(data.code), 'El código tiene 6 letras o números.');
+    if (command === 'join') requireThat(/^[A-Z2-9]{4}$/.test(data.code), 'El código tiene 4 letras o números.');
     if (!['create','join'].includes(command)) validId(data.roomId);
     const gameRef = doc(db, 'games', crypto.randomUUID());
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -56,20 +56,20 @@ export function createClient(db, uid, clock = Date.now) {
           const old = (await tx.get(ref)).data();
           if (command === 'create') {
             requireThat(!old, 'CODE_COLLISION');
-            tx.set(ref, { schemaVersion: 2, code: id, hostId: uid, status: 'lobby', gameId: null,
-              members: { [uid]: { name: profile.name, joinedAt: time, lastSeenAt: serverTimestamp(), left: false } },
+            tx.set(ref, { schemaVersion: 3, code: id, hostId: uid, status: 'lobby', gameId: null,
+              members: { [uid]: { name: profile.name, joinedAt: time, lastSeenAt: serverTimestamp(), left: false, ready: false } },
               createdAt: time, updatedAt: serverTimestamp() });
             tx.set(sessionRef, { roomId: id, updatedAt: serverTimestamp() }, { merge: true });
             return { roomId: id };
           }
           requireThat(old && old.status !== 'closed', 'La sala ya no está disponible.', 'not-found');
-          requireThat(old.schemaVersion === 2, 'Esta sala pertenece a una versión anterior. Creá una sala nueva.');
+          requireThat(old.schemaVersion === 3, 'Esta sala pertenece a una versión anterior. Creá una sala nueva.');
           let room = { ...old, members: { ...old.members } };
           if (command !== 'join') requireThat(room.members[uid] && !room.members[uid].left, 'Volvé a entrar con el código.', 'permission-denied');
           if (command === 'join') {
             requireThat(room.status === 'lobby' || room.members[uid], 'La partida ya empezó.');
             requireThat(room.members[uid] || Object.keys(room.members).length < RULES.maxPlayers, 'La sala está llena.');
-            room.members[uid] = { name: profile.name, joinedAt: room.members[uid]?.joinedAt ?? time, lastSeenAt: serverTimestamp(), left: false };
+            room.members[uid] = { name: profile.name, joinedAt: room.members[uid]?.joinedAt ?? time, lastSeenAt: serverTimestamp(), left: false, ready: room.members[uid]?.ready ?? false };
             tx.set(sessionRef, { roomId: id, updatedAt: serverTimestamp() }, { merge: true });
           } else if (command === 'leave') {
             if (room.status === 'lobby') delete room.members[uid];
@@ -83,11 +83,15 @@ export function createClient(db, uid, clock = Date.now) {
             room.members[uid] = { ...room.members[uid], lastSeenAt: serverTimestamp() };
             // Read the old lease; the transaction conflicts with a returning host's heartbeat.
             if (!live(old.members[old.hostId], time)) room.hostId = uid;
+            if (command === 'ready') {
+              room.members[uid] = { ...room.members[uid], ready: data.ready === true };
+            }
             if (command === 'start') {
               requireThat(old.hostId === uid, 'Solo el host puede iniciar.', 'permission-denied');
               if (room.status !== 'playing') {
                 requireThat(room.status === 'lobby', 'Volvé al lobby antes de iniciar otra partida.');
-                room.members = Object.fromEntries(Object.entries(room.members).filter(([id,m]) => id === uid || live(m,time)));
+                room.members = Object.fromEntries(Object.entries(room.members).filter(([,m]) => !m.left));
+                requireThat(Object.keys(room.members).length >= RULES.minPlayers && Object.values(room.members).every(m => m.ready), 'Todos los jugadores deben estar listos.');
                 const game = newGame(id, room.members, time);
                 tx.set(gameRef, game); room.status = 'playing'; room.gameId = gameRef.id;
               }
@@ -132,11 +136,13 @@ export function createClient(db, uid, clock = Date.now) {
     validId(gameId);
     return runTransaction(db, async tx => {
       const time = now(), ref = doc(db, 'games', gameId), game = (await tx.get(ref)).data();
-      if (!game || !['choosing','reveal'].includes(game.phase) || game.turn !== turn || game.phase !== phase) return { advanced: false };
+      if (!game || !['countdown','choosing','reveal'].includes(game.phase) || game.turn !== turn || game.phase !== phase) return { advanced: false };
       const roomRef = doc(db, 'rooms', game.roomId), room = (await tx.get(roomRef)).data();
       requireThat(room?.hostId === uid && !room.members[uid]?.left, 'Solo el host resuelve.', 'permission-denied');
       if (room.gameId !== gameId || time < (phase === 'choosing' ? game.deadline : game.nextTurnAt)) return { advanced: false };
-      if (phase === 'reveal') {
+      if (phase === 'countdown') {
+        tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null });
+      } else if (phase === 'reveal') {
         tx.update(ref, { phase: 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null });
       } else {
         if (game.resolvedTurn >= game.turn) return { advanced: false };

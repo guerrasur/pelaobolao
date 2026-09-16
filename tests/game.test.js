@@ -3,17 +3,34 @@ import assert from 'node:assert/strict';
 import { RULES, newGame, resolveRound, validateIntent, pruneLobby } from '../src/game.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
-const game = (count = 2) => newGame('room', members(count), 1000);
+const game = (count = 2) => {
+  const state = newGame('room', members(count), 1000);
+  state.phase = 'choosing';
+  state.countdownEndsAt = null;
+  state.deadline = 1000 + RULES.turnMs;
+  return state;
+};
 const choice = (action, target = null, turn = 1) => ({ action, target, turn });
 
 test('partida de 2 y 6 jugadores; límites y recursos iniciales', () => {
   for (const count of [2, 6]) {
     const state = game(count);
     assert.equal(state.memberIds.length, count);
+    assert.equal(state.schemaVersion, 3);
     assert.equal(state.deadline, 9000);
     for (const p of Object.values(state.players)) assert.deepEqual([p.hair, p.breath], [3, 0]);
   }
   assert.throws(() => game(1)); assert.throws(() => game(7));
+});
+test('una partida nueva comienza con cuenta regresiva de 3 segundos', () => {
+  const state = newGame('room', members(2), 1000);
+  assert.equal(state.phase, 'countdown');
+  assert.equal(state.countdownEndsAt, 4000);
+  assert.equal(state.deadline, 12000);
+});
+test('las posiciones usan el orden persistido y dejan al jugador local para el layout inferior', () => {
+  const state = newGame('room', { z: { name: 'Z', joinedAt: 30 }, a: { name: 'A', joinedAt: 10 }, b: { name: 'B', joinedAt: 20 } }, 1000);
+  assert.deepEqual(state.memberIds, ['a', 'b', 'z']);
 });
 test('aire respeta el máximo, distraído no cambia recursos', () => {
   const state = game(); state.players['0'].breath = 2;

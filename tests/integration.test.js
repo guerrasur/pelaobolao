@@ -25,6 +25,7 @@ async function pair(count=2) {
 }
 async function started(count=2) {
   const p=await pair(count);
+  for(const player of p.players) await player.client.call('roomCommand',{command:'ready',roomId:p.roomId,ready:true});
   await p.a.client.call('roomCommand',{command:'start',roomId:p.roomId});
   return {...p,gameId:(await read(p.a.db,`rooms/${p.roomId}`)).gameId};
 }

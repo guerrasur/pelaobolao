@@ -2,6 +2,7 @@
 export const RULES = Object.freeze({
   version: 1, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
   minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 2500,
+  countdownMs: 3000,
 });
 export const LOBBY_LEASE_MS = 45000;
 export const ABANDON_MS = 120000;
@@ -34,14 +35,14 @@ export function validateIntent(game, uid, intent, now) {
 }
 
 export function newGame(roomId, members, now, rules = RULES) {
-  const ids = Object.keys(members);
+  const ids = Object.keys(members).sort((a, b) => members[a].joinedAt - members[b].joinedAt || a.localeCompare(b));
   requireThat(ids.length >= rules.minPlayers && ids.length <= rules.maxPlayers, 'Se necesitan entre 2 y 6 jugadores.');
   return {
-    schemaVersion: 2, resolvedTurn: 0, roomId, memberIds: ids, rules: { ...rules },
+    schemaVersion: 3, resolvedTurn: 0, roomId, memberIds: ids, rules: { ...rules },
     players: Object.fromEntries(ids.map(uid => [uid, {
       name: members[uid].name, hair: rules.initialHair, breath: rules.initialBreath,
     }])),
-    phase: 'choosing', turn: 1, deadline: now + rules.turnMs,
+    phase: 'countdown', turn: 1, countdownEndsAt: now + rules.countdownMs, deadline: now + rules.countdownMs + rules.turnMs,
     nextTurnAt: null, lastResult: null, winnerId: null, draw: false, createdAt: now,
   };
 }
