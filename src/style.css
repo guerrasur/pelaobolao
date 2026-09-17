@@ -315,12 +315,23 @@ button:not(.player):not(.quiet) { border:2px solid var(--ink); box-shadow:0 4px 
 button:focus-visible,input:focus-visible { outline:3px solid #ffdb4c; outline-offset:4px; }
 button:not(:disabled):active { transform:translateY(2px); }
 .game { border:3px solid var(--ink); border-radius:18px; overflow:hidden; padding:12px 10px 5px; min-height:calc(100svh - 145px); background:repeating-linear-gradient(4deg,transparent 0 10px,#6b3c1520 11px,transparent 13px 38px),repeating-linear-gradient(90deg,#c88d49 0 105px,#aa6b34 106px,#b97a3b 109px,#d19a57 210px); box-shadow:0 7px 0 #142422,inset 0 0 0 3px #f5c5858c; }
+.phase-banner { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 10px 9px; padding:7px 12px; border:2px solid var(--ink); border-radius:6px; background:#fff9e9; color:var(--ink); box-shadow:2px 3px 0 #49352396; transform:rotate(.5deg); }
+.phase-banner span { font-size:12px; font-weight:1000; letter-spacing:.4px; }
+.phase-banner strong { font-size:10px; text-align:right; }
+.game[data-phase="choosing"] .phase-banner { background:#ffdf4f; border-color:#8e5323; }
+.game[data-phase="choosing"] .phase-banner::before { content:'✎'; font-size:20px; margin-right:4px; }
+.game[data-phase="locked"] .phase-banner,.game[data-phase="reveal"] .phase-banner { background:#d8c6ff; border-color:#55307c; color:#36214e; }
+.game[data-phase="locked"] .phase-banner::before,.game[data-phase="reveal"] .phase-banner::before { content:'◉'; font-size:18px; margin-right:4px; }
+.game[data-phase="syncing"] .phase-banner { background:#c9eefa; border-color:#246789; color:#16485f; }
+.game[data-phase="syncing"] .phase-banner::before { content:'↻'; font-size:21px; margin-right:4px; }
+.game[data-phase="finished"] .phase-banner,.game[data-phase="abandoned"] .phase-banner { background:#d6d0c4; }
 .game .turn-header { background:repeating-linear-gradient(0deg,var(--paper) 0 22px,#bed0dc 23px 24px); border:2px solid var(--ink); border-radius:3px; padding:6px 15px; margin:0 24px; transform:rotate(-1deg); box-shadow:2px 3px 0 #734d3280; }
 .game .turn-header h1 { font-size:24px; margin:1px 0; }
 .game .eyebrow { font-size:10px; color:#484852; }
 #timer { font-size:37px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; color:#e63255; background:transparent; padding:0; }
 #timer::before { content:'◴'; color:var(--ink); font-size:29px; margin-right:8px; }
 #timer.urgent { color:#b8092d; text-decoration:underline; text-underline-offset:5px; }
+.game[data-phase="reveal"] #timer { color:#6338a2; }
 .game .turn-header + #turn-status { font-size:11px; text-align:center; margin:8px 0; min-height:16px; color:#2d2830; font-weight:650; }
 .players { flex:1; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:space-between; gap:48px 15px; padding:5px 0; min-height:230px; }
 .players::before { display:none; }

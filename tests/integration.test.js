@@ -35,12 +35,17 @@ async function started(count=2) {
 }
 const choose = (p,gameId,turn,action,target=null,revision=0,requestId=crypto.randomUUID()) =>
   p.client.call('submitIntent',{gameId,turn,action,target,expectedRevision:revision,requestId});
-async function advance(p, gameId) {
+async function advance(p, gameId, { acknowledge = true } = {}) {
   const g=await read(p.db,`games/${gameId}`);
   await expire(gameId, g.phase === 'choosing' ? g.rules.turnMs : g.rules.revealMs);
   const result = await p.client.call('advanceGame',{gameId,turn:g.turn,phase:g.phase});
   if (g.phase === 'reveal') {
     await patch(`games/${gameId}`,{phaseStartedAt:Timestamp.fromMillis(Date.now()-20000)});
+    if (acknowledge) {
+      for (const player of p.players ?? [p]) {
+        await player.client.call('acknowledgeRound',{gameId,turn:g.turn+1});
+      }
+    }
     await p.client.call('advanceGame',{gameId,turn:g.turn+1,phase:'syncing'});
   }
   return result;
@@ -134,12 +139,30 @@ test('host desconectado durante partida: elección concurrente, antiguo host rec
   await a.client.call('roomCommand',{command:'touch',roomId});
   assert.equal((await read(b.db,`rooms/${roomId}`)).hostId,host.uid);
 });
-test('salida explícita del host en partida mantiene recursos y transfiere',async()=>{
+test('salida explícita de una partida la cierra para todos',async()=>{
   const {a,b,gameId,roomId}=await started();
   await a.client.call('roomCommand',{command:'leave',roomId});
-  assert.equal((await read(b.db,`rooms/${roomId}`)).hostId,b.uid);
-  await advance(b,gameId);
-  assert.equal((await read(b.db,`games/${gameId}`)).players[a.uid].hair,3);
+  const room = await read(b.db,`rooms/${roomId}`), game = await read(b.db,`games/${gameId}`);
+  assert.equal(room.status,'closed'); assert.equal(room.gameId,null);
+  assert.equal(game.phase,'abandoned');
+  assert.equal((await b.client.call('advanceGame',{gameId,turn:1,phase:'countdown'})).advanced,false);
+});
+
+test('partida congelada durante horas se retira y limpia la sala',async()=>{
+  const {a,b,gameId,roomId}=await started();
+  await patch(`games/${gameId}`,{lastProgressAt:Timestamp.fromMillis(Date.now()-180000)});
+  await a.client.call('abandonGame',{gameId});
+  assert.equal((await read(a.db,`games/${gameId}`)).phase,'abandoned');
+  assert.equal((await read(b.db,`rooms/${roomId}`)).status,'closed');
+  assert.equal((await read(b.db,`rooms/${roomId}`)).gameId,null);
+});
+
+test('partida terminada vieja se retira sin reabrir la revancha',async()=>{
+  const {a,b,gameId,roomId}=await started();
+  await patch(`games/${gameId}`,{phase:'finished',lastProgressAt:Timestamp.fromMillis(Date.now()-180000),finishedAt:Date.now()});
+  await a.client.call('abandonGame',{gameId});
+  const game=await read(a.db,`games/${gameId}`),room=await read(b.db,`rooms/${roomId}`);
+  assert.equal(game.phase,'finished');assert.equal(room.status,'closed');assert.equal(room.gameId,null);
 });
 
 test('limpiar una sesión vieja no borra la sala nueva',async()=>{
@@ -169,7 +192,7 @@ test('cierre anticipado: espera a todos, congela acciones y resuelve una sola ve
 
 test('celular lento: el siguiente reloj no arranca hasta recibir ambas confirmaciones', async () => {
   const {a,b,gameId}=await started();
-  await advance(a,gameId);
+  await advance(a,gameId,{acknowledge:false});
   await expire(gameId,2500);
   await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
   await a.client.call('acknowledgeRound',{gameId,turn:2});
@@ -207,8 +230,9 @@ test('jugador eliminado no bloquea cierre y un host nuevo recupera la fase bloqu
   await updateDoc(doc(a.db,`games/${gameId}`),{phase:'locked'});
   await assert.rejects(choose(b,gameId,1,'air',null,1));
   await a.client.call('roomCommand',{command:'leave',roomId});
-  assert.equal((await b.client.call('advanceGame',{gameId,turn:1,phase:'locked'})).advanced,true);
-  assert.equal((await read(b.db,`games/${gameId}`)).lastResult.actions[players[2].uid],undefined);
+  assert.equal((await b.client.call('advanceGame',{gameId,turn:1,phase:'locked'})).advanced,false);
+  assert.equal((await read(b.db,`games/${gameId}`)).phase,'abandoned');
+  assert.equal((await read(b.db,`rooms/${roomId}`)).status,'closed');
 });
 
 test('calibración real corrige una hora de desfase y conserva la sesión', async () => {

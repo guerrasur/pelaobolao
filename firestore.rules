@@ -12,7 +12,7 @@ service cloud.firestore {
     function gameHost(g) { return host(room(g.roomId)) && room(g.roomId).gameId != null; }
     function synced(g) { return g.get('protocolVersion', 1) == 2; }
     function marked(g, field, index) {
-      return g.memberIds.size() <= index || g.players[g.memberIds[index]].hair <= 0
+      return g.memberIds.size() <= index || g.players.get(g.memberIds[index], {}).get('hair', 0) <= 0
         || g[field].get(g.memberIds[index], false) == true;
     }
     function allMarked(g, field) {
@@ -21,6 +21,10 @@ service cloud.firestore {
     }
     function deadline(g) {
       return synced(g) ? g.phaseStartedAt.toMillis() + g.rules.turnMs : g.deadline;
+    }
+    function staleGame(g) {
+      let marker = g.get('lastProgressAt', g.get('phaseStartedAt', null));
+      return marker is timestamp && request.time > marker + duration.value(2,'m');
     }
     function validMember(m) {
       return m.keys().hasOnly(['name','joinedAt','lastSeenAt','left','ready'])
@@ -59,7 +63,7 @@ service cloud.firestore {
         && request.resource.data.members[request.auth.uid].lastSeenAt == request.time;
       allow update: if signed() && validRoom() && request.resource.data.code == resource.data.code
         && request.resource.data.createdAt == resource.data.createdAt
-        && (host(resource.data) || selfChange() || takeover());
+        && (host(resource.data) || selfChange() || takeover() || closeGameRoom() || staleCloseGameRoom() || retireFinishedRoom());
       function validRoom() {
         let d = request.resource.data;
         return d.keys().hasOnly(['schemaVersion','code','hostId','status','gameId','members','createdAt','updatedAt'])
@@ -87,24 +91,63 @@ service cloud.firestore {
           && ownMemberChange()
           && request.resource.data.diff(old).affectedKeys().hasOnly(['hostId','members','updatedAt']);
       }
+      function closeGameRoom() {
+        let old = resource.data;
+        let d = request.resource.data;
+        let uid = request.auth.uid;
+        let gameAfter = getAfter(/databases/$(database)/documents/games/$(old.gameId)).data;
+        return old.status == 'playing' && old.gameId != null && d.status == 'closed' && d.gameId == null
+          && uid in old.members && old.members[uid].left == false
+          && uid in d.members && d.members[uid].left == true
+          && d.members.diff(old.members).affectedKeys().hasOnly([uid])
+          && validMember(d.members[uid]) && d.members[uid].lastSeenAt == request.time
+          && d.diff(old).affectedKeys().hasOnly(['members','status','gameId','updatedAt'])
+          && gameAfter.phase == 'abandoned';
+      }
+      function staleCloseGameRoom() {
+        let old = resource.data;
+        let d = request.resource.data;
+        let gameAfter = getAfter(/databases/$(database)/documents/games/$(old.gameId)).data;
+        return old.status == 'playing' && old.gameId != null && d.status == 'closed' && d.gameId == null
+          && d.members.diff(old.members).affectedKeys().size() == 0
+          && d.diff(old).affectedKeys().hasOnly(['status','gameId','updatedAt'])
+          && staleGame(game(old.gameId)) && gameAfter.phase in ['abandoned','finished'];
+      }
+      function retireFinishedRoom() {
+        let old = resource.data;
+        let d = request.resource.data;
+        let gameAfter = getAfter(/databases/$(database)/documents/games/$(old.gameId)).data;
+        return old.status == 'finished' && old.gameId != null && d.status == 'closed' && d.gameId == null
+          && d.members.diff(old.members).affectedKeys().size() == 0
+          && d.diff(old).affectedKeys().hasOnly(['status','gameId','updatedAt'])
+          && staleGame(game(old.gameId)) && gameAfter.phase == 'finished';
+      }
     }
     match /games/{id} {
       allow read: if participant(resource.data);
       allow create: if validGameCreate();
-      allow update: if participant(resource.data) && (selfSignal()
+      allow update: if participant(resource.data) && (selfSignal() || abandonTransition()
         || (host(room(resource.data.roomId)) && room(resource.data.roomId).gameId == id
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','turn','deadline','countdownEndsAt','phaseStartedAt','ready','chosen'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','abandonedAt','deadline','countdownEndsAt','phaseStartedAt','lastProgressAt','ready','chosen'])
         && validGameTransition()));
+      function abandonTransition() {
+        let old = resource.data;
+        let d = request.resource.data;
+        return d.phase == 'abandoned' && old.phase in ['countdown','syncing','choosing','locked','reveal']
+          && (staleGame(old) || (getAfter(/databases/$(database)/documents/rooms/$(old.roomId)).data.status == 'closed'
+            && getAfter(/databases/$(database)/documents/rooms/$(old.roomId)).data.gameId == null))
+          && d.diff(old).affectedKeys().hasOnly(['phase','finishedAt','abandonedAt']);
+      }
       function selfSignal() {
         let g = resource.data;
         let d = request.resource.data;
         let uid = request.auth.uid;
         return synced(g) && (
           (g.phase in ['countdown','syncing'] && d.diff(g).affectedKeys().hasOnly(['ready'])
-            && d.ready.diff(g.ready).affectedKeys().hasOnly([uid]) && d.ready[uid] == true)
+            && d.ready.diff(g.ready).affectedKeys().hasOnly([uid]) && d.ready.get(uid, false) == true)
           || (g.phase == 'choosing' && request.time.toMillis() < deadline(g) && !allMarked(g, 'chosen')
             && d.diff(g).affectedKeys().hasOnly(['chosen'])
-            && d.chosen.diff(g.chosen).affectedKeys().hasOnly([uid]) && d.chosen[uid] == true
+            && d.chosen.diff(g.chosen).affectedKeys().hasOnly([uid]) && d.chosen.get(uid, false) == true
             && getAfter(/databases/$(database)/documents/games/$(id)/intents/$(uid)).data.turn == g.turn
             && getAfter(/databases/$(database)/documents/games/$(id)/intents/$(uid)).data.submittedAt == request.time));
       }
@@ -124,7 +167,7 @@ service cloud.firestore {
             && request.time.toMillis() >= old.countdownEndsAt
             && d.phase == 'choosing' && d.turn == old.turn && d.resolvedTurn == old.resolvedTurn
             && d.countdownEndsAt == null && d.deadline > request.time.toMillis()
-            && d.diff(old).affectedKeys().hasOnly(['phase','deadline','countdownEndsAt']))
+            && d.diff(old).affectedKeys().hasOnly(['phase','deadline','countdownEndsAt','lastProgressAt']))
           || (old.phase == 'choosing'
             && request.time.toMillis() >= old.deadline
             && d.turn == old.turn && d.resolvedTurn == old.turn && d.lastResult.turn == old.turn
@@ -136,7 +179,7 @@ service cloud.firestore {
             && request.time.toMillis() >= old.nextTurnAt
             && d.phase == 'choosing' && d.turn == old.turn + 1 && d.resolvedTurn == old.resolvedTurn
             && d.deadline > request.time.toMillis() && d.nextTurnAt == null
-            && d.diff(old).affectedKeys().hasOnly(['phase','turn','deadline','nextTurnAt'])));
+            && d.diff(old).affectedKeys().hasOnly(['phase','turn','deadline','nextTurnAt','lastProgressAt'])));
       }
       function synchronizedTransition(old, d) {
         let time = request.time.toMillis();
@@ -145,18 +188,20 @@ service cloud.firestore {
               && (allMarked(old, 'ready') || time >= old.phaseStartedAt.toMillis() + old.rules.countdownMs + 15000)
             || old.phase == 'syncing' && (allMarked(old, 'ready') || time >= old.phaseStartedAt.toMillis() + 15000))
           && d.phase == 'choosing' && d.phaseStartedAt == request.time && d.countdownEndsAt == null
-          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','deadline','countdownEndsAt']))
+          && d.lastProgressAt == request.time
+          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','deadline','countdownEndsAt','lastProgressAt']))
         || (old.phase == 'choosing' && (time >= deadline(old) || allMarked(old, 'chosen'))
-          && d.phase == 'locked' && d.diff(old).affectedKeys().hasOnly(['phase']))
+          && d.phase == 'locked' && d.lastProgressAt == request.time
+          && d.diff(old).affectedKeys().hasOnly(['phase','lastProgressAt']))
         || (old.phase == 'locked' && d.turn == old.turn && d.resolvedTurn == old.turn
           && d.lastResult.turn == old.turn && d.phase in ['reveal','finished']
-          && d.phaseStartedAt == request.time
-          && d.diff(old).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','phaseStartedAt'])
+          && d.phaseStartedAt == request.time && d.lastProgressAt == request.time
+          && d.diff(old).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','phaseStartedAt','lastProgressAt'])
           && existsAfter(/databases/$(database)/documents/games/$(id)/rounds/$(string(old.turn))))
         || (old.phase == 'reveal' && time >= old.phaseStartedAt.toMillis() + old.rules.revealMs
-          && d.phase == 'syncing' && d.turn == old.turn + 1 && d.phaseStartedAt == request.time
+          && d.phase == 'syncing' && d.turn == old.turn + 1 && d.phaseStartedAt == request.time && d.lastProgressAt == request.time
           && d.ready == {} && d.chosen == {} && d.nextTurnAt == null
-          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','turn','deadline','nextTurnAt','ready','chosen']));
+          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','turn','deadline','nextTurnAt','lastProgressAt','ready','chosen']));
       }
       match /intents/{uid} {
         allow get: if canReadIntent(uid);
@@ -169,13 +214,15 @@ service cloud.firestore {
         }
         function validIntent() {
           let g = game(id); let d = request.resource.data;
-          return g.phase == 'choosing' && request.time.toMillis() < deadline(g) && g.players[uid].hair > 0
+          let actor = g.players.get(uid, {});
+          return g.phase == 'choosing' && request.time.toMillis() < deadline(g) && actor.get('hair', 0) > 0
             && (!synced(g) || (!allMarked(g, 'chosen')
-              && getAfter(/databases/$(database)/documents/games/$(id)).data.chosen[uid] == true))
+              && getAfter(/databases/$(database)/documents/games/$(id)).data.chosen.get(uid, false) == true))
             && d.keys().hasOnly(['turn','action','target','requestId','revision','submittedAt'])
             && d.turn == g.turn && d.requestId is string && d.revision is int && d.submittedAt == request.time
             && ((d.action in ['air','hide'] && d.target == null)
-              || (d.action == 'blow' && d.target is string && d.target != uid && d.target in g.memberIds && g.players[d.target].hair > 0 && g.players[uid].breath > 0));
+              || (d.action == 'blow' && d.target is string && d.target != uid && d.target in g.memberIds
+                && g.players.get(d.target, {}).get('hair', 0) > 0 && actor.get('breath', 0) > 0));
         }
       }
       match /rounds/{turnId} {

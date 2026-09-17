@@ -1,5 +1,5 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
-import { RULES, LOBBY_LEASE_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
+import { RULES, LOBBY_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
 import { createServerClock, clockSample } from './clock.js';
 
 export const ROOM_CODE_PATTERN = /^[A-Z2-9]{4}$/;
@@ -88,7 +88,16 @@ export function createClient(db, uid, clock = Date.now) {
             tx.set(sessionRef, { roomId: id, updatedAt: serverTimestamp() }, { merge: true });
           } else if (command === 'leave') {
             if (room.status === 'lobby') delete room.members[uid];
-            else room.members[uid] = { ...room.members[uid], left: true, lastSeenAt: serverTimestamp() };
+            else if (room.status === 'playing' && room.gameId) {
+              // Leaving an active match closes that match for every participant.
+              const activeGameRef = doc(db, 'games', room.gameId);
+              const activeGame = (await tx.get(activeGameRef)).data();
+              room.members[uid] = { ...room.members[uid], left: true, lastSeenAt: serverTimestamp() };
+              room.status = 'closed'; room.gameId = null;
+              if (activeGame && !['finished', 'abandoned'].includes(activeGame.phase)) {
+                tx.update(activeGameRef, { phase: 'abandoned', finishedAt: time, abandonedAt: serverTimestamp() });
+              }
+            } else room.members[uid] = { ...room.members[uid], left: true, lastSeenAt: serverTimestamp() };
             if (room.hostId === uid) {
               room.hostId = successor(room.members, time) ?? (Object.keys(room.members).find(id => id !== uid && !room.members[id].left) ?? uid);
               if (!Object.values(room.members).some(m => !m.left)) room.status = 'closed';
@@ -112,7 +121,7 @@ export function createClient(db, uid, clock = Date.now) {
                 room.members = Object.fromEntries(Object.entries(room.members).filter(([,m]) => !m.left));
                 requireThat(Object.keys(room.members).length >= RULES.minPlayers && Object.values(room.members).every(m => m.ready), 'Todos los jugadores deben estar listos.');
                 const game = newGame(id, room.members, time);
-                tx.set(gameRef, { ...game, phaseStartedAt: serverTimestamp() }); room.status = 'playing'; room.gameId = gameRef.id;
+                tx.set(gameRef, { ...game, phaseStartedAt: serverTimestamp(), lastProgressAt: serverTimestamp() }); room.status = 'playing'; room.gameId = gameRef.id;
               }
             }
             if (command === 'lobby') {
@@ -173,6 +182,20 @@ export function createClient(db, uid, clock = Date.now) {
       return {};
     });
   }
+  async function abandonGame({ gameId }) {
+    validId(gameId);
+    return runTransaction(db, async tx => {
+      const gameRef = doc(db, 'games', gameId), game = (await tx.get(gameRef)).data();
+      requireThat(game?.memberIds.includes(uid), 'No pertenecés a esta partida.');
+      const roomRef = doc(db, 'rooms', game.roomId), room = (await tx.get(roomRef)).data();
+      requireThat(room?.gameId === gameId && room.members[uid] && !room.members[uid].left, 'Volvé a la sala.');
+      const marker = millis(game.lastProgressAt || game.phaseStartedAt || game.finishedAt);
+      requireThat(marker > 0 && now() - marker > ABANDON_MS, 'La partida todavía está activa.');
+      if (!['finished', 'abandoned'].includes(game.phase)) tx.update(gameRef, { phase: 'abandoned', finishedAt: now(), abandonedAt: serverTimestamp() });
+      tx.update(roomRef, { status: 'closed', gameId: null, updatedAt: serverTimestamp() });
+      return { roomId: null };
+    });
+  }
   async function advanceGame({ gameId, turn, phase }) {
     validId(gameId);
     const initial = (await getDocFromServer(doc(db, 'games', gameId))).data();
@@ -185,7 +208,7 @@ export function createClient(db, uid, clock = Date.now) {
         const room = (await tx.get(doc(db, 'rooms', game.roomId))).data();
         requireThat(room?.hostId === uid && !room.members[uid]?.left, 'Solo el host resuelve.', 'permission-denied');
         if (now() < phaseDeadline(game) && !allMarked(game, 'chosen')) return false;
-        tx.update(ref, { phase: 'locked' });
+        tx.update(ref, { phase: 'locked', lastProgressAt: serverTimestamp() });
         return true;
       });
       if (!locked) return { advanced: false };
@@ -213,11 +236,11 @@ export function createClient(db, uid, clock = Date.now) {
       if (phase !== 'locked' && !(phase === 'syncing' && allMarked(game, 'ready')) && time < deadline) return { advanced: false };
       if (synchronized && phase === 'countdown' && !allMarked(game, 'ready') && time < deadline + SYNC_WAIT_MS) return { advanced: false };
       if (phase === 'countdown' || phase === 'syncing') {
-        tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null,
-          ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}) });
+      tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null,
+          lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}) });
       } else if (phase === 'reveal') {
         tx.update(ref, { phase: synchronized ? 'syncing' : 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null,
-          ...(synchronized ? { phaseStartedAt: serverTimestamp(), ready: {}, chosen: {} } : {}) });
+          lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp(), ready: {}, chosen: {} } : {}) });
       } else {
         if (game.resolvedTurn >= game.turn) return { advanced: false };
         const resultRef = doc(db, 'games', gameId, 'rounds', String(game.turn));
@@ -229,14 +252,14 @@ export function createClient(db, uid, clock = Date.now) {
         tx.update(ref, { players: result.players, lastResult: result.result, resolvedTurn: game.turn,
           phase: result.finished ? 'finished' : 'reveal', winnerId: result.winnerId, draw: result.draw,
           nextTurnAt: result.finished ? null : time + game.rules.revealMs,
-          ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}),
+          lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}),
           ...(result.finished ? { finishedAt: time } : {}) });
         if (result.finished) tx.update(roomRef, { status: 'finished', updatedAt: serverTimestamp() });
       }
       return { advanced: true };
     });
   }
-  const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, acknowledgeRound, advanceGame };
+  const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, acknowledgeRound, abandonGame, advanceGame };
   return { now, syncClock, call: async (name, data) => {
     requireThat(commands[name], 'Comando inválido.');
     return { ...await commands[name](data), serverNow: now() };

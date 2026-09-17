@@ -122,6 +122,14 @@ test('todas las pantallas usan el timestamp del servidor, no el deadline estimad
   g.phase='syncing';assert.equal(phaseDeadline(g),65000);
 });
 
+test('phaseDeadline normaliza Timestamp heredados sin mostrar milisegundos como segundos', () => {
+  const g=game();g.protocolVersion=1;g.phase='reveal';g.nextTurnAt={toMillis:()=>Date.UTC(2026,8,17)+2500};
+  assert.equal(phaseDeadline(g),Date.UTC(2026,8,17)+2500);
+  g.phase='choosing';g.deadline={toMillis:()=>Date.UTC(2026,8,17)+8000};
+  assert.equal(phaseDeadline(g),Date.UTC(2026,8,17)+8000);
+  g.deadline=null;assert.equal(phaseDeadline(g),null);
+});
+
 test('confirmaciones: se requieren todos los activos, no los eliminados', () => {
   const g=game(3);g.chosen={'0':true,'1':true};
   assert.equal(allMarked(g,'chosen'),false);

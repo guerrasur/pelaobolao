@@ -1,5 +1,22 @@
 # Estado del MVP Spark
 
+## 0.5.1 — sincronización de transiciones y compatibilidad
+
+- Las transiciones de fase actualizan una marca de progreso junto con el reloj del servidor.
+- Las reglas aceptan partidas heredadas que no tengan mapas opcionales completos, sin abrir permisos para falsificar acciones.
+- Las confirmaciones de ronda y los tests de integración cubren teléfonos lentos, jugadores eliminados y salidas explícitas.
+
+## 0.5.0 — partidas temporales, fases visibles y sonidos
+
+- `roomCommand('leave')` abandona la partida completa: la partida pasa a `abandoned`, la sala se cierra y las sesiones vuelven a la pantalla inicial.
+- `abandonGame` retira una partida sin actividad durante dos minutos. También retira una partida terminada que quedó guardada por más de dos minutos, sin conservarla como revancha automática.
+- La identidad del jugador queda en `profiles` y la sesión sólo se usa para recuperar una sala activa; no se persiste una partida como progreso.
+- Las fases tienen una banda visual propia: “ELEGÍ TU JUGADA”, “ACCIONES SELLADAS”, “REVELANDO RESULTADOS” y “PARTIDA TERMINADA”. Los controles sólo aparecen durante `choosing`.
+- Sonidos breves generados con Web Audio al iniciar una ronda y al revelar sus resultados. Si el navegador bloquea audio, la partida continúa sin sonido.
+- `phaseDeadline` normaliza timestamps heredados y evita mostrar milisegundos como segundos.
+
+Validación ejecutada: 21 pruebas unitarias y build de producción. La sesión de pruebas contra el emulador de Firestore quedó bloqueada por el límite temporal de herramientas del entorno; debe ejecutarse en Codespaces con `npm run test:integration` antes de publicar. La validación visual completa en navegador depende de disponer de Chromium.
+
 ## 0.4.1 — corrección del contador gigante
 
 Se reprodujo una ruta de fallo compatible con la captura: una lectura `clockAt` nula se convertía en cero y la calibración colocaba el reloj cerca de enero de 1970. Al restarlo de la fecha de la ronda aparecían aproximadamente 1.789 millones de segundos en lugar de 3. No se dispone de los registros del navegador afectado para confirmar qué originó esa lectura en producción.

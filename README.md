@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.4.1): el reloj rechaza lecturas de hora vacías o pendientes y conserva su última calibración válida. Esto evita que un timestamp sin resolver se convierta en cero y muestre miles de millones de segundos. La estética de 0.4.0 se mantiene sin cambios.
+Última corrección (0.5.1): se endurecen las transiciones sincronizadas del reloj, se toleran documentos heredados sin campos opcionales y se corrigen las confirmaciones de ronda para evitar bloqueos en dispositivos lentos. Las partidas explícitamente abandonadas se cierran para todos y las partidas congeladas o terminadas se retiran después de dos minutos sin actividad. La sesión conserva la identidad del jugador, mientras la partida vuelve a la pantalla inicial. La estética escolar y los sonidos de ronda se mantienen. Antes de publicar esta entrega ejecutá `npm run test:integration` en Codespaces para validar las reglas nuevas contra el emulador.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 

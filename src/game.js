@@ -16,7 +16,9 @@ export function phaseDeadline(game) {
       choosing: game.rules.turnMs, reveal: game.rules.revealMs, locked: 0 }[game.phase];
     if (duration !== undefined) return started + duration;
   }
-  return game.phase === 'countdown' ? game.countdownEndsAt : game.phase === 'reveal' ? game.nextTurnAt : game.deadline;
+  const legacy = game.phase === 'countdown' ? game.countdownEndsAt : game.phase === 'reveal' ? game.nextTurnAt : game.deadline;
+  const normalized = millis(legacy);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : null;
 }
 export const allMarked = (game, field) => game.memberIds.every(uid =>
   game.players[uid].hair <= 0 || game[field]?.[uid] === true);
