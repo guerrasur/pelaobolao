@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RULES, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked } from '../src/game.js';
-import { createServerClock } from '../src/clock.js';
+import { createServerClock, clockSample } from '../src/clock.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
 const game = (count = 2) => {
@@ -103,14 +103,15 @@ test('reglas quedan copiadas en cada partida', () => {
 });
 
 test('reloj monotónico: cambiar fecha del dispositivo no adelanta ni retrasa el turno', () => {
-  let wall=100000,tick=0;
+  const epoch=Date.UTC(2026,8,17);
+  let wall=epoch,tick=0;
   const clock=createServerClock(()=>wall,()=>tick);
-  tick=50;clock.calibrate(200000,0,50);
-  assert.equal(clock.now(),200025);
+  tick=50;clock.calibrate(epoch+100000,0,50);
+  assert.equal(clock.now(),epoch+100025);
   wall+=3600000;tick+=1000;
-  assert.equal(clock.now(),201025);
+  assert.equal(clock.now(),epoch+101025);
   wall-=7200000;tick+=1000;
-  assert.equal(clock.now(),202025);
+  assert.equal(clock.now(),epoch+102025);
 });
 
 test('todas las pantallas usan el timestamp del servidor, no el deadline estimado del host', () => {
@@ -126,4 +127,45 @@ test('confirmaciones: se requieren todos los activos, no los eliminados', () => 
   assert.equal(allMarked(g,'chosen'),false);
   g.players['2'].hair=0;assert.equal(allMarked(g,'chosen'),true);
   g.chosen={};assert.equal(allMarked(g,'chosen'),false);
+});
+
+test('regresión: una hora de servidor vacía no convierte el contador en una fecha Unix', () => {
+  const epoch=Date.UTC(2026,8,17), clock=createServerClock(()=>epoch,()=>1000);
+  const g=game();g.phase='reveal';g.phaseStartedAt={toMillis:()=>epoch};
+  const before=Math.ceil((phaseDeadline(g)-clock.now())/1000);
+  // The old millis(null) => 0 path calibrated the clock near January 1970.
+  clock.calibrate(0,900,1000);
+  assert.equal(Math.ceil((phaseDeadline(g)-clock.now())/1000),before);
+});
+
+test('muestras de reloj: solo timestamps confirmados, sin caché ni escrituras pendientes', () => {
+  const server=Date.UTC(2026,8,17);
+  const snap=(clockAt,metadata={},exists=true)=>({
+    exists:()=>exists, data:()=>({clockAt}),
+    metadata:{fromCache:false,hasPendingWrites:false,...metadata},
+  });
+  const timestamp={toMillis:()=>server};
+  assert.deepEqual(clockSample(snap(timestamp),10,20),{server,start:10,end:20,rtt:10});
+  for(const value of [null,undefined,0,NaN,Infinity,'1789603200000',{}, {toMillis:()=>0}, {toMillis:()=>NaN}]) {
+    assert.equal(clockSample(snap(value),10,20),null);
+  }
+  assert.equal(clockSample(snap(timestamp,{hasPendingWrites:true}),10,20),null);
+  assert.equal(clockSample(snap(timestamp,{fromCache:true}),10,20),null);
+  assert.equal(clockSample(snap(timestamp,{},false),10,20),null);
+  assert.equal(clockSample(snap(timestamp),20,10),null);
+});
+
+test('recalibración inválida conserva la última hora válida y permite recuperarse', () => {
+  const epoch=Date.UTC(2026,8,17);let tick=100;
+  const clock=createServerClock(()=>epoch,()=>tick);
+  assert.equal(clock.calibrate(epoch,0,100),true);
+  tick+=1000;
+  for(const bad of [null,undefined,0,NaN,Infinity,-1,'1789603200000']) {
+    assert.equal(clock.calibrate(bad,1000,1100),false);
+    assert.equal(clock.now(),epoch+1050);
+  }
+  assert.equal(clock.calibrate(epoch,200,100),false);
+  assert.equal(clock.calibrate(epoch,NaN,100),false);
+  assert.equal(clock.calibrate(epoch+2000,1050,1100),true);
+  assert.equal(clock.now(),epoch+2025);
 });

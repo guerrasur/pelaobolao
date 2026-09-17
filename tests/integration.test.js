@@ -210,3 +210,24 @@ test('jugador eliminado no bloquea cierre y un host nuevo recupera la fase bloqu
   assert.equal((await b.client.call('advanceGame',{gameId,turn:1,phase:'locked'})).advanced,true);
   assert.equal((await read(b.db,`games/${gameId}`)).lastResult.actions[players[2].uid],undefined);
 });
+
+test('calibración real corrige una hora de desfase y conserva la sesión', async () => {
+  const {a,roomId}=await pair();
+  const skewed=createClient(a.db,a.uid,()=>Date.now()+3600000);
+  assert.ok(skewed.now()-Date.now()>3500000);
+  await skewed.syncClock();
+  assert.ok(Math.abs(skewed.now()-Date.now())<1500);
+  await skewed.syncClock();
+  assert.ok(Math.abs(skewed.now()-Date.now())<1500);
+  assert.equal((await read(a.db,`sessions/${a.uid}`)).roomId,roomId);
+});
+
+test('dos clientes de la misma identidad sincronizan sin llevar el reloj a cero', async () => {
+  const {a}=await pair();
+  const other=createClient(env.authenticatedContext(a.uid).firestore(),a.uid);
+  for(let attempt=0;attempt<2;attempt++) {
+    // Unconfirmed samples may be rejected; an already valid local clock is retained.
+    await Promise.allSettled([a.client.syncClock(),other.syncClock()]);
+    for(const client of [a.client,other]) assert.ok(Math.abs(client.now()-Date.now())<1500);
+  }
+});

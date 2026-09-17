@@ -1,6 +1,6 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { RULES, LOBBY_LEASE_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
-import { createServerClock } from './clock.js';
+import { createServerClock, clockSample } from './clock.js';
 
 export const ROOM_CODE_PATTERN = /^[A-Z2-9]{4}$/;
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -25,12 +25,12 @@ export function createClient(db, uid, clock = Date.now) {
         // Read latency must not bias the write's clock sample.
         const end = performance.now();
         const snap = await getDocFromServer(sessionRef);
-        if (!best || end - start < best.rtt) best = {
-          rtt: end - start, server: millis(snap.data().clockAt),
-          start, end,
-        };
+        const measured = clockSample(snap, start, end);
+        if (measured && (!best || measured.rtt < best.rtt)) best = measured;
       }
-      serverClock.calibrate(best.server + performance.now() - best.end, best.start, best.end);
+      requireThat(best, 'No pudimos confirmar la hora del servidor. Reintentá.', 'unavailable');
+      requireThat(serverClock.calibrate(best.server + performance.now() - best.end, best.start, best.end),
+        'La hora del servidor no es válida. Reintentá.', 'unavailable');
     })().finally(() => { clockSync = null; });
     return clockSync;
   }

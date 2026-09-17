@@ -1,5 +1,18 @@
 # Estado del MVP Spark
 
+## 0.4.1 — corrección del contador gigante
+
+Se reprodujo una ruta de fallo compatible con la captura: una lectura `clockAt` nula se convertía en cero y la calibración colocaba el reloj cerca de enero de 1970. Al restarlo de la fecha de la ronda aparecían aproximadamente 1.789 millones de segundos en lugar de 3. No se dispone de los registros del navegador afectado para confirmar qué originó esa lectura en producción.
+
+- Solo se aceptan timestamps resueltos, confirmados por el servidor, sin caché ni escrituras pendientes.
+- Las muestras nulas, ausentes, malformadas o fuera de rango se descartan antes de elegir la de menor latencia.
+- La propia calibración rechaza valores inválidos y conserva la última hora válida. Si ninguna muestra sirve al iniciar, se muestra un error recuperable en lugar de abrir el juego con un reloj incorrecto.
+- Sin cambios de estética, reglas de juego ni permisos Firestore respecto de 0.4.0.
+
+Validación: prueba de regresión falló con el código anterior (`1789603203` segundos frente a `3`) y pasa con la corrección. 20 pruebas unitarias, 20 de integración/reglas y build aprobados. Se añadió calibración real contra el emulador con una hora de desfase y sincronización concurrente de la misma identidad. Sin nueva validación de navegador ni dispositivos físicos.
+
+Actualización: mismo procedimiento de Codespaces, usando `pelaobolao-v0.4.1.zip` y el mensaje de commit `Corrige calibración del temporizador v0.4.1`. Actualizar todos los dispositivos; para verificar el arreglo se recomienda iniciar una partida nueva.
+
 ## 0.4.0 — sincronización, cierre anticipado y primera estética escolar
 
 - Inicio de turnos y resultados anclado a `phaseStartedAt`, timestamp de Firestore, no a la hora estimada del host.

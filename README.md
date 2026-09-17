@@ -1,5 +1,7 @@
 # Pelao Bolao · MVP Spark
 
+Última corrección (0.4.1): el reloj rechaza lecturas de hora vacías o pendientes y conserva su última calibración válida. Esto evita que un timestamp sin resolver se convierta en cero y muestre miles de millones de segundos. La estética de 0.4.0 se mantiene sin cambios.
+
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
 El host es la autoridad temporal. Cada jugador escribe su intención privada. Cada turno dura como máximo 8 segundos: termina antes cuando todos los jugadores activos eligieron. Las decisiones se congelan antes de leerlas y el host resuelve simultáneamente Soplos, defensas, daño, eliminación y empate en una transacción. `resolvedTurn` y `games/{gameId}/rounds/{turn}` evitan daño duplicado. La posición visual se fija al comenzar la partida y el jugador local permanece abajo.
