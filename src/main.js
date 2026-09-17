@@ -1,7 +1,8 @@
 import './style.css';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { connect } from './firebase.js';
-import { millis } from './game.js';
+import { millis, phaseDeadline, allMarked, SYNC_WAIT_MS } from './game.js';
+import { playerCard, actionControls } from './visuals.js';
 import packageInfo from '../package.json';
 
 const app = document.querySelector('#app');
@@ -14,7 +15,7 @@ const s = { profile: undefined, room: null, roomId: null, game: null, gameId: nu
   online: navigator.onLine, busy: false, targeting: false, choice: null, offset: 0, ready: false,
   nameConfirmed: false, resetting: false, updateRequired: null, updating: false, bootError: null, gameError: null };
 let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0;
-let roomGeneration = 0, gameGeneration = 0, advancing = false;
+let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = false, lastAck = 0;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
 const now = () => api?.now() ?? Date.now();
 const message = text => { notice.textContent = text; };
@@ -107,8 +108,10 @@ function subscribeGame(id) {
   detachGame(); s.gameId = id; s.gameError = null;
   if (!id) return;
   const generation = gameGeneration;
-  gameOff = onSnapshot(doc(api.db, 'games', id), snap => {
+  gameOff = onSnapshot(doc(api.db, 'games', id), { includeMetadataChanges: true }, snap => {
     if (generation !== gameGeneration) return;
+    // Never drive timers/transitions using speculative writes or an old cached round.
+    if (snap.metadata.hasPendingWrites || snap.metadata.fromCache) return;
     if (!snap.exists()) {
       cancelDrag(); s.game = null;
       s.gameError = 'La partida ya no existe o quedó incompleta.';
@@ -118,6 +121,7 @@ function subscribeGame(id) {
     s.game = snap.data();
     if (oldTurn !== s.game?.turn || s.game?.phase !== 'choosing') {
       cancelDrag(); s.choice = null; pending = null; s.targeting = false;
+      lastNudge = 0;
       message('');
     }
     render();
@@ -172,7 +176,8 @@ async function heartbeat() {
 }
 
 function canChoose() {
-  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && s.game?.phase === 'choosing' && now() < s.game.deadline && s.game.players[api.uid]?.hair > 0;
+  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && s.game?.phase === 'choosing'
+    && now() < phaseDeadline(s.game) && !(s.game.protocolVersion === 2 && allMarked(s.game, 'chosen')) && s.game.players[api.uid]?.hair > 0;
 }
 function accepted() { return s.intent?.turn === s.game?.turn ? s.intent : null; }
 function choose(action, target = null) {
@@ -194,7 +199,7 @@ async function flushIntent() {
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
         if (!s.intent || s.intent.turn !== result.turn || s.intent.revision <= result.revision) s.intent = result;
         if (!pending) s.choice = null;
-        message('Elección guardada. Podés cambiarla hasta que termine el tiempo.');
+        message('Elección guardada. El turno cierra cuando todos eligen o se acaba el tiempo.');
       }
     } catch (error) {
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
@@ -251,7 +256,7 @@ function render() {
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
     const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const order = [...(game.memberIds || Object.keys(game.players)).filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
-    app.innerHTML = `<section class="game"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : terminal ? game.phase === 'abandoned' ? 'La partida fue cerrada.' : 'La partida terminó.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Podés cambiar tu decisión.' : 'Estás Pelado.'}</p><div class="players">${order.map((uid, i) => { const p = game.players[uid]; return `<button class="player seat-${i} ${uid === api.uid ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${choice?.target === uid ? 'selected-target' : ''}" data-player="${uid}" ${p.hair <= 0 || uid === api.uid ? 'disabled' : ''}><strong>${esc(p.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>Pelo <b>${p.hair}</b>/${game.rules.maxHair} · Soplos <b>${p.breath}</b>/${game.rules.maxBreath}</span><small>${p.hair === 0 ? 'Pelado' : uid === api.uid ? 'Tu posición' : 'En juego'}</small></button>`; }).join('')}</div>${game.phase !== 'countdown' && !terminal && me?.hair > 0 ? `<div class="controls"><button data-action="air" ${!canChoose() ? 'disabled' : ''}>Tomar aire</button><button data-action="hide" ${!canChoose() ? 'disabled' : ''}>Esconderse</button><button id="blow" class="${s.targeting ? 'aiming' : ''}" ${!canChoose() || me.breath < 1 ? 'disabled' : ''}>Soplar</button></div><p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
+    app.innerHTML = `<section class="game" data-phase="${esc(game.phase)}"><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos listos. Revelando acciones…' : terminal ? 'La partida terminó.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: game.memberIds.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], rules: game.rules })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${!terminal && me?.hair > 0 ? `<p class="play-hint">Arrastrá SOPLAR hacia un rival</p>${actionControls(canChoose(), me.breath, s.targeting)}<p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : ''}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>Esperando al host para la revancha.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
   }
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -344,17 +349,33 @@ function tick() {
     el.textContent = member && now() - member.lastSeenAt < 25000 ? 'Conectado' : 'Reconectando…';
   });
   if (!s.game) return;
-  const deadline = s.game.phase === 'countdown' ? s.game.countdownEndsAt : s.game.phase === 'reveal' ? s.game.nextTurnAt : s.game.deadline;
+  const game = s.game;
+  const deadline = phaseDeadline(game);
   const seconds = Math.max(0, Math.ceil((deadline - now()) / 1000));
   const timer = document.querySelector('#timer');
-  if (timer) timer.textContent = `${seconds}s`;
+  if (timer) timer.textContent = ['syncing', 'locked'].includes(game.phase) ? '···' : `${String(seconds).padStart(2, '0')}s`;
+  if (timer) timer.classList.toggle('urgent', game.phase === 'choosing' && seconds <= 3);
+  if (!acknowledging && Date.now() - lastAck > 1000 && s.nameConfirmed && !document.hidden && s.online && game.protocolVersion === 2
+    && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
+    acknowledging = true; lastAck = Date.now();
+    call('acknowledgeRound', { gameId: s.gameId, turn: game.turn })
+      .catch(showError).finally(() => { acknowledging = false; });
+  }
+  if (game.phase === 'countdown' && seconds === 0 && game.protocolVersion === 2 && !allMarked(game, 'ready')) {
+    const status = document.querySelector('#turn-status');
+    if (status) status.textContent = 'Esperando que los otros celulares carguen la ronda…';
+  }
   if (s.game.phase === 'choosing' && seconds === 0) {
     const status = document.querySelector('#turn-status');
     if (status) status.textContent = 'Tiempo terminado · esperando resolución del host';
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
-  if (!advancing && s.room?.hostId === api?.uid && s.online && ['countdown', 'choosing', 'reveal'].includes(s.game.phase) && now() > deadline + 150 && Date.now() - lastNudge > 1500) {
+  const early = game.protocolVersion === 2 && (game.phase === 'locked'
+    || game.phase === 'syncing' && allMarked(game, 'ready')
+    || game.phase === 'choosing' && allMarked(game, 'chosen'));
+  const waiting = game.protocolVersion === 2 && game.phase === 'countdown' && !allMarked(game, 'ready') && now() < deadline + SYNC_WAIT_MS;
+  if (!advancing && !waiting && s.room?.hostId === api?.uid && s.online && ['countdown', 'syncing', 'choosing', 'locked', 'reveal'].includes(game.phase) && (early || now() > deadline + 150) && Date.now() - lastNudge > 500) {
     lastNudge = Date.now(); advancing = true;
     call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase })
       .catch(showError).finally(() => { advancing = false; });
@@ -362,11 +383,13 @@ function tick() {
 }
 
 window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
-window.addEventListener('online', () => { s.online = true; heartbeat(); void checkVersion(); render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { heartbeat(); tick(); void checkVersion(); } });
+const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
+window.addEventListener('online', () => { s.online = true; resyncClock(); heartbeat(); void checkVersion(); render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { resyncClock(); heartbeat(); tick(); void checkVersion(); } });
 setInterval(tick, 200);
 setInterval(heartbeat, 10000);
 setInterval(checkVersion, 60000);
+setInterval(resyncClock, 60000);
 render();
 void checkVersion();
 try {

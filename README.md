@@ -2,7 +2,13 @@
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
-El host es la autoridad temporal. Cada jugador escribe su intención privada; después de la cuenta regresiva inicial, cada turno dura 8 segundos y el host resuelve simultáneamente Soplos, defensas, daño, eliminación y empate en una transacción. `resolvedTurn` y `games/{gameId}/rounds/{turn}` evitan daño duplicado. La posición visual se fija al comenzar la partida y el jugador local permanece abajo.
+El host es la autoridad temporal. Cada jugador escribe su intención privada. Cada turno dura como máximo 8 segundos: termina antes cuando todos los jugadores activos eligieron. Las decisiones se congelan antes de leerlas y el host resuelve simultáneamente Soplos, defensas, daño, eliminación y empate en una transacción. `resolvedTurn` y `games/{gameId}/rounds/{turn}` evitan daño duplicado. La posición visual se fija al comenzar la partida y el jugador local permanece abajo.
+
+Desde 0.4.0, los temporizadores se calculan desde un timestamp escrito por Firestore. El reloj local usa tiempo monotónico, se calibra al entrar, al volver a la pestaña, al reconectar y cada minuto. Antes de comenzar cada ronda se espera que los celulares activos confirmen haberla recibido (hasta 15 segundos extra para no bloquear a todos por un dispositivo desconectado). Una desconexión o suspensión durante un turno ya iniciado no pausa al resto. Los eliminados no bloquean el cierre anticipado.
+
+Primera estética escolar: mesa, papel de cuaderno, retratos vectoriales que pierden pelo e indicadores de recursos. Botones inferiores en orden Soplar / Tomar aire / Esconderse. No hay un objeto central jugable ni premio de +1 Pelo en esta versión.
+
+**Al actualizar a 0.4.0, publicar también `firestore.rules` y comenzar una partida nueva con todos los celulares actualizados.** Las partidas anteriores conservan su protocolo anterior hasta terminar; las nuevas usan `protocolVersion: 2`. Se mantiene compatibilidad de lectura de perfiles y salas.
 
 Se conservan las reglas e interacción existentes: 2–6 jugadores, Pelo 3/4, Soplos 0/2, aire, esconderse, Soplar con drag/tap, decisiones cambiables y resultados simultáneos. El lobby usa estados Listo/No listo, códigos de sala de 4 caracteres y enlaces compartibles (`schemaVersion` de rooms y games: 3). Al abrir la web se vuelve a confirmar el nombre, precargado con el último usado; la identidad anónima y la sala se conservan en el navegador.
 

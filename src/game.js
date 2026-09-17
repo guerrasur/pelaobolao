@@ -6,6 +6,20 @@ export const RULES = Object.freeze({
 });
 export const LOBBY_LEASE_MS = 45000;
 export const ABANDON_MS = 120000;
+export const SYNC_WAIT_MS = 15000;
+
+// All screens derive their timer from the same server-authored timestamp.
+export function phaseDeadline(game) {
+  const started = millis(game.phaseStartedAt);
+  if (game.protocolVersion === 2 && started) {
+    const duration = { countdown: game.rules.countdownMs, syncing: SYNC_WAIT_MS,
+      choosing: game.rules.turnMs, reveal: game.rules.revealMs, locked: 0 }[game.phase];
+    if (duration !== undefined) return started + duration;
+  }
+  return game.phase === 'countdown' ? game.countdownEndsAt : game.phase === 'reveal' ? game.nextTurnAt : game.deadline;
+}
+export const allMarked = (game, field) => game.memberIds.every(uid =>
+  game.players[uid].hair <= 0 || game[field]?.[uid] === true);
 
 export class GameError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -23,7 +37,7 @@ export function validId(value) {
 }
 export function validateIntent(game, uid, intent, now) {
   requireThat(game.phase === 'choosing' && intent.turn === game.turn, 'Ese turno ya terminó.');
-  requireThat(now < game.deadline, 'La acción llegó fuera de tiempo.', 'deadline-exceeded');
+  requireThat(now < phaseDeadline(game), 'La acción llegó fuera de tiempo.', 'deadline-exceeded');
   requireThat(game.players[uid]?.hair > 0, 'Estás pelado o no participás.');
   requireThat(['air', 'hide', 'blow'].includes(intent.action), 'Acción inválida.', 'invalid-argument');
   if (intent.action === 'blow') {
@@ -38,7 +52,7 @@ export function newGame(roomId, members, now, rules = RULES) {
   const ids = Object.keys(members).sort((a, b) => members[a].joinedAt - members[b].joinedAt || a.localeCompare(b));
   requireThat(ids.length >= rules.minPlayers && ids.length <= rules.maxPlayers, 'Se necesitan entre 2 y 6 jugadores.');
   return {
-    schemaVersion: 3, resolvedTurn: 0, roomId, memberIds: ids, rules: { ...rules },
+    schemaVersion: 3, protocolVersion: 2, ready: {}, chosen: {}, resolvedTurn: 0, roomId, memberIds: ids, rules: { ...rules },
     players: Object.fromEntries(ids.map(uid => [uid, {
       name: members[uid].name, hair: rules.initialHair, breath: rules.initialBreath,
     }])),
@@ -57,7 +71,7 @@ export function resolveRound(game, intents) {
     try {
       requireThat(intent, 'Sin acción');
       // Validate resource/target/turn again at resolution, against the old state.
-      validateIntent(game, uid, intent, game.deadline - 1);
+      validateIntent(game, uid, intent, phaseDeadline(game) - 1);
       actions[uid] = { action: intent.action, target: intent.target };
     } catch { actions[uid] = { action: 'distracted', target: null }; }
   }

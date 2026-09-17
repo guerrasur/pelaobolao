@@ -2,7 +2,7 @@ import { before, after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, collection, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, updateDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { createClient } from '../src/client.js';
 let env, seq = 0;
 before(async () => {
@@ -28,7 +28,8 @@ async function started(count=2) {
   for(const player of p.players) await player.client.call('roomCommand',{command:'ready',roomId:p.roomId,ready:true});
   await p.a.client.call('roomCommand',{command:'start',roomId:p.roomId});
   const gameId=(await read(p.a.db,`rooms/${p.roomId}`)).gameId;
-  await patch(`games/${gameId}`,{countdownEndsAt:Date.now()-5000});
+  await patch(`games/${gameId}`,{countdownEndsAt:Date.now()-5000,phaseStartedAt:Timestamp.fromMillis(Date.now()-5000),'rules.turnMs':60000});
+  for (const player of p.players) await player.client.call('acknowledgeRound',{gameId,turn:1});
   await p.a.client.call('advanceGame',{gameId,turn:1,phase:'countdown'});
   return {...p,gameId};
 }
@@ -36,9 +37,18 @@ const choose = (p,gameId,turn,action,target=null,revision=0,requestId=crypto.ran
   p.client.call('submitIntent',{gameId,turn,action,target,expectedRevision:revision,requestId});
 async function advance(p, gameId) {
   const g=await read(p.db,`games/${gameId}`);
-  await patch(`games/${gameId}`,{[g.phase==='choosing'?'deadline':'nextTurnAt']:Date.now()-5000});
-  return p.client.call('advanceGame',{gameId,turn:g.turn,phase:g.phase});
+  await expire(gameId, g.phase === 'choosing' ? g.rules.turnMs : g.rules.revealMs);
+  const result = await p.client.call('advanceGame',{gameId,turn:g.turn,phase:g.phase});
+  if (g.phase === 'reveal') {
+    await patch(`games/${gameId}`,{phaseStartedAt:Timestamp.fromMillis(Date.now()-20000)});
+    await p.client.call('advanceGame',{gameId,turn:g.turn+1,phase:'syncing'});
+  }
+  return result;
 }
+const expire = (gameId, duration=60000) => patch(`games/${gameId}`, {
+  deadline:Date.now()-5000, nextTurnAt:Date.now()-5000,
+  phaseStartedAt:Timestamp.fromMillis(Date.now()-duration-5000),
+});
 test('creación idempotente, inicio único ante concurrencia y solo host inicia',async()=>{
   const {a,b,roomId}=await pair();
   const duplicates=await Promise.all([a.client.call('roomCommand',{command:'create'}),a.client.call('roomCommand',{command:'create'})]);
@@ -60,14 +70,14 @@ test('cambio secreto, replay, revisión obsoleta y cierre de intenciones',async(
   assert.equal((await read(a.db,`games/${gameId}`)).players[a.uid].breath,0);
   await choose(b,gameId,1,'air');
   await assert.rejects(getDoc(doc(a.db,`games/${gameId}/intents/${b.uid}`)));
-  await patch(`games/${gameId}`,{deadline:Date.now()-5000});
+  await expire(gameId);
   await assert.rejects(choose(a,gameId,1,'air',null,2));
 });
 test('seis jugadores, resoluciones concurrentes y repetidas no duplican daño ni resultados',async()=>{
   const {a,b,players,gameId}=await started(6);
   await patch(`games/${gameId}`,Object.fromEntries(players.map(p=>[`players.${p.uid}.breath`,1])));
   for(const p of players) await choose(p,gameId,1,'blow',p===b?a.uid:b.uid);
-  await patch(`games/${gameId}`,{deadline:Date.now()-5000});
+  await expire(gameId);
   await assert.rejects(b.client.call('advanceGame',{gameId,turn:1,phase:'choosing'}));
   const attempts=await Promise.allSettled(Array.from({length:5},()=>a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})));
   const results=attempts.filter(result=>result.status==='fulfilled').map(result=>result.value);
@@ -117,7 +127,7 @@ test('host desconectado durante partida: elección concurrente, antiguo host rec
   for(const p of players.slice(2)) await p.client.call('roomCommand',{command:'touch',roomId});
   const r=await read(b.db,`rooms/${roomId}`), host=players.find(p=>p.uid===r.hostId);
   assert.notEqual(host.uid,a.uid);
-  await patch(`games/${gameId}`,{deadline:Date.now()-5000});
+  await expire(gameId);
   await assert.rejects(a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'}));
   await host.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
   assert.equal((await read(host.db,`games/${gameId}`)).players[a.uid].breath,1);
@@ -140,4 +150,63 @@ test('limpiar una sesión vieja no borra la sala nueva',async()=>{
   assert.equal((await read(a.db,`sessions/${a.uid}`)).roomId,next.roomId);
   await a.client.call('clearRoomSession',{roomId:next.roomId});
   assert.equal((await read(a.db,`sessions/${a.uid}`)).roomId,null);
+});
+
+test('cierre anticipado: espera a todos, congela acciones y resuelve una sola vez', async () => {
+  const {a,b,gameId}=await started();
+  await choose(a,gameId,1,'air');
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})).advanced,false);
+  await assert.rejects(getDoc(doc(a.db,`games/${gameId}/intents/${b.uid}`)));
+  await choose(b,gameId,1,'hide');
+  await assert.rejects(choose(a,gameId,1,'hide',null,1));
+  await assert.rejects(getDoc(doc(a.db,`games/${gameId}/intents/${b.uid}`)));
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})).advanced,true);
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.phase,'reveal');assert.equal(g.players[a.uid].breath,1);
+  assert.equal(g.lastResult.actions[b.uid].action,'hide');
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})).advanced,false);
+});
+
+test('celular lento: el siguiente reloj no arranca hasta recibir ambas confirmaciones', async () => {
+  const {a,b,gameId}=await started();
+  await advance(a,gameId);
+  await expire(gameId,2500);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
+  await a.client.call('acknowledgeRound',{gameId,turn:2});
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:2,phase:'syncing'})).advanced,false);
+  await assert.rejects(choose(a,gameId,2,'air'));
+  await b.client.call('acknowledgeRound',{gameId,turn:1}); // old tab cannot ACK a new round
+  assert.equal((await read(a.db,`games/${gameId}`)).ready[b.uid],undefined);
+  await b.client.call('acknowledgeRound',{gameId,turn:2});
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:2,phase:'syncing'})).advanced,true);
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.phase,'choosing');assert.ok(Date.now()-g.phaseStartedAt.toMillis()<2000);
+  assert.deepEqual(g.chosen,{});
+});
+
+test('reglas nuevas: no se pueden falsificar confirmaciones, cierre ni elecciones ajenas', async () => {
+  const {a,b,gameId}=await started();
+  const ref=doc(a.db,`games/${gameId}`);
+  await assert.rejects(updateDoc(ref,{[`chosen.${b.uid}`]:true}));
+  await assert.rejects(updateDoc(ref,{[`chosen.${a.uid}`]:true}));
+  await assert.rejects(updateDoc(ref,{phase:'locked'}));
+  await assert.rejects(updateDoc(ref,{phaseStartedAt:serverTimestamp()}));
+  await assert.rejects(setDoc(doc(a.db,`games/${gameId}/intents/${a.uid}`),{
+    turn:1,action:'air',target:null,requestId:'uncoupled',revision:1,submittedAt:serverTimestamp(),
+  }));
+  await advance(a,gameId);await expire(gameId,2500);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
+  await assert.rejects(updateDoc(ref,{[`ready.${b.uid}`]:true}));
+  await assert.rejects(updateDoc(ref,{phase:'choosing',phaseStartedAt:serverTimestamp()}));
+});
+
+test('jugador eliminado no bloquea cierre y un host nuevo recupera la fase bloqueada', async () => {
+  const {a,b,players,gameId,roomId}=await started(3);
+  await patch(`games/${gameId}`,{[`players.${players[2].uid}.hair`]:0});
+  await choose(a,gameId,1,'air');await choose(b,gameId,1,'hide');
+  await updateDoc(doc(a.db,`games/${gameId}`),{phase:'locked'});
+  await assert.rejects(choose(b,gameId,1,'air',null,1));
+  await a.client.call('roomCommand',{command:'leave',roomId});
+  assert.equal((await b.client.call('advanceGame',{gameId,turn:1,phase:'locked'})).advanced,true);
+  assert.equal((await read(b.db,`games/${gameId}`)).lastResult.actions[players[2].uid],undefined);
 });

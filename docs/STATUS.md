@@ -1,5 +1,44 @@
 # Estado del MVP Spark
 
+## 0.4.0 — sincronización, cierre anticipado y primera estética escolar
+
+- Inicio de turnos y resultados anclado a `phaseStartedAt`, timestamp de Firestore, no a la hora estimada del host.
+- Reloj monotónico calibrado con tres muestras; se elige la de menor latencia. Se recalibra cada minuto, al reconectar y al volver a la pestaña.
+- Se ignoran snapshots locales especulativos y snapshots de caché para avanzar rondas.
+- Barrera de recepción al inicio y entre rondas: cada participante confirma únicamente su propio estado. Espera adicional máxima de 15 segundos; una desconexión durante el turno no lo pausa.
+- Cierre anticipado al elegir todos los activos. La fase `locked` congela las decisiones antes de permitir que el host las lea. Un host sucesor puede recuperar esa fase si el anterior sale.
+- Confirmaciones públicas sin acciones/objetivos; las reglas impiden falsificar señales ajenas y exigen guardar intención y confirmación juntas.
+- Primera interpretación de la referencia en CSS y SVG: cuaderno, mesa, retratos, recursos y tres botones inferiores. No es una reproducción ilustrada completa ni incluye el objeto +1 Pelo.
+
+Validación: 17 pruebas unitarias y 18 pruebas de integración/reglas aprobadas; build aprobado. Casos de seis jugadores, concurrencia, privacidad, espera del celular lento, cierre temprano, eliminado y transferencia de host incluidos. Pruebas E2E actualizadas y un caso de dos relojes diferentes añadido, pero **no ejecutados hasta completarse**: Chromium no pudo descargarse en este entorno. Falta revisión visual en navegador y prueba en celulares reales.
+
+Publicar Hosting **y reglas Firestore** juntos, actualizar todos los dispositivos e iniciar una partida nueva. El protocolo previo sigue admitido para partidas antiguas. Firebase Spark, sin servicios de backend nuevos.
+
+### Cargar el ZIP en Codespaces
+
+Primero comprobar `git status`; guardar o resolver cambios pendientes antes de copiar. Subir `pelaobolao-v0.4.0.zip` a la raíz y ejecutar:
+
+```bash
+cd /workspaces/pelaobolao
+git pull --ff-only origin main
+update_dir=$(mktemp -d /tmp/pelaobolao-0.4.0.XXXXXX)
+unzip pelaobolao-v0.4.0.zip -d "$update_dir"
+cp -a "$update_dir/pelaobolao/." .
+mv pelaobolao-v0.4.0.zip "$update_dir/"
+npm ci && npm test && npm run build
+git diff --stat
+```
+
+Solo si las comprobaciones terminan correctamente, revisar los cambios y subir:
+
+```bash
+git add README.md docs/STATUS.md firestore.rules index.html package.json package-lock.json public/version.json src tests
+git commit -m "Sincroniza rondas, cierre anticipado y estética escolar v0.4.0"
+git push origin main
+```
+
+Revisar que GitHub Actions termine correctamente antes de probar. Con Java 21+ también se pueden ejecutar `npm run test:integration` y, después de instalar Chromium, `npm run test:e2e`.
+
 ## 0.3.1 — recuperación de sesión y actualización
 
 Base: `main` de GitHub, commit `b84694e` (mismo contenido que el ZIP 0.3.0).

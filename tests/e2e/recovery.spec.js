@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import packageInfo from '../../package.json' with { type: 'json' };
 
 let env;
@@ -28,6 +28,7 @@ async function pair(browser, host) {
   for (const page of [host, guest]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await host.getByRole('button', { name: 'Iniciar partida' }).click();
   await expect(host.getByRole('heading', { name: 'Turno 1', exact: true })).toBeVisible();
+  await expect(host.locator('.game')).toHaveAttribute('data-phase','choosing');
   const room = await read(`rooms/${code}`);
   return { guestContext, guest, code, room, gameId: room.gameId };
 }
@@ -39,7 +40,7 @@ test('reingresar con un turno vencido no rompe la pantalla del nombre', async ({
   try {
     await page.reload();
     await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
-    await patch(`games/${gameId}`, { deadline: Date.now() - 5000 });
+    await patch(`games/${gameId}`, { deadline: Date.now() - 5000, phaseStartedAt: Timestamp.fromMillis(Date.now()-15000) });
     await expect(guest.getByRole('heading', { name: 'Resultado actual' })).toBeVisible();
     await expect(page.getByLabel('Nombre', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Continuar' }).click();
@@ -53,7 +54,7 @@ test('actualización cancela arrastre, bloquea acciones y recupera sala al recar
   page.on('pageerror', error => errors.push(error.message));
   const { guestContext, code, room, gameId } = await pair(browser, page);
   try {
-    await patch(`games/${gameId}`, { [`players.${room.hostId}.breath`]: 1, deadline: Date.now() + 60000 });
+    await patch(`games/${gameId}`, { [`players.${room.hostId}.breath`]: 1, 'rules.turnMs': 60000 });
     await expect(page.locator('#blow')).toBeEnabled();
     await page.locator('#blow').click();
     await page.locator('[data-player]').filter({ hasText: '<b>Beto</b>' }).click();
@@ -80,6 +81,39 @@ test('actualización cancela arrastre, bloquea acciones y recupera sala al recar
     await expect(page.locator('.game .eyebrow')).toHaveText(`Sala ${code}`);
     expect(errors).toEqual([]);
     await page.screenshot({ path: 'test-results/recovered-mobile.png', fullPage: true });
+  } finally { await guestContext.close(); }
+});
+
+test('dos relojes distintos, cierre anticipado y espera del celular que vuelve', async ({browser,page}) => {
+  // Simulate a device with a clock one hour ahead before calibration.
+  await page.addInitScript(() => {
+    const realNow=Date.now.bind(Date);Date.now=()=>realNow()+3600000;
+  });
+  const {guestContext,guest,gameId}=await pair(browser,page);
+  try {
+    await expect(guest.locator('.game')).toHaveAttribute('data-phase','choosing');
+    const seconds=async p=>Number((await p.locator('#timer').textContent()).replace(/\D/g,''));
+    expect(Math.abs(await seconds(page)-await seconds(guest))).toBeLessThanOrEqual(1);
+    await page.getByRole('button',{name:'Tomar aire',exact:true}).click();
+    await expect(page.locator('#selection')).toContainText('Elegido:');
+    expect((await read(`games/${gameId}`)).phase).toBe('choosing');
+    // A background/suspended tab must not acknowledge the following round.
+    await guest.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
+    await guest.getByRole('button',{name:'Tomar aire',exact:true}).click();
+    await expect(page.locator('.result')).toBeVisible({timeout:4000});
+    await expect(page.locator('.game')).toHaveAttribute('data-phase','syncing',{timeout:6000});
+    await expect(page.getByRole('button',{name:'Tomar aire',exact:true})).toBeDisabled();
+    await guest.evaluate(()=>{
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    for(const p of [page,guest]) {
+      await expect(p.locator('.game')).toHaveAttribute('data-phase','choosing');
+      expect(await seconds(p)).toBeGreaterThanOrEqual(6);
+    }
+    expect(Math.abs(await seconds(page)-await seconds(guest))).toBeLessThanOrEqual(1);
+    await page.screenshot({path:'test-results/classroom-mobile.png',fullPage:true});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   } finally { await guestContext.close(); }
 });
 

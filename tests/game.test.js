@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RULES, newGame, resolveRound, validateIntent, pruneLobby } from '../src/game.js';
+import { RULES, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked } from '../src/game.js';
+import { createServerClock } from '../src/clock.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
 const game = (count = 2) => {
@@ -99,4 +100,30 @@ test('lease expirada transfiere host y cierra lobby vacío', () => {
 test('reglas quedan copiadas en cada partida', () => {
   const rules = { ...RULES }; const state = newGame('room', members(2), 1000, rules);
   rules.turnMs = 100; assert.equal(state.rules.turnMs, 8000);
+});
+
+test('reloj monotónico: cambiar fecha del dispositivo no adelanta ni retrasa el turno', () => {
+  let wall=100000,tick=0;
+  const clock=createServerClock(()=>wall,()=>tick);
+  tick=50;clock.calibrate(200000,0,50);
+  assert.equal(clock.now(),200025);
+  wall+=3600000;tick+=1000;
+  assert.equal(clock.now(),201025);
+  wall-=7200000;tick+=1000;
+  assert.equal(clock.now(),202025);
+});
+
+test('todas las pantallas usan el timestamp del servidor, no el deadline estimado del host', () => {
+  const g=game();g.phaseStartedAt={toMillis:()=>50000};g.deadline=999999;
+  assert.equal(phaseDeadline(g),58000);
+  assert.throws(()=>validateIntent(g,'0',choice('air'),58000));
+  assert.doesNotThrow(()=>validateIntent(g,'0',choice('air'),57999));
+  g.phase='syncing';assert.equal(phaseDeadline(g),65000);
+});
+
+test('confirmaciones: se requieren todos los activos, no los eliminados', () => {
+  const g=game(3);g.chosen={'0':true,'1':true};
+  assert.equal(allMarked(g,'chosen'),false);
+  g.players['2'].hair=0;assert.equal(allMarked(g,'chosen'),true);
+  g.chosen={};assert.equal(allMarked(g,'chosen'),false);
 });

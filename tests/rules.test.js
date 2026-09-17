@@ -16,7 +16,8 @@ before(async()=>{
   gameId=(await getDoc(doc(a,'rooms',roomId))).data().gameId;
   await env.withSecurityRulesDisabled(async ctx=>{
     const db=ctx.firestore();
-    await updateDoc(doc(db,'games',gameId),{phase:'choosing',countdownEndsAt:null,deadline:Date.now()+600000});
+    // Retain coverage for in-progress games created by versions before 0.4.
+    await updateDoc(doc(db,'games',gameId),{protocolVersion:1,phase:'choosing',countdownEndsAt:null,deadline:Date.now()+600000});
     for(const uid of ['alice','bob']) await setDoc(doc(db,'games',gameId,'intents',uid),{action:'hide',target:null,turn:1,revision:1,requestId:'seed',submittedAt:Timestamp.now()});
   });
 });

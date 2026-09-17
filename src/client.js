@@ -1,5 +1,6 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
-import { RULES, LOBBY_LEASE_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis } from './game.js';
+import { RULES, LOBBY_LEASE_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
+import { createServerClock } from './clock.js';
 
 export const ROOM_CODE_PATTERN = /^[A-Z2-9]{4}$/;
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -10,15 +11,28 @@ const successor = (members, now) => Object.keys(members).filter(id => live(membe
 
 // This is a browser client, with normal authenticated Firestore permissions.
 export function createClient(db, uid, clock = Date.now) {
-  let offset = 0;
-  const now = () => clock() + offset;
+  const serverClock = createServerClock(clock);
+  const now = serverClock.now;
+  let clockSync;
   const sessionRef = doc(db, 'sessions', uid);
   async function syncClock() {
-    const start = clock();
-    await setDoc(sessionRef, { clockAt: serverTimestamp() }, { merge: true });
-    const snap = await getDocFromServer(sessionRef);
-    offset = millis(snap.data().clockAt) - (start + clock()) / 2;
-    return offset;
+    if (clockSync) return clockSync;
+    clockSync = (async () => {
+      let best;
+      for (let sample = 0; sample < 3; sample++) {
+        const start = performance.now();
+        await setDoc(sessionRef, { clockAt: serverTimestamp() }, { merge: true });
+        // Read latency must not bias the write's clock sample.
+        const end = performance.now();
+        const snap = await getDocFromServer(sessionRef);
+        if (!best || end - start < best.rtt) best = {
+          rtt: end - start, server: millis(snap.data().clockAt),
+          start, end,
+        };
+      }
+      serverClock.calibrate(best.server + performance.now() - best.end, best.start, best.end);
+    })().finally(() => { clockSync = null; });
+    return clockSync;
   }
   async function saveProfile(data) {
     exactObject(data, ['name']);
@@ -98,7 +112,7 @@ export function createClient(db, uid, clock = Date.now) {
                 room.members = Object.fromEntries(Object.entries(room.members).filter(([,m]) => !m.left));
                 requireThat(Object.keys(room.members).length >= RULES.minPlayers && Object.values(room.members).every(m => m.ready), 'Todos los jugadores deben estar listos.');
                 const game = newGame(id, room.members, time);
-                tx.set(gameRef, game); room.status = 'playing'; room.gameId = gameRef.id;
+                tx.set(gameRef, { ...game, phaseStartedAt: serverTimestamp() }); room.status = 'playing'; room.gameId = gameRef.id;
               }
             }
             if (command === 'lobby') {
@@ -139,19 +153,48 @@ export function createClient(db, uid, clock = Date.now) {
       const ref = doc(db, 'games', data.gameId, 'intents', uid), old = (await tx.get(ref)).data();
       validateIntent(game, uid, data, now());
       if (old?.turn === data.turn && old.requestId === data.requestId) return old;
+      requireThat(game.protocolVersion !== 2 || !allMarked(game, 'chosen'), 'Todos eligieron. Resolviendo el turno.');
       const revision = old?.turn === game.turn ? old.revision : 0;
       requireThat(data.expectedRevision === revision, 'La acción cambió en otra pestaña. Volvé a elegir.', 'aborted');
       const intent = { turn: game.turn, action: data.action, target: data.target, requestId: data.requestId, revision: revision + 1 };
       tx.set(ref, { ...intent, submittedAt: serverTimestamp() });
+      if (game.protocolVersion === 2) tx.update(gameRef, { [`chosen.${uid}`]: true });
       return intent;
+    });
+  }
+  async function acknowledgeRound({ gameId, turn }) {
+    validId(gameId);
+    return runTransaction(db, async tx => {
+      const ref = doc(db, 'games', gameId), game = (await tx.get(ref)).data();
+      if (!game || game.protocolVersion !== 2 || game.turn !== turn
+        || !['countdown', 'syncing'].includes(game.phase) || game.ready[uid]) return {};
+      requireThat(game.memberIds.includes(uid), 'No pertenecés a esta partida.');
+      tx.update(ref, { [`ready.${uid}`]: true });
+      return {};
     });
   }
   async function advanceGame({ gameId, turn, phase }) {
     validId(gameId);
+    const initial = (await getDocFromServer(doc(db, 'games', gameId))).data();
+    if (!initial || initial.turn !== turn || initial.phase !== phase) return { advanced: false };
+    const synchronized = initial.protocolVersion === 2;
+    if (synchronized && phase === 'choosing') {
+      const locked = await runTransaction(db, async tx => {
+        const ref = doc(db, 'games', gameId), game = (await tx.get(ref)).data();
+        if (game.turn !== turn || game.phase !== 'choosing') return false;
+        const room = (await tx.get(doc(db, 'rooms', game.roomId))).data();
+        requireThat(room?.hostId === uid && !room.members[uid]?.left, 'Solo el host resuelve.', 'permission-denied');
+        if (now() < phaseDeadline(game) && !allMarked(game, 'chosen')) return false;
+        tx.update(ref, { phase: 'locked' });
+        return true;
+      });
+      if (!locked) return { advanced: false };
+      phase = 'locked';
+    }
     let resolvedIntents = {};
-    if (phase === 'choosing') {
+    if (phase === 'choosing' || phase === 'locked') {
       const preview = (await getDocFromServer(doc(db, 'games', gameId))).data();
-      if (!preview || preview.turn !== turn || preview.phase !== phase || now() < preview.deadline) return { advanced: false };
+      if (!preview || preview.turn !== turn || preview.phase !== phase || (phase === 'choosing' && now() < phaseDeadline(preview))) return { advanced: false };
       const snapshots = [];
       // Keep these reads sequential: Firestore applies a stricter rules lookup budget to
       // batched reads. At most six small documents are loaded once per completed turn.
@@ -162,33 +205,38 @@ export function createClient(db, uid, clock = Date.now) {
     }
     return runTransaction(db, async tx => {
       const time = now(), ref = doc(db, 'games', gameId), game = (await tx.get(ref)).data();
-      if (!game || !['countdown','choosing','reveal'].includes(game.phase) || game.turn !== turn || game.phase !== phase) return { advanced: false };
+      if (!game || !['countdown','syncing','choosing','locked','reveal'].includes(game.phase) || game.turn !== turn || game.phase !== phase) return { advanced: false };
       const roomRef = doc(db, 'rooms', game.roomId), room = (await tx.get(roomRef)).data();
       requireThat(room?.hostId === uid && !room.members[uid]?.left, 'Solo el host resuelve.', 'permission-denied');
-      const phaseDeadline = phase === 'countdown' ? game.countdownEndsAt : phase === 'choosing' ? game.deadline : game.nextTurnAt;
-      if (room.gameId !== gameId || time < phaseDeadline) return { advanced: false };
-      if (phase === 'countdown') {
-        tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null });
+      const deadline = phaseDeadline(game);
+      if (room.gameId !== gameId) return { advanced: false };
+      if (phase !== 'locked' && !(phase === 'syncing' && allMarked(game, 'ready')) && time < deadline) return { advanced: false };
+      if (synchronized && phase === 'countdown' && !allMarked(game, 'ready') && time < deadline + SYNC_WAIT_MS) return { advanced: false };
+      if (phase === 'countdown' || phase === 'syncing') {
+        tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null,
+          ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}) });
       } else if (phase === 'reveal') {
-        tx.update(ref, { phase: 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null });
+        tx.update(ref, { phase: synchronized ? 'syncing' : 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null,
+          ...(synchronized ? { phaseStartedAt: serverTimestamp(), ready: {}, chosen: {} } : {}) });
       } else {
         if (game.resolvedTurn >= game.turn) return { advanced: false };
         const resultRef = doc(db, 'games', gameId, 'rounds', String(game.turn));
         if ((await tx.get(resultRef)).exists()) return { advanced: false };
-        // Intentions are queried once after the deadline. Rules prevent edits after that
-        // instant, while this transaction still protects the game/host/turn authority.
-        const result = resolveRound(game, resolvedIntents);
+        // Locked intentions cannot change. Legacy games freeze at their deadline.
+        // This transaction still protects game/host/turn authority and idempotency.
+        const result = resolveRound({ ...game, phase: 'choosing' }, resolvedIntents);
         tx.set(resultRef, { ...result.result, resolvedBy: uid, resolvedAt: serverTimestamp() });
         tx.update(ref, { players: result.players, lastResult: result.result, resolvedTurn: game.turn,
           phase: result.finished ? 'finished' : 'reveal', winnerId: result.winnerId, draw: result.draw,
           nextTurnAt: result.finished ? null : time + game.rules.revealMs,
+          ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}),
           ...(result.finished ? { finishedAt: time } : {}) });
         if (result.finished) tx.update(roomRef, { status: 'finished', updatedAt: serverTimestamp() });
       }
       return { advanced: true };
     });
   }
-  const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, advanceGame };
+  const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, acknowledgeRound, advanceGame };
   return { now, syncClock, call: async (name, data) => {
     requireThat(commands[name], 'Comando inválido.');
     return { ...await commands[name](data), serverNow: now() };

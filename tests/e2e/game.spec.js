@@ -29,21 +29,29 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
   await a.getByRole('button', { name: 'Iniciar partida' }).click();
   const turn = async n => {
-    for (const page of [a, b]) await expect(page.getByRole('heading', { name: `Turno ${n}`, exact: true })).toBeVisible({ timeout: 18000 });
+    for (const page of [a, b]) {
+      await expect(page.getByRole('heading', { name: `Turno ${n}`, exact: true })).toBeVisible({ timeout: 25000 });
+      await expect(page.locator('.game')).toHaveAttribute('data-phase', 'choosing', { timeout: 20000 });
+    }
   };
+  const savedOrRevealed = page => expect.poll(async () =>
+    /Elegido:/.test(await page.locator('#selection').textContent() ?? '')
+      || ['locked','reveal','finished'].includes(await page.locator('.game').getAttribute('data-phase'))
+  ).toBe(true);
   const choose = async (page, action) => {
     await page.getByRole('button', { name: action }).click();
-    await expect(page.locator('#selection')).toContainText('Elegido:', { timeout: 6000 });
+    await savedOrRevealed(page);
   };
   const blow = async (page, target) => {
     await page.locator('#blow').click();
     await page.locator('[data-player]').filter({ hasText: target }).click();
-    await expect(page.locator('#selection')).toContainText(`Elegido: Soplar → ${target}`, { timeout: 6000 });
+    await savedOrRevealed(page);
   };
   await turn(1);
-  await choose(a, /Tomar aire/); await choose(b, /Tomar aire/);
+  await choose(a, /Tomar aire/);
   // Choices of the other player never appear before resolution.
   await expect(a.locator('.result')).toHaveCount(0);
+  await choose(b, /Tomar aire/);
   await turn(2);
   await choose(b, /Esconderse/);
   const source = await a.locator('#blow').boundingBox();
@@ -60,7 +68,7 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   }
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await touch.detach();
-  await expect(a.locator('#selection')).toContainText('Elegido: Soplar → Beto');
+  await savedOrRevealed(a);
   await a.screenshot({ path: 'test-results/mobile-game.png', fullPage: true });
   await expect(a.locator('.result')).toContainText('bloqueado', { timeout: 12000 });
   await turn(3);
