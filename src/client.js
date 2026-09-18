@@ -142,7 +142,7 @@ export function createClient(db, uid, clock = Date.now) {
           }
           tx.update(ref, ...changes);
           return { roomId: command === 'leave' ? null : id };
-        });
+        }, { maxAttempts: 10 });
       } catch (error) { if (error.message !== 'CODE_COLLISION') throw error; }
     }
     throw new Error('No pudimos crear el código. Reintentá.');
