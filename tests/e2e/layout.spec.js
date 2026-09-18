@@ -45,6 +45,10 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
               if(el.scrollHeight>el.clientHeight+2||el.scrollWidth>el.clientWidth+2) bad.push(`${selector}: contenido recortado`);
             }
           }
+          for(const el of document.querySelectorAll('.resources>span:not(.hair-pips):not(.breath-pips)')) {
+            const r=el.getBoundingClientRect(), body=el.closest('.player-body').getBoundingClientRect();
+            if(r.top<body.top-1 || r.bottom>body.bottom+1) bad.push('recursos fuera de la tarjeta');
+          }
           if(document.documentElement.scrollHeight>innerHeight+1) bad.push('scroll de página');
           return bad;
         });

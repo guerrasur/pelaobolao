@@ -470,6 +470,10 @@ header { padding:0; min-height:32px; justify-content:space-between; }
   .players[data-count="2"] .player.self { grid-column:3; grid-row:2; }
   .player { max-height:230px; }
 }
+@media(max-height:850px) {
+  .players[data-count="5"] .hair-pips,.players[data-count="6"] .hair-pips,
+  .players[data-count="5"] .breath-pips,.players[data-count="6"] .breath-pips { display:none!important; }
+}
 @media(max-height:650px) {
   .game { gap:3px; padding:5px 7px 3px; }
   .phase-banner { min-height:22px; padding:2px 6px; }
