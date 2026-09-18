@@ -19,7 +19,7 @@ function avatar(index, hair) {
 }
 export function playerCard({ uid, player: p, index, self, selected, chosen, rules }) {
   return `<button class="player ${self ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${selected ? 'selected-target' : ''}" data-player="${esc(uid)}" style="--seat-color:${colors[index % colors.length]}" ${p.hair <= 0 || self ? 'disabled' : ''}>
-    <strong class="player-name"><i>${index + 1}</i>${esc(p.name)}${self ? ' (vos)' : ''}</strong>
+    <strong class="player-name"><i>${index + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}${self ? ' (vos)' : ''}</span></strong>
     <div class="player-body"><div class="avatar">${avatar(index, p.hair)}</div><div class="resources">
     <span>Pelo <b>${p.hair}</b>/${rules.maxHair}</span><span class="hair-pips" aria-hidden="true">${Array.from({ length: rules.maxHair }, (_, n) => `<i class="${n < p.hair ? 'full' : ''}"></i>`).join('')}</span>
     <span>Soplos <b>${p.breath}</b>/${rules.maxBreath}</span><span class="breath-pips" aria-hidden="true">${Array.from({ length: rules.maxBreath }, (_, n) => `<i class="${n < p.breath ? 'full' : ''}">≋</i>`).join('')}</span>

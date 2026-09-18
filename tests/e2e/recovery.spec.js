@@ -9,7 +9,11 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await env?.cleanup(); });
 const admin = fn => env.withSecurityRulesDisabled(ctx => fn(ctx.firestore()));
-const read = path => admin(async db => (await getDoc(doc(db, path))).data());
+const read = async path => {
+  let value;
+  await admin(async db => { value = (await getDoc(doc(db, path))).data(); });
+  return value;
+};
 const patch = (path, data) => admin(db => updateDoc(doc(db, path), data));
 
 async function pair(browser, host) {

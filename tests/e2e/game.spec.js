@@ -36,10 +36,10 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
       await expect(page.locator('.game')).toHaveAttribute('data-phase', 'choosing', { timeout: 20000 });
     }
   };
-  const savedOrRevealed = page => expect.poll(async () =>
-    /Elegido:/.test(await page.locator('#selection').count() ? await page.locator('#selection').textContent() : '')
-      || ['locked','reveal','finished'].includes(await page.locator('.game').getAttribute('data-phase'))
-  ).toBe(true);
+  const savedOrRevealed = page => expect.poll(() => page.evaluate(() =>
+    /Elegido:/.test(document.querySelector('#selection')?.textContent ?? '')
+      || ['locked','reveal','finished'].includes(document.querySelector('.game')?.dataset.phase)
+  )).toBe(true);
   const choose = async (page, action) => {
     await page.getByRole('button', { name: action }).click();
     await savedOrRevealed(page);
