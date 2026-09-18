@@ -24,6 +24,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await a.reload();
   await expect(a.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
   await a.getByRole('button', { name: 'Continuar' }).click();
+  await a.getByLabel('Código de sala').fill(code);
+  await a.getByRole('button', { name: 'Unirse a sala' }).click();
   await expect(a.locator('.lobby-list')).toContainText('Ana (vos)');
   for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
@@ -83,6 +85,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.reload();
   await expect(b.getByLabel('Nombre', { exact: true })).toHaveValue('Beto');
   await b.getByRole('button', { name: 'Continuar' }).click();
+  await b.getByLabel('Código de sala').fill(code);
+  await b.getByRole('button', { name: 'Unirse a sala' }).click();
   await expect(b.locator('.players')).toContainText('Beto (vos)');
   await turn(6);
   await blow(a, 'Beto');

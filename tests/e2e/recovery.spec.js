@@ -36,20 +36,23 @@ async function pair(browser, host) {
 test('reingresar con un turno vencido no rompe la pantalla del nombre', async ({ browser, page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  const { guestContext, guest, gameId } = await pair(browser, page);
+  const { guestContext, guest, gameId, code } = await pair(browser, page);
   try {
     await page.reload();
     await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
     await patch(`games/${gameId}`, { deadline: Date.now() - 5000, phaseStartedAt: Timestamp.fromMillis(Date.now()-15000) });
-    await expect(guest.getByRole('heading', { name: 'Resultado actual' })).toBeVisible();
+    // The reloaded host does not resume or advance the saved match on its own.
     await expect(page.getByLabel('Nombre', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+    await page.getByLabel('Código de sala').fill(code);
+    await page.getByRole('button', { name: 'Unirse a sala' }).click();
     await expect(page.locator('.players')).toContainText('Ana (vos)');
     expect(errors).toEqual([]);
   } finally { await guestContext.close(); }
 });
 
-test('actualización cancela arrastre, bloquea acciones y recupera sala al recargar', async ({ browser, page }) => {
+test('actualización cancela arrastre, bloquea acciones y permite reingresar con código al recargar', async ({ browser, page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   const { guestContext, code, room, gameId } = await pair(browser, page);
@@ -78,6 +81,9 @@ test('actualización cancela arrastre, bloquea acciones y recupera sala al recar
     await page.getByRole('button', { name: 'Actualizar ahora' }).click();
     await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
     await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+    await page.getByLabel('Código de sala').fill(code);
+    await page.getByRole('button', { name: 'Unirse a sala' }).click();
     await expect(page.locator('.game .eyebrow')).toHaveText(`Sala ${code}`);
     expect(errors).toEqual([]);
     await page.screenshot({ path: 'test-results/recovered-mobile.png', fullPage: true });

@@ -54,10 +54,8 @@ const expire = (gameId, duration=60000) => patch(`games/${gameId}`, {
   deadline:Date.now()-5000, nextTurnAt:Date.now()-5000,
   phaseStartedAt:Timestamp.fromMillis(Date.now()-duration-5000),
 });
-test('creación idempotente, inicio único ante concurrencia y solo host inicia',async()=>{
+test('inicio único ante concurrencia y solo host inicia',async()=>{
   const {a,b,roomId}=await pair();
-  const duplicates=await Promise.all([a.client.call('roomCommand',{command:'create'}),a.client.call('roomCommand',{command:'create'})]);
-  assert.ok(duplicates.every(r=>r.roomId===roomId));
   await assert.rejects(b.client.call('roomCommand',{command:'start',roomId}));
   await a.client.call('roomCommand',{command:'ready',roomId,ready:true});
   await b.client.call('roomCommand',{command:'ready',roomId,ready:true});
@@ -254,4 +252,12 @@ test('dos clientes de la misma identidad sincronizan sin llevar el reloj a cero'
     await Promise.allSettled([a.client.syncClock(),other.syncClock()]);
     for(const client of [a.client,other]) assert.ok(Math.abs(client.now()-Date.now())<1500);
   }
+});
+
+ test('crear sala no recupera la anterior y una salida vieja no borra la nueva sesión', async () => {
+  const { a, roomId } = await pair();
+  const next = await a.client.call('roomCommand', { command: 'create' });
+  assert.notEqual(next.roomId, roomId);
+  await a.client.call('roomCommand', { command: 'leave', roomId });
+  assert.equal((await read(a.db, `sessions/${a.uid}`)).roomId, next.roomId);
 });

@@ -17,6 +17,7 @@ const s = { profile: undefined, room: null, roomId: null, game: null, gameId: nu
   nameConfirmed: false, resetting: false, updateRequired: null, updating: false, bootError: null, gameError: null };
 let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0;
 let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = false, abandoning = false, lastAck = 0, lastAbandonAttempt = 0, lastPhase;
+let operationGeneration = 0;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
 const now = () => api?.now() ?? Date.now();
 const message = text => { notice.textContent = text; };
@@ -88,21 +89,29 @@ function detachGame() {
   s.gameId = null; s.game = null; s.intent = null; s.gameError = null;
   s.choice = null; pending = null; s.targeting = false;
 }
-async function resetRoomSession(text = 'Volviste al inicio. Podés crear otra sala o entrar con un código.') {
+function resetRoomSession(text = 'Volviste al inicio. Podés crear otra sala o entrar con un código.') {
   const oldRoomId = s.roomId;
-  roomGeneration += 1;
-  s.resetting = true;
+  roomGeneration += 1; operationGeneration += 1;
   roomOff?.(); roomOff = null; s.roomId = null; s.room = null; detachGame();
+  s.busy = false; s.resetting = false;
   message(text); render();
-  try { await call('clearRoomSession', { roomId: oldRoomId }); }
-  catch (error) { showError(error); }
-  finally { s.resetting = false; render(); }
+  // Local navigation never waits for network access or room permissions.
+  if (oldRoomId) void call('clearRoomSession', { roomId: oldRoomId }).catch(() => {});
+}
+function leaveRoom() {
+  const roomId = s.roomId;
+  resetRoomSession();
+  if (roomId) void call('roomCommand', { command: 'leave', roomId }).catch(() => {});
 }
 async function operation(fn) {
   if (s.busy || s.resetting || s.updateRequired) return;
+  const generation = ++operationGeneration;
   s.busy = true; render(); message('');
-  try { await fn(); } catch (error) { showError(error); }
-  finally { s.busy = false; render(); }
+  try { await fn(); } catch (error) {
+    if (generation === operationGeneration) showError(error);
+  } finally {
+    if (generation === operationGeneration) { s.busy = false; render(); }
+  }
 }
 function subscribeGame(id) {
   if (s.gameId === id) return;
@@ -134,13 +143,19 @@ function subscribeGame(id) {
     render();
   }, error => {
     if (generation !== gameGeneration) return;
+    if (error.code?.endsWith('permission-denied') || error.code?.endsWith('not-found')) {
+      resetRoomSession('Ya no tenés acceso a esa partida. Podés crear otra sala.');
+      return;
+    }
     cancelDrag(); s.game = null; s.gameError = 'No pudimos cargar la partida.'; render(); showError(error);
   });
   intentOff = onSnapshot(doc(api.db, 'games', id, 'intents', api.uid), snap => {
     if (generation !== gameGeneration) return;
     s.intent = snap.data() ?? null;
     render();
-  }, showError);
+  }, error => {
+    if (generation === gameGeneration) showError(error);
+  });
 }
 function subscribeRoom(id) {
   if (s.roomId === id) return;
@@ -165,8 +180,9 @@ function subscribeRoom(id) {
   heartbeat();
 }
 async function roomCommand(command, extra = {}) {
+  const generation = roomGeneration;
   const result = await call('roomCommand', { command, ...(!['create', 'join'].includes(command) ? { roomId: s.roomId } : {}), ...extra });
-  if (command !== 'touch') subscribeRoom(result.roomId);
+  if (generation === roomGeneration && command !== 'touch') subscribeRoom(result.roomId);
 }
 async function heartbeat() {
   if (!api || !s.roomId || !s.online || s.updateRequired || heartbeatBusy) return;
@@ -239,7 +255,7 @@ function render() {
   const selection = inputValue !== null ? [active.selectionStart, active.selectionEnd] : null;
   const disabled = s.busy || s.resetting || !s.online ? 'disabled' : '';
   if (s.updateRequired) {
-    app.innerHTML = `<section class="state update-gate"><p class="eyebrow">Nueva versión v${esc(s.updateRequired)}</p><h1>Hay que actualizar para seguir</h1><p>Tu identidad se conserva. Después de actualizar intentaremos recuperar la sala si sigue disponible.</p><button id="install-update" ${s.updating ? 'disabled' : ''}>${s.updating ? 'Actualizando…' : 'Actualizar ahora'}</button></section>`;
+    app.innerHTML = `<section class="state update-gate"><p class="eyebrow">Nueva versión v${esc(s.updateRequired)}</p><h1>Hay que actualizar para seguir</h1><p>Tu identidad se conserva. Después de actualizar podés volver a entrar con el código de la sala.</p><button id="install-update" ${s.updating ? 'disabled' : ''}>${s.updating ? 'Actualizando…' : 'Actualizar ahora'}</button></section>`;
   } else if (s.bootError) {
     app.innerHTML = `<section class="state"><h1>No pudimos iniciar</h1><p>${esc(s.bootError)}</p><button id="reload-app">Reintentar</button></section>`;
   } else if (!s.ready) {
@@ -254,9 +270,9 @@ function render() {
   } else if (s.room.status === 'lobby') {
     const members = Object.entries(s.room.members);
     const host = s.room.hostId === api.uid;
-    app.innerHTML = `<section><p class="eyebrow">Sala de espera</p><h1>Código <span class="code">${esc(s.room.code)}</span></h1><button id="share-room" class="secondary">Compartir sala</button><h2>Jugadores · ${members.length}/6</h2><ul class="lobby-list">${members.map(([uid, m]) => `<li><strong>${esc(m.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>${uid === s.room.hostId ? 'Host · ' : ''}<b>${m.ready ? 'Listo' : 'No listo'}</b></span></li>`).join('')}</ul><button id="ready-toggle" ${disabled}>${s.room.members[api.uid].ready ? 'Marcar no listo' : 'Estoy listo'}</button>${host ? `<button id="start-game" ${disabled || (members.length < 2) || !members.every(([,m]) => m.ready) ? 'disabled' : ''}>Iniciar partida</button><p class="muted">Todos los jugadores deben estar listos.</p>` : `<p class="muted">El host inicia cuando todos estén listos.</p>`}<button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button></section>`;
+    app.innerHTML = `<section><p class="eyebrow">Sala de espera</p><h1>Código <span class="code">${esc(s.room.code)}</span></h1><button id="share-room" class="secondary">Compartir sala</button><h2>Jugadores · ${members.length}/6</h2><ul class="lobby-list">${members.map(([uid, m]) => `<li><strong>${esc(m.name)}${uid === api.uid ? ' (vos)' : ''}</strong><span>${uid === s.room.hostId ? 'Host · ' : ''}<b>${m.ready ? 'Listo' : 'No listo'}</b></span></li>`).join('')}</ul><button id="ready-toggle" ${disabled}>${s.room.members[api.uid].ready ? 'Marcar no listo' : 'Estoy listo'}</button>${host ? `<button id="start-game" ${disabled || (members.length < 2) || !members.every(([,m]) => m.ready) ? 'disabled' : ''}>Iniciar partida</button><p class="muted">Todos los jugadores deben estar listos.</p>` : `<p class="muted">El host inicia cuando todos estén listos.</p>`}<button id="leave-room" class="quiet">Salir de la sala</button></section>`;
   } else if (!s.game) {
-    app.innerHTML = `<section class="state"><div class="spinner" aria-hidden="true"></div><h1>${s.gameError ? esc(s.gameError) : 'Cargando la partida…'}</h1><button id="leave-room" class="quiet" ${disabled}>Salir de la sala</button><button id="reset-session" class="quiet">Volver al inicio</button></section>`;
+    app.innerHTML = `<section class="state"><div class="spinner" aria-hidden="true"></div><h1>${s.gameError ? esc(s.gameError) : 'Cargando la partida…'}</h1><button id="leave-room" class="quiet">Salir de la sala</button><button id="reset-session" class="quiet">Volver al inicio</button></section>`;
   } else {
     const game = s.game;
     const me = game.players[api.uid];
@@ -266,7 +282,7 @@ function render() {
     const order = [...(game.memberIds || Object.keys(game.players)).filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
     const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<p class="play-hint">Arrastrá SOPLAR hacia un rival</p>${actionControls(canChoose(), me.breath, s.targeting)}<p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
-    app.innerHTML = `<section class="game" data-phase="${esc(game.phase)}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${game.phase === 'choosing' ? 'Tu turno de acción' : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Un momento…' : ''}</strong></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: game.memberIds.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], rules: game.rules })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet" ${disabled}>Salir de la partida</button></section>`;
+    app.innerHTML = `<section class="game" data-phase="${esc(game.phase)}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${game.phase === 'choosing' ? 'Tu turno de acción' : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Un momento…' : ''}</strong></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: game.memberIds.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], rules: game.rules })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -296,9 +312,10 @@ function bind() {
     operation(() => roomCommand('join', { code }));
   });
   document.getElementById('ready-toggle')?.addEventListener('click', () => operation(() => roomCommand('ready', { ready: !s.room.members[api.uid].ready })));
-  for (const [id, command] of [['create-room', 'create'], ['start-game', 'start'], ['leave-room', 'leave'], ['back-lobby', 'lobby']]) {
+  for (const [id, command] of [['create-room', 'create'], ['start-game', 'start'], ['back-lobby', 'lobby']]) {
     document.getElementById(id)?.addEventListener('click', () => operation(() => roomCommand(command)));
   }
+  document.getElementById('leave-room')?.addEventListener('click', leaveRoom);
   document.querySelector('#share-room')?.addEventListener('click', async () => {
     const url = `${location.origin}/?s=${s.room.code}`;
     try {
@@ -384,7 +401,10 @@ function tick() {
   const staleAt = millis(game.lastProgressAt || game.phaseStartedAt || game.finishedAt);
   if (!abandoning && staleAt > 0 && now() - staleAt > ABANDON_MS && !['abandoned'].includes(game.phase) && s.online && Date.now() - lastAbandonAttempt > 1500) {
     abandoning = true; lastAbandonAttempt = Date.now();
-    call('abandonGame', { gameId: s.gameId }).catch(showError).finally(() => { abandoning = false; });
+    const gameId = s.gameId;
+    resetRoomSession('La partida venció por inactividad. Podés crear una sala nueva.');
+    void call('abandonGame', { gameId }).catch(() => {}).finally(() => { abandoning = false; });
+    return;
   }
   const early = game.protocolVersion === 2 && (game.phase === 'locked'
     || game.phase === 'syncing' && allMarked(game, 'ready')
@@ -412,7 +432,9 @@ try {
   onSnapshot(doc(api.db, 'profiles', api.uid), snap => { s.profile = snap.data() ?? null; s.ready = true; render(); }, error => {
     s.bootError = error.message || 'No pudimos cargar tu perfil.'; s.ready = true; render(); showError(error);
   });
-  onSnapshot(doc(api.db, 'sessions', api.uid), snap => { subscribeRoom(snap.data()?.roomId ?? null); }, showError);
+  // A saved server session is not consent to re-enter an old match.
+  // Room subscriptions start only after an explicit create/join action.
+  // Brief backgrounding keeps the current page and subscriptions intact.
 } catch (error) {
   s.bootError = error.message; s.ready = true; render();
   connection.textContent = 'No conectado';

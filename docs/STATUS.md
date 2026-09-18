@@ -1,5 +1,19 @@
 # Estado del MVP Spark
 
+## 0.5.2 — salida local y entrada explícita
+
+Base: `main` de GitHub, commit `9b20e68bceebbf7c7b221d69153d8b4313b93d95`.
+
+- Abrir o recargar no se suscribe a la sala guardada. Confirmar nombre lleva al inicio; se puede reingresar con código.
+- Cambiar brevemente de pestaña mantiene las suscripciones actuales.
+- Salir y volver al inicio desconectan la interfaz inmediatamente; la limpieza remota es independiente.
+- El botón de salir sigue disponible sin conexión y durante operaciones pendientes.
+- Crear sala no reutiliza una sala vieja; una salida atrasada no borra una sesión nueva.
+- Las respuestas y errores de operaciones anteriores no reabren salas ni alteran el bloqueo de nuevas operaciones.
+- Acceso denegado a la partida y vencimiento por inactividad vuelven al inicio aun cuando falle la limpieza remota.
+
+Validación: 27 pruebas de lógica/controlador y build de producción aprobados. Se actualizaron las expectativas de reingreso de las pruebas E2E y se añadió cobertura de integración para creación nueva y salida atrasada. Integración/Firestore bloqueada: el entorno tiene Java 17 y firebase-tools exige Java 21 o superior. E2E no ejecutado; no se afirma validación en dispositivos reales. No se modificaron reglas Firestore.
+
 ## 0.5.1 — sincronización de transiciones y compatibilidad
 
 - Las transiciones de fase actualizan una marca de progreso junto con el reloj del servidor.

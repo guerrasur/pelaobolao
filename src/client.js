@@ -61,11 +61,6 @@ export function createClient(db, uid, clock = Date.now) {
           const profile = (await tx.get(doc(db, 'profiles', uid))).data();
           requireThat(profile, 'Primero elegí tu nombre.');
           const session = (await tx.get(sessionRef)).data();
-          if (command === 'create' && session?.roomId) {
-            const existing = (await tx.get(doc(db, 'rooms', session.roomId))).data();
-            if (existing && existing.status !== 'closed' && existing.members[uid] && !existing.members[uid].left)
-              return { roomId: session.roomId };
-          }
           const id = command === 'create' ? candidate : command === 'join' ? data.code : data.roomId;
           const ref = doc(db, 'rooms', id);
           const old = (await tx.get(ref)).data();
@@ -102,7 +97,7 @@ export function createClient(db, uid, clock = Date.now) {
               room.hostId = successor(room.members, time) ?? (Object.keys(room.members).find(id => id !== uid && !room.members[id].left) ?? uid);
               if (!Object.values(room.members).some(m => !m.left)) room.status = 'closed';
             }
-            tx.set(sessionRef, { roomId: null, updatedAt: serverTimestamp() }, { merge: true });
+            if (session?.roomId === id) tx.set(sessionRef, { roomId: null, updatedAt: serverTimestamp() }, { merge: true });
           } else {
             room.members[uid] = { ...room.members[uid], lastSeenAt: serverTimestamp() };
             // Read the old lease; the transaction conflicts with a returning host's heartbeat.

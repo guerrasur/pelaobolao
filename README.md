@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.5.1): se endurecen las transiciones sincronizadas del reloj, se toleran documentos heredados sin campos opcionales y se corrigen las confirmaciones de ronda para evitar bloqueos en dispositivos lentos. Las partidas explícitamente abandonadas se cierran para todos y las partidas congeladas o terminadas se retiran después de dos minutos sin actividad. La sesión conserva la identidad del jugador, mientras la partida vuelve a la pantalla inicial. La estética escolar y los sonidos de ronda se mantienen. Antes de publicar esta entrega ejecutá `npm run test:integration` en Codespaces para validar las reglas nuevas contra el emulador.
+Última corrección (0.5.2): abrir o recargar la web lleva al inicio después de confirmar el nombre; para volver a una sala hay que entrar con su código. Cambiar brevemente de pestaña conserva la partida actual. Salir funciona inmediatamente aunque no haya conexión o Firestore rechace la operación. Crear sala siempre crea una nueva y las respuestas de una sesión anterior no vuelven a abrirla. Las partidas vencidas regresan al inicio aunque falle su cierre remoto.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
@@ -12,9 +12,9 @@ Primera estética escolar: mesa, papel de cuaderno, retratos vectoriales que pie
 
 **Al actualizar a 0.4.0, publicar también `firestore.rules` y comenzar una partida nueva con todos los celulares actualizados.** Las partidas anteriores conservan su protocolo anterior hasta terminar; las nuevas usan `protocolVersion: 2`. Se mantiene compatibilidad de lectura de perfiles y salas.
 
-Se conservan las reglas e interacción existentes: 2–6 jugadores, Pelo 3/4, Soplos 0/2, aire, esconderse, Soplar con drag/tap, decisiones cambiables y resultados simultáneos. El lobby usa estados Listo/No listo, códigos de sala de 4 caracteres y enlaces compartibles (`schemaVersion` de rooms y games: 3). Al abrir la web se vuelve a confirmar el nombre, precargado con el último usado; la identidad anónima y la sala se conservan en el navegador.
+Se conservan las reglas e interacción existentes: 2–6 jugadores, Pelo 3/4, Soplos 0/2, aire, esconderse, Soplar con drag/tap, decisiones cambiables y resultados simultáneos. El lobby usa estados Listo/No listo, códigos de sala de 4 caracteres y enlaces compartibles (`schemaVersion` de rooms y games: 3). Al abrir la web se vuelve a confirmar el nombre, precargado con el último usado; la identidad anónima se conserva en el navegador. La sala solo se conserva mientras siga abierta la misma página; una recarga requiere volver a entrar con el código.
 
-La versión visible se toma de `package.json`. `public/version.json` permite detectar despliegues nuevos: una versión desactualizada bloquea el juego y ofrece una actualización limpia, sin perder la sesión guardada. Ambos números deben incrementarse juntos.
+La versión visible se toma de `package.json`. `public/version.json` permite detectar despliegues nuevos: una versión desactualizada bloquea el juego y ofrece una actualización limpia, sin perder la identidad guardada; el reingreso a la sala requiere su código. Ambos números deben incrementarse juntos.
 
 Publicación: habilitá Auth anónima, Firestore y una Web App; configurá las variables públicas `VITE_FIREBASE_*`; ejecutá `npm ci`, `npm run build` y `npx firebase deploy --only firestore:rules,firestore:indexes,hosting --project TU_ID`. El workflow de GitHub despliega Hosting, reglas e índices usando el secret `FIREBASE_SERVICE_ACCOUNT_PELAOBOLAO`; no usa Functions, Tasks ni servicios pagos.
 
