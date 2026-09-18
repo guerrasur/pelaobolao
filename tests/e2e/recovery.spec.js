@@ -137,3 +137,18 @@ test('una partida desaparecida tiene salida y permite crear otra sala', async ({
     expect(errors).toEqual([]);
   } finally { await guestContext.close(); }
 });
+
+
+test('host en segundo plano: el otro jugador retoma y ambos siguen al volver', async ({browser,page}) => {
+  const {guestContext,guest,gameId,code}=await pair(browser,page);
+  try {
+    await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
+    await expect.poll(async()=>(await read(`rooms/${code}`)).hostId,{timeout:20000}).not.toBe((await read(`rooms/${code}`)).hostId);
+    await page.evaluate(()=>{
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect.poll(async()=>(await read(`games/${gameId}`)).turn,{timeout:25000}).toBeGreaterThan(1);
+    for(const p of [page,guest]) await expect(p.locator('.game')).toBeVisible();
+  } finally { await guestContext.close(); }
+});

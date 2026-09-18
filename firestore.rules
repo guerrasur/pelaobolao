@@ -87,7 +87,7 @@ service cloud.firestore {
       function takeover() {
         let old = resource.data;
         return member(old) && request.resource.data.hostId == request.auth.uid
-          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(45,'s'))
+          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(old.status == 'playing' ? 8 : 45,'s'))
           && ownMemberChange()
           && request.resource.data.diff(old).affectedKeys().hasOnly(['hostId','members','updatedAt']);
       }
@@ -128,7 +128,7 @@ service cloud.firestore {
       allow create: if validGameCreate();
       allow update: if participant(resource.data) && (selfSignal() || abandonTransition()
         || (host(room(resource.data.roomId)) && room(resource.data.roomId).gameId == id
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','abandonedAt','deadline','countdownEndsAt','phaseStartedAt','lastProgressAt','ready','chosen'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','turn','phase','winnerId','draw','nextTurnAt','finishedAt','abandonedAt','deadline','countdownEndsAt','phaseStartedAt','lastProgressAt','ready','chosen'])
         && validGameTransition()));
       function abandonTransition() {
         let old = resource.data;

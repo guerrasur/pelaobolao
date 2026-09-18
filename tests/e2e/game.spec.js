@@ -37,7 +37,7 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
     }
   };
   const savedOrRevealed = page => expect.poll(async () =>
-    /Elegido:/.test(await page.locator('#selection').textContent() ?? '')
+    /Elegido:/.test(await page.locator('#selection').count() ? await page.locator('#selection').textContent() : '')
       || ['locked','reveal','finished'].includes(await page.locator('.game').getAttribute('data-phase'))
   ).toBe(true);
   const choose = async (page, action) => {

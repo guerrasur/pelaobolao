@@ -1,11 +1,11 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
-import { RULES, LOBBY_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
+import { RULES, LOBBY_LEASE_MS, GAME_HOST_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
 import { createServerClock, clockSample } from './clock.js';
 
 export const ROOM_CODE_PATTERN = /^[A-Z2-9]{4}$/;
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const createRoomCode = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), n => alphabet[n % alphabet.length]).join('');
-const live = (m, now) => m && !m.left && now - millis(m.lastSeenAt) < LOBBY_LEASE_MS;
+const live = (m, now, lease = LOBBY_LEASE_MS) => m && !m.left && now - millis(m.lastSeenAt) < lease;
 const successor = (members, now) => Object.keys(members).filter(id => live(members[id], now))
   .sort((a, b) => members[a].joinedAt - members[b].joinedAt || a.localeCompare(b))[0] ?? null;
 
@@ -101,7 +101,7 @@ export function createClient(db, uid, clock = Date.now) {
           } else {
             room.members[uid] = { ...room.members[uid], lastSeenAt: serverTimestamp() };
             // Read the old lease; the transaction conflicts with a returning host's heartbeat.
-            if (!live(old.members[old.hostId], time)) room.hostId = uid;
+            if (!live(old.members[old.hostId], time, old.status === 'playing' ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS)) room.hostId = uid;
             if (command === 'ready') {
               room.members[uid] = { ...room.members[uid], ready: data.ready === true };
             }

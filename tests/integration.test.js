@@ -225,7 +225,7 @@ test('jugador eliminado no bloquea cierre y un host nuevo recupera la fase bloqu
   const {a,b,players,gameId,roomId}=await started(3);
   await patch(`games/${gameId}`,{[`players.${players[2].uid}.hair`]:0});
   await choose(a,gameId,1,'air');await choose(b,gameId,1,'hide');
-  await updateDoc(doc(a.db,`games/${gameId}`),{phase:'locked'});
+  await updateDoc(doc(a.db,`games/${gameId}`),{phase:'locked',lastProgressAt:serverTimestamp()});
   await assert.rejects(choose(b,gameId,1,'air',null,1));
   await a.client.call('roomCommand',{command:'leave',roomId});
   assert.equal((await b.client.call('advanceGame',{gameId,turn:1,phase:'locked'})).advanced,false);
@@ -260,4 +260,35 @@ test('dos clientes de la misma identidad sincronizan sin llevar el reloj a cero'
   assert.notEqual(next.roomId, roomId);
   await a.client.call('roomCommand', { command: 'leave', roomId });
   assert.equal((await read(a.db, `sessions/${a.uid}`)).roomId, next.roomId);
+});
+
+
+test('regresión: reveal cambia turn y llega al turno 2 con las reglas desplegadas', async () => {
+  const {a,b,gameId}=await started();
+  await choose(a,gameId,1,'air'); await choose(b,gameId,1,'hide');
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
+  assert.equal((await read(a.db,`games/${gameId}`)).phase,'reveal');
+  await expire(gameId,2500);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
+  const next=await read(b.db,`games/${gameId}`);
+  assert.equal(next.turn,2); assert.equal(next.phase,'syncing');
+  for (const p of [a,b]) await p.client.call('acknowledgeRound',{gameId,turn:2});
+  await a.client.call('advanceGame',{gameId,turn:2,phase:'syncing'});
+  assert.equal((await read(b.db,`games/${gameId}`)).phase,'choosing');
+  // Allowing turn in the outer field list must not allow arbitrary turn skipping.
+  await assert.rejects(updateDoc(doc(a.db,`games/${gameId}`),{turn:99}));
+});
+
+test('host suspendido: relevo en ocho segundos sin expulsar a nadie', async () => {
+  const {a,b,roomId,gameId}=await started();
+  await assert.rejects(updateDoc(doc(b.db,`rooms/${roomId}`),{hostId:b.uid,updatedAt:serverTimestamp()}));
+  await patch(`rooms/${roomId}`,{[`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000)});
+  await b.client.call('roomCommand',{command:'touch',roomId});
+  const r=await read(b.db,`rooms/${roomId}`);
+  assert.equal(r.hostId,b.uid); assert.equal(r.members[a.uid].left,false);
+  await choose(a,gameId,1,'air'); await choose(b,gameId,1,'hide');
+  await b.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
+  assert.equal((await read(a.db,`games/${gameId}`)).phase,'reveal');
+  await a.client.call('roomCommand',{command:'touch',roomId});
+  assert.equal((await read(a.db,`rooms/${roomId}`)).hostId,b.uid);
 });

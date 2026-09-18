@@ -162,8 +162,8 @@ function subscribeRoom(id) {
   const generation = ++roomGeneration;
   roomOff?.(); s.roomId = id; s.room = null; subscribeGame(null);
   if (!id) { render(); return; }
-  roomOff = onSnapshot(doc(api.db, 'rooms', id), snap => {
-    if (generation !== roomGeneration) return;
+  roomOff = onSnapshot(doc(api.db, 'rooms', id), { includeMetadataChanges: true }, snap => {
+    if (generation !== roomGeneration || snap.metadata.hasPendingWrites || snap.metadata.fromCache) return;
     const room = snap.data();
     if (!room || room.status === 'closed' || !room.members?.[api.uid] || room.members[api.uid].left) {
       void resetRoomSession('Esa sala ya no está disponible. Podés crear otra o volver con un código.');
@@ -185,7 +185,7 @@ async function roomCommand(command, extra = {}) {
   if (generation === roomGeneration && command !== 'touch') subscribeRoom(result.roomId);
 }
 async function heartbeat() {
-  if (!api || !s.roomId || !s.online || s.updateRequired || heartbeatBusy) return;
+  if (!api || !s.roomId || !s.online || document.hidden || s.updateRequired || heartbeatBusy) return;
   const generation = roomGeneration;
   heartbeatBusy = true;
   try { await roomCommand('touch'); }
@@ -375,12 +375,12 @@ function tick() {
     const member = s.room?.members[el.dataset.presence];
     el.textContent = member && now() - member.lastSeenAt < 25000 ? 'Conectado' : 'Reconectando…';
   });
-  if (!s.game) return;
+  if (!s.game || document.hidden) return;
   const game = s.game;
   const deadline = phaseDeadline(game);
   const seconds = Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now()) / 1000)) : null;
   const timer = document.querySelector('#timer');
-  if (timer) timer.textContent = seconds === null || ['syncing', 'locked'].includes(game.phase) ? '···' : `${String(seconds).padStart(2, '0')}s`;
+  if (timer) timer.textContent = seconds === null || seconds === 0 || ['syncing', 'locked'].includes(game.phase) ? '···' : `${String(seconds).padStart(2, '0')}s`;
   if (timer) timer.classList.toggle('urgent', game.phase === 'choosing' && seconds !== null && seconds <= 3);
   if (!acknowledging && Date.now() - lastAck > 1000 && s.nameConfirmed && !document.hidden && s.online && game.protocolVersion === 2
     && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
@@ -394,7 +394,7 @@ function tick() {
   }
   if (s.game.phase === 'choosing' && seconds === 0) {
     const status = document.querySelector('#turn-status');
-    if (status) status.textContent = 'Tiempo terminado · esperando resolución del host';
+    if (status) status.textContent = 'Resolviendo el turno…';
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
@@ -422,7 +422,7 @@ const resyncClock = () => { if (api && s.online && !document.hidden) void api.sy
 window.addEventListener('online', () => { s.online = true; resyncClock(); heartbeat(); void checkVersion(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { resyncClock(); heartbeat(); tick(); void checkVersion(); } });
 setInterval(tick, 200);
-setInterval(heartbeat, 10000);
+setInterval(heartbeat, 3000);
 setInterval(checkVersion, 60000);
 setInterval(resyncClock, 60000);
 render();

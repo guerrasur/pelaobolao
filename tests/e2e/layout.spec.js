@@ -1,0 +1,56 @@
+import { test, expect } from '@playwright/test';
+import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { newGame, resolveRound } from '../../src/game.js';
+
+let env;
+test.beforeAll(async () => { env = await initializeTestEnvironment({ projectId:'demo-pelaobolao', firestore:{host:'127.0.0.1',port:8080} }); });
+test.afterAll(async () => { await env.cleanup(); });
+
+test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({page}) => {
+  await page.goto('/');
+  await page.getByLabel('Nombre',{exact:true}).fill('Nombre de veinticuatro');
+  await page.getByRole('button',{name:'Continuar'}).click();
+  await page.getByRole('button',{name:'Crear sala'}).click();
+  const code=await page.locator('.code').textContent();
+  // Freeze only automatic test progression, while retaining real app rendering/listeners.
+  await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
+  let room;
+  await env.withSecurityRulesDisabled(async ctx=>{room=(await getDoc(doc(ctx.firestore(),'rooms',code))).data();});
+  for(const count of [2,6]) {
+    const members={...room.members};
+    for(let i=1;i<count;i++) members[`layout-${i}`]={name:`Rival largo número ${i}`,joinedAt:Date.now()+i,lastSeenAt:Timestamp.now(),left:false,ready:true};
+    const game=newGame(code,members,Date.now());
+    game.phase='choosing'; game.phaseStartedAt=Timestamp.now(); game.lastProgressAt=Timestamp.now();
+    const gameId=`layout-${code}-${count}`;
+    await env.withSecurityRulesDisabled(async ctx=>{
+      await setDoc(doc(ctx.firestore(),'games',gameId),game);
+      await updateDoc(doc(ctx.firestore(),'rooms',code),{status:'playing',gameId,members});
+    });
+    await expect(page.locator('[data-player]')).toHaveCount(count);
+    for(const [width,height] of [[320,568],[390,664],[390,844],[768,1024],[1366,768],[844,390]]) {
+      await page.setViewportSize({width,height});
+      for(const phase of ['choosing','reveal','finished']) {
+        const result=resolveRound(game,{}).result;
+        await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{
+          phase,lastResult:result,winnerId:room.hostId,
+        }));
+        await expect(page.locator('.game')).toHaveAttribute('data-phase',phase);
+        const failures=await page.evaluate(()=>{
+          const bad=[];
+          for(const selector of ['.game','.players','[data-player]','.controls button','.result','#back-lobby','#leave-room']) {
+            for(const el of document.querySelectorAll(selector)) {
+              const r=el.getBoundingClientRect();
+              if(r.top<0||r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1) bad.push(`${selector}: fuera del viewport`);
+              if(el.scrollHeight>el.clientHeight+2||el.scrollWidth>el.clientWidth+2) bad.push(`${selector}: contenido recortado`);
+            }
+          }
+          if(document.documentElement.scrollHeight>innerHeight+1) bad.push('scroll de página');
+          return bad;
+        });
+        expect(failures,`${count} jugadores ${width}x${height} ${phase}`).toEqual([]);
+      }
+      if(count===6 && width===390 && height===664) await page.screenshot({path:'test-results/fullscreen-six-mobile.png'});
+    }
+  }
+});
