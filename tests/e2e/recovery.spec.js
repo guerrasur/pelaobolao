@@ -112,7 +112,7 @@ test('dos relojes distintos, cierre anticipado y espera del celular que vuelve',
     await guest.getByRole('button',{name:'Tomar aire',exact:true}).click();
     await expect(page.locator('.result')).toBeVisible({timeout:4000});
     await expect(page.locator('.game')).toHaveAttribute('data-phase','syncing',{timeout:6000});
-    await expect(page.getByRole('button',{name:'Tomar aire',exact:true})).toBeDisabled();
+    await expect(page.locator('.controls')).toHaveCount(0);
     await guest.evaluate(()=>{
       Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
       document.dispatchEvent(new Event('visibilitychange'));
@@ -133,8 +133,9 @@ test('una partida desaparecida tiene salida y permite crear otra sala', async ({
   const { guestContext, gameId, code } = await pair(browser, page);
   try {
     await admin(db => deleteDoc(doc(db, 'games', gameId)));
-    await expect(page.getByRole('button', { name: 'Volver al inicio' })).toBeVisible();
-    await page.getByRole('button', { name: 'Volver al inicio' }).click();
+    // A denied subscription resets locally immediately; a missing snapshot offers an exit.
+    await expect(page.getByRole('button', { name: 'Crear sala', exact: true }).or(page.getByRole('button', { name: 'Volver al inicio' }))).toBeVisible();
+    if (await page.getByRole('button', { name: 'Volver al inicio' }).count()) await page.getByRole('button', { name: 'Volver al inicio' }).click();
     await page.getByRole('button', { name: 'Crear sala' }).click();
     await expect(page.locator('.code')).toBeVisible();
     await expect(page.locator('.code')).not.toHaveText(code);

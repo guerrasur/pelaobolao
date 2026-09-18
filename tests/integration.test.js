@@ -292,3 +292,12 @@ test('host suspendido: relevo en ocho segundos sin expulsar a nadie', async () =
   await a.client.call('roomCommand',{command:'touch',roomId});
   assert.equal((await read(a.db,`rooms/${roomId}`)).hostId,b.uid);
 });
+
+test('listos y latidos concurrentes conservan a los seis jugadores sin denegar permisos', async () => {
+  const { a, players, roomId } = await pair(6);
+  await Promise.all(players.map(p => p.client.call('roomCommand', { command: 'ready', roomId, ready: true })));
+  await Promise.all(players.map(p => p.client.call('roomCommand', { command: 'touch', roomId })));
+  const room = await read(a.db, `rooms/${roomId}`);
+  assert.equal(Object.keys(room.members).length, 6);
+  assert.ok(Object.values(room.members).every(m => m.ready && !m.left));
+});

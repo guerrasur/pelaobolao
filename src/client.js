@@ -1,4 +1,4 @@
-import { doc, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, FieldPath, deleteField, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
 import { RULES, LOBBY_LEASE_MS, GAME_HOST_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
 import { createServerClock, clockSample } from './clock.js';
 
@@ -129,7 +129,18 @@ export function createClient(db, uid, clock = Date.now) {
               room.members = Object.fromEntries(Object.entries(room.members).filter(([id,m]) => id === uid || live(m,time)));
             }
           }
-          tx.set(ref, { ...room, updatedAt: serverTimestamp() });
+          // A full-document replacement can fail rules before a stale transaction
+          // retries, because it also overwrites another player's newer heartbeat.
+          const changes = ['updatedAt', serverTimestamp()];
+          for (const key of ['hostId', 'status', 'gameId']) {
+            if (room[key] !== old[key]) changes.push(key, room[key]);
+          }
+          for (const memberId of new Set([...Object.keys(old.members), ...Object.keys(room.members)])) {
+            if (room.members[memberId] !== old.members[memberId]) {
+              changes.push(new FieldPath('members', memberId), room.members[memberId] ?? deleteField());
+            }
+          }
+          tx.update(ref, ...changes);
           return { roomId: command === 'leave' ? null : id };
         });
       } catch (error) { if (error.message !== 'CODE_COLLISION') throw error; }
