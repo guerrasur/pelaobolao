@@ -100,3 +100,11 @@ Validación de esta entrega: 14 pruebas unitarias y 14 pruebas de integración/r
 La prueba integrada se ejecutó con Firebase CLI 14.22.0 por disponer de Java 17 en el entorno. Para los comandos del proyecto (CLI 15), usar Java 21 o superior.
 
 Se mantienen Firebase Spark, Authentication anónima, Firestore y Hosting. Esta entrega no se publica automáticamente desde este entorno: se distribuye como ZIP para Codespaces.
+
+
+## v0.6.0 reliability pass
+- El reloj de turno deriva de `phaseStartedAt` de Firestore.
+- Se eliminó la barrera `syncing` entre rondas nuevas; `syncing` queda sólo para compatibilidad con partidas anteriores.
+- Auto-cierre cuando todos eligen y transición directa reveal -> choosing.
+- Lease del host durante partida reducido a 5 s y heartbeat a 2 s para recuperación más rápida.
+- Refuerzo de fullscreen mobile y diferenciación visual entre elección y resultados.

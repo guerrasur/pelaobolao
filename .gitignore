@@ -8,3 +8,5 @@ ui-debug.log
 playwright-report/
 .env*
 gha-creds-*.json
+
+.firebase/

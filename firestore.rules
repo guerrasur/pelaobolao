@@ -87,7 +87,7 @@ service cloud.firestore {
       function takeover() {
         let old = resource.data;
         return member(old) && request.resource.data.hostId == request.auth.uid
-          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(old.status == 'playing' ? 8 : 45,'s'))
+          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(old.status == 'playing' ? 5 : 45,'s'))
           && ownMemberChange()
           && request.resource.data.diff(old).affectedKeys().hasOnly(['hostId','members','updatedAt']);
       }
@@ -184,12 +184,11 @@ service cloud.firestore {
       function synchronizedTransition(old, d) {
         let time = request.time.toMillis();
         return ((old.phase == 'countdown'
-              && time >= old.phaseStartedAt.toMillis() + old.rules.countdownMs
-              && (allMarked(old, 'ready') || time >= old.phaseStartedAt.toMillis() + old.rules.countdownMs + 15000)
-            || old.phase == 'syncing' && (allMarked(old, 'ready') || time >= old.phaseStartedAt.toMillis() + 15000))
+              && time >= old.phaseStartedAt.toMillis() + old.rules.countdownMs)
+            || old.phase == 'syncing' && (allMarked(old, 'ready') || time >= old.phaseStartedAt.toMillis() + 5000))
           && d.phase == 'choosing' && d.phaseStartedAt == request.time && d.countdownEndsAt == null
           && d.lastProgressAt == request.time
-          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','deadline','countdownEndsAt','lastProgressAt']))
+          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','deadline','countdownEndsAt','lastProgressAt'])
         || (old.phase == 'choosing' && (time >= deadline(old) || allMarked(old, 'chosen'))
           && d.phase == 'locked' && d.lastProgressAt == request.time
           && d.diff(old).affectedKeys().hasOnly(['phase','lastProgressAt']))
@@ -199,7 +198,7 @@ service cloud.firestore {
           && d.diff(old).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','phaseStartedAt','lastProgressAt'])
           && existsAfter(/databases/$(database)/documents/games/$(id)/rounds/$(string(old.turn))))
         || (old.phase == 'reveal' && time >= old.phaseStartedAt.toMillis() + old.rules.revealMs
-          && d.phase == 'syncing' && d.turn == old.turn + 1 && d.phaseStartedAt == request.time && d.lastProgressAt == request.time
+          && d.phase == 'choosing' && d.turn == old.turn + 1 && d.phaseStartedAt == request.time && d.lastProgressAt == request.time
           && d.ready == {} && d.chosen == {} && d.nextTurnAt == null
           && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','turn','deadline','nextTurnAt','lastProgressAt','ready','chosen']));
       }

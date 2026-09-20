@@ -240,12 +240,13 @@ export function createClient(db, uid, clock = Date.now) {
       const deadline = phaseDeadline(game);
       if (room.gameId !== gameId) return { advanced: false };
       if (phase !== 'locked' && !(phase === 'syncing' && allMarked(game, 'ready')) && time < deadline) return { advanced: false };
-      if (synchronized && phase === 'countdown' && !allMarked(game, 'ready') && time < deadline + SYNC_WAIT_MS) return { advanced: false };
+      // New synchronized games use Firestore's phaseStartedAt as the only clock source.
+      // Do not hold the whole match at 0 waiting for per-device acknowledgements.
       if (phase === 'countdown' || phase === 'syncing') {
-      tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null,
+        tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null,
           lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}) });
       } else if (phase === 'reveal') {
-        tx.update(ref, { phase: synchronized ? 'syncing' : 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null,
+        tx.update(ref, { phase: 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null,
           lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp(), ready: {}, chosen: {} } : {}) });
       } else {
         if (game.resolvedTurn >= game.turn) return { advanced: false };

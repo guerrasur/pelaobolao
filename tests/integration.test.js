@@ -188,21 +188,17 @@ test('cierre anticipado: espera a todos, congela acciones y resuelve una sola ve
   assert.equal((await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'})).advanced,false);
 });
 
-test('celular lento: el siguiente reloj no arranca hasta recibir ambas confirmaciones', async () => {
+test('el siguiente turno arranca desde el timestamp del servidor sin una barrera de ACK', async () => {
   const {a,b,gameId}=await started();
-  await advance(a,gameId,{acknowledge:false});
+  await choose(a,gameId,1,'air'); await choose(b,gameId,1,'hide');
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
   await expire(gameId,2500);
-  await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
-  await a.client.call('acknowledgeRound',{gameId,turn:2});
-  assert.equal((await a.client.call('advanceGame',{gameId,turn:2,phase:'syncing'})).advanced,false);
-  await assert.rejects(choose(a,gameId,2,'air'));
-  await b.client.call('acknowledgeRound',{gameId,turn:1}); // old tab cannot ACK a new round
-  assert.equal((await read(a.db,`games/${gameId}`)).ready[b.uid],undefined);
-  await b.client.call('acknowledgeRound',{gameId,turn:2});
-  assert.equal((await a.client.call('advanceGame',{gameId,turn:2,phase:'syncing'})).advanced,true);
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'})).advanced,true);
   const g=await read(a.db,`games/${gameId}`);
-  assert.equal(g.phase,'choosing');assert.ok(Date.now()-g.phaseStartedAt.toMillis()<2000);
+  assert.equal(g.turn,2); assert.equal(g.phase,'choosing');
+  assert.ok(Date.now()-g.phaseStartedAt.toMillis()<2000);
   assert.deepEqual(g.chosen,{});
+  await choose(a,gameId,2,'air');
 });
 
 test('reglas nuevas: no se pueden falsificar confirmaciones, cierre ni elecciones ajenas', async () => {
@@ -271,15 +267,12 @@ test('regresión: reveal cambia turn y llega al turno 2 con las reglas desplegad
   await expire(gameId,2500);
   await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
   const next=await read(b.db,`games/${gameId}`);
-  assert.equal(next.turn,2); assert.equal(next.phase,'syncing');
-  for (const p of [a,b]) await p.client.call('acknowledgeRound',{gameId,turn:2});
-  await a.client.call('advanceGame',{gameId,turn:2,phase:'syncing'});
-  assert.equal((await read(b.db,`games/${gameId}`)).phase,'choosing');
+  assert.equal(next.turn,2); assert.equal(next.phase,'choosing');
   // Allowing turn in the outer field list must not allow arbitrary turn skipping.
   await assert.rejects(updateDoc(doc(a.db,`games/${gameId}`),{turn:99}));
 });
 
-test('host suspendido: relevo en ocho segundos sin expulsar a nadie', async () => {
+test('host suspendido: relevo rápido sin expulsar a nadie', async () => {
   const {a,b,roomId,gameId}=await started();
   await assert.rejects(updateDoc(doc(b.db,`rooms/${roomId}`),{hostId:b.uid,updatedAt:serverTimestamp()}));
   await patch(`rooms/${roomId}`,{[`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000)});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RULES, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked } from '../src/game.js';
+import { RULES, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked } from '../src/game.js';
 import { createServerClock, clockSample } from '../src/clock.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
@@ -119,7 +119,7 @@ test('todas las pantallas usan el timestamp del servidor, no el deadline estimad
   assert.equal(phaseDeadline(g),58000);
   assert.throws(()=>validateIntent(g,'0',choice('air'),58000));
   assert.doesNotThrow(()=>validateIntent(g,'0',choice('air'),57999));
-  g.phase='syncing';assert.equal(phaseDeadline(g),65000);
+  g.phase='syncing';assert.equal(phaseDeadline(g),50000 + SYNC_WAIT_MS);
 });
 
 test('phaseDeadline normaliza Timestamp heredados sin mostrar milisegundos como segundos', () => {

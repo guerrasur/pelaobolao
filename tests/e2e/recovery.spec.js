@@ -94,7 +94,7 @@ test('actualización cancela arrastre, bloquea acciones y permite reingresar con
   } finally { await guestContext.close(); }
 });
 
-test('dos relojes distintos, cierre anticipado y espera del celular que vuelve', async ({browser,page}) => {
+test('dos relojes distintos y cierre anticipado mantienen el siguiente turno sincronizado', async ({browser,page}) => {
   // Simulate a device with a clock one hour ahead before calibration.
   await page.addInitScript(() => {
     const realNow=Date.now.bind(Date);Date.now=()=>realNow()+3600000;
@@ -107,12 +107,11 @@ test('dos relojes distintos, cierre anticipado y espera del celular que vuelve',
     await page.getByRole('button',{name:'Tomar aire',exact:true}).click();
     await expect(page.locator('#selection')).toContainText('Elegido:');
     expect((await read(`games/${gameId}`)).phase).toBe('choosing');
-    // A background/suspended tab must not acknowledge the following round.
+    // A background/suspended tab no longer blocks the following round.
     await guest.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
     await guest.getByRole('button',{name:'Tomar aire',exact:true}).click();
     await expect(page.locator('.result')).toBeVisible({timeout:4000});
-    await expect(page.locator('.game')).toHaveAttribute('data-phase','syncing',{timeout:6000});
-    await expect(page.locator('.controls')).toHaveCount(0);
+    await expect(page.locator('.game')).toHaveAttribute('data-phase','choosing',{timeout:6000});
     await guest.evaluate(()=>{
       Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
       document.dispatchEvent(new Event('visibilitychange'));

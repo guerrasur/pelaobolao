@@ -1,7 +1,7 @@
 import './style.css';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { connect } from './firebase.js';
-import { millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS } from './game.js';
+import { millis, phaseDeadline, allMarked, GAME_HOST_LEASE_MS, ABANDON_MS } from './game.js';
 import { playerCard, actionControls } from './visuals.js';
 import { playCue } from './sound.js';
 import packageInfo from '../package.json';
@@ -393,10 +393,6 @@ function tick() {
     call('acknowledgeRound', { gameId: s.gameId, turn: game.turn })
       .catch(showError).finally(() => { acknowledging = false; });
   }
-  if (game.phase === 'countdown' && seconds === 0 && game.protocolVersion === 2 && !allMarked(game, 'ready')) {
-    const status = document.querySelector('#turn-status');
-    if (status) status.textContent = 'Esperando que los otros celulares carguen la ronda…';
-  }
   if (s.game.phase === 'choosing' && seconds === 0) {
     const status = document.querySelector('#turn-status');
     if (status) status.textContent = 'Resolviendo el turno…';
@@ -411,11 +407,15 @@ function tick() {
     void call('abandonGame', { gameId }).catch(() => {}).finally(() => { abandoning = false; });
     return;
   }
+  // If the authority tab disappeared, an active participant claims host as soon as
+  // the short gameplay lease expires instead of waiting for the next heartbeat tick.
+  const hostMember = s.room?.members?.[s.room?.hostId];
+  if (s.room?.hostId && s.room.hostId !== api?.uid && hostMember
+    && now() - hostMember.lastSeenAt > GAME_HOST_LEASE_MS && s.online) void heartbeat();
   const early = game.protocolVersion === 2 && (game.phase === 'locked'
     || game.phase === 'syncing' && allMarked(game, 'ready')
     || game.phase === 'choosing' && allMarked(game, 'chosen'));
-  const waiting = game.protocolVersion === 2 && game.phase === 'countdown' && !allMarked(game, 'ready') && now() < deadline + SYNC_WAIT_MS;
-  if (!advancing && !waiting && s.room?.hostId === api?.uid && s.online && ['countdown', 'syncing', 'choosing', 'locked', 'reveal'].includes(game.phase) && (early || now() > deadline + 150) && Date.now() - lastNudge > 500) {
+  if (!advancing && s.room?.hostId === api?.uid && s.online && ['countdown', 'syncing', 'choosing', 'locked', 'reveal'].includes(game.phase) && (early || now() > deadline + 100) && Date.now() - lastNudge > 350) {
     lastNudge = Date.now(); advancing = true;
     call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase })
       .catch(showError).finally(() => { advancing = false; });
@@ -427,7 +427,7 @@ const resyncClock = () => { if (api && s.online && !document.hidden) void api.sy
 window.addEventListener('online', () => { s.online = true; resyncClock(); heartbeat(); void checkVersion(); render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { resyncClock(); heartbeat(); tick(); void checkVersion(); } });
 setInterval(tick, 200);
-setInterval(heartbeat, 3000);
+setInterval(heartbeat, 2000);
 setInterval(checkVersion, 60000);
 setInterval(resyncClock, 60000);
 render();

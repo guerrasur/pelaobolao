@@ -5,9 +5,9 @@ export const RULES = Object.freeze({
   countdownMs: 3000,
 });
 export const LOBBY_LEASE_MS = 45000;
-export const GAME_HOST_LEASE_MS = 8000;
+export const GAME_HOST_LEASE_MS = 5000;
 export const ABANDON_MS = 120000;
-export const SYNC_WAIT_MS = 15000;
+export const SYNC_WAIT_MS = 5000;
 
 // All screens derive their timer from the same server-authored timestamp.
 export function phaseDeadline(game) {
