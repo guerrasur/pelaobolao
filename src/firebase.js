@@ -30,6 +30,8 @@ export async function connect() {
   if (!auth.currentUser) await signInAnonymously(auth);
   const uid = auth.currentUser.uid;
   const client = createClient(db, uid);
-  await client.syncClock();
+  // Clock calibration is important for matches, but it should not block the first paint/profile screen.
+  // A start command waits for calibration below, so gameplay still begins on server time.
+  void client.syncClock().catch(() => {});
   return { db, uid, ...client };
 }
