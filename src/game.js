@@ -3,14 +3,15 @@ export const CENTER_ITEM_TARGET = '__center_item__';
 export const HAIR_ITEM_KIND = 'hair_plus_1';
 
 export const RULES = Object.freeze({
-  version: 2, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
+  version: 3, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
   minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 2500,
   countdownMs: 3000,
   centerItems: true,
-  itemMinGap: 3,
-  itemCriticalGap: 2,
-  itemPityGap: 5,
-  itemSpawnChance: 0.55,
+  itemFirstTurn: 4,
+  itemMinGap: 4,
+  itemCriticalGap: 4,
+  itemPityGap: 9,
+  itemSpawnChance: 0.24,
 });
 export const LOBBY_LEASE_MS = 45000;
 export const GAME_HOST_LEASE_MS = 5000;
@@ -83,7 +84,8 @@ export function scheduleCenterItem(game, nextTurn) {
   // If an item lingered for several rounds, its cooldown starts when it leaves the desk.
   // Otherwise the old spawn turn can immediately trigger pity/random replacement next round.
   const cooldownTurn = Math.max(lastItemSpawnTurn, consumedTurn);
-  if (!game?.rules?.centerItems || current || !Number.isInteger(nextTurn) || nextTurn < 2) {
+  const firstTurn = Number(game?.rules?.itemFirstTurn ?? 2);
+  if (!game?.rules?.centerItems || current || !Number.isInteger(nextTurn) || nextTurn < firstTurn) {
     return { centerItem: current, lastItemSpawnTurn: current ? lastItemSpawnTurn : cooldownTurn };
   }
 
@@ -126,12 +128,18 @@ export function validateIntent(game, uid, intent, now) {
   requireThat(game.phase === 'choosing' && intent.turn === game.turn, 'Ese turno ya terminó.');
   requireThat(now < phaseDeadline(game), 'La acción llegó fuera de tiempo.', 'deadline-exceeded');
   requireThat(game.players[uid]?.hair > 0, 'Estás pelado o no participás.');
-  requireThat(['air', 'hide', 'blow'].includes(intent.action), 'Acción inválida.', 'invalid-argument');
+  requireThat(['air', 'hide', 'blow', 'grab'].includes(intent.action), 'Acción inválida.', 'invalid-argument');
+
+  const freePickup = Number(game.rules?.version ?? 0) >= 3;
   if (intent.action === 'blow') {
     requireThat(game.players[uid].breath >= 1, 'Necesitás un Soplo.');
     const playerTarget = intent.target !== uid && game.players[intent.target]?.hair > 0;
-    const itemTarget = intent.target === CENTER_ITEM_TARGET && game.centerItem?.kind === HAIR_ITEM_KIND;
-    requireThat(playerTarget || itemTarget, 'Elegí otro jugador activo o el objeto del centro.');
+    const legacyItemTarget = !freePickup && intent.target === CENTER_ITEM_TARGET && game.centerItem?.kind === HAIR_ITEM_KIND;
+    requireThat(playerTarget || legacyItemTarget, 'Elegí otro jugador activo.');
+  } else if (intent.action === 'grab') {
+    requireThat(freePickup, 'Esta partida usa la interacción anterior del objeto.', 'failed-precondition');
+    requireThat(intent.target === CENTER_ITEM_TARGET && game.centerItem?.kind === HAIR_ITEM_KIND,
+      'El mechón ya no está disponible.', 'failed-precondition');
   } else {
     requireThat(intent.target === null, 'Esta acción no tiene objetivo.', 'invalid-argument');
   }
@@ -173,9 +181,11 @@ export function resolveRound(game, intents) {
   const itemAttempts = [];
   for (const [uid, intent] of Object.entries(actions)) {
     if (intent.action === 'air') players[uid].breath = Math.min(game.rules.maxBreath, players[uid].breath + 1);
+    if (intent.action === 'grab') itemAttempts.push(uid);
     if (intent.action === 'blow') {
       players[uid].breath -= 1;
       if (intent.target === CENTER_ITEM_TARGET) {
+        // Compatibilidad con partidas iniciadas antes de v0.17: allí el objeto todavía se disputaba Soplando.
         itemAttempts.push(uid);
         continue;
       }
