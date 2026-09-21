@@ -353,7 +353,7 @@ function centerItemHtml(game, choice) {
   const selected = choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
   const targetable = Boolean(s.targeting && canChoose());
   const sourceLabel = 'OBJETO EN EL AULA';
-  return `<button class="center-item hair-item ${targetable ? 'targetable' : ''} ${selected ? 'selected-target' : ''}" data-center-item="${CENTER_ITEM_TARGET}" ${targetable ? '' : 'disabled'} aria-label="+1 Pelo, cuesta 1 Soplo">
+  return `<button class="center-item hair-item ${targetable ? 'targetable' : ''} ${selected ? 'selected-target' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" ${targetable ? '' : 'disabled'} aria-label="+1 Pelo, cuesta 1 Soplo">
     <small>${sourceLabel}</small><strong class="item-label">+1 PELO</strong><span>1 SOPLO</span>
   </button>`;
 }
