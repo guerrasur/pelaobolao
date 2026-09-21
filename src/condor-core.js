@@ -50,6 +50,13 @@ export function dragGuideGeometry(sourceRect, pointerX, pointerY, targetRect = n
 }
 
 
+export function viewportPixels(layoutWidth, layoutHeight, visualWidth = null, visualHeight = null) {
+  const width = Number.isFinite(visualWidth) && visualWidth > 0 ? visualWidth : layoutWidth;
+  const height = Number.isFinite(visualHeight) && visualHeight > 0 ? visualHeight : layoutHeight;
+  if (![width, height].every(value => Number.isFinite(value) && value > 0)) return null;
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
 export function shouldHoldRenderForDrag(dragActive, phase, updateRequired = false) {
   return Boolean(dragActive && phase === 'choosing' && !updateRequired);
 }
