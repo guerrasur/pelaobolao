@@ -17,7 +17,9 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 const s = { profile: undefined, room: null, roomId: null, game: null, gameId: null, intent: null,
   online: navigator.onLine, busy: false, targeting: false, choice: null, offset: 0, ready: false,
   nameConfirmed: false, resetting: false, updateRequired: null, updating: false, bootError: null, gameError: null };
-let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0;
+let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0, lastHeartbeatAt = 0;
+const ACTIVE_HOST_HEARTBEAT_MS = 1800;
+const PASSIVE_HEARTBEAT_MS = 9000;
 let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = false, abandoning = false, returningLobby = false, lastAck = 0, lastAbandonAttempt = 0, lastLobbyReturnAttempt = 0, lastPhase;
 let operationGeneration = 0;
 let renderedHtml;
@@ -259,19 +261,26 @@ function subscribeRoom(id) {
     showError(error);
     void resetRoomSession('La sesión anterior no se pudo recuperar. Ya podés volver a entrar.');
   });
-  heartbeat();
+  void heartbeat(true);
 }
 async function roomCommand(command, extra = {}) {
   const generation = roomGeneration;
   const result = await call('roomCommand', { command, ...(!['create', 'join'].includes(command) ? { roomId: s.roomId } : {}), ...extra });
+  if (result.roomId) lastHeartbeatAt = Date.now();
   if (generation === roomGeneration && command !== 'touch') subscribeRoom(result.roomId);
 }
-async function heartbeat() {
+async function heartbeat(force = false) {
   if (!api || !s.roomId || !s.online || document.hidden || s.updateRequired || heartbeatBusy) return;
+  const wallNow = Date.now();
+  const activeHost = s.room?.hostId === api.uid && ['playing', 'finished'].includes(s.room?.status);
+  const interval = activeHost ? ACTIVE_HOST_HEARTBEAT_MS : PASSIVE_HEARTBEAT_MS;
+  if (!force && wallNow - lastHeartbeatAt < interval) return;
   const generation = roomGeneration;
+  lastHeartbeatAt = wallNow;
   heartbeatBusy = true;
   try { await roomCommand('touch'); }
   catch (error) {
+    lastHeartbeatAt = 0;
     if (generation !== roomGeneration) return;
     if (error.code?.endsWith('permission-denied') || error.code?.endsWith('not-found')) {
       showError(error);
@@ -360,6 +369,12 @@ function selectionText(choice) {
     return s.choice ? `Fijando objetivo: ${label}…` : `OBJETIVO FIJADO: ${label} · SOPLO preparado`;
   }
   return `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}`;
+}
+
+function sealedChoiceHtml(game, choice, me) {
+  if (game?.phase !== 'locked' || !me || me.hair <= 0) return '';
+  const label = choice ? choiceName(choice) : 'Distraído';
+  return `<div class="sealed-choice" role="status"><b>JUGADA SELLADA</b><span>${esc(label)}</span></div>`;
 }
 
 function centerItemHtml(game, choice) {
@@ -560,7 +575,7 @@ function render() {
     const lobbyReturn = game.phase === 'finished' ? '<div class="lobby-return-countdown" data-lobby-return hidden aria-live="polite"></div>' : '';
     const centerItem = centerItemHtml(game, choice);
     const itemNotice = centerItemNotice(game, me);
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}${centerItem}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}${centerItem}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -736,7 +751,7 @@ function tick() {
   // the short gameplay lease expires instead of waiting for the next heartbeat tick.
   const hostMember = s.room?.members?.[s.room?.hostId];
   if (s.room?.hostId && s.room.hostId !== api?.uid && hostMember
-    && now() - hostMember.lastSeenAt > GAME_HOST_LEASE_MS && s.online) void heartbeat();
+    && now() - hostMember.lastSeenAt > GAME_HOST_LEASE_MS && s.online) void heartbeat(true);
   const early = game.protocolVersion === 2 && (game.phase === 'locked'
     || game.phase === 'syncing' && allMarked(game, 'ready')
     || game.phase === 'choosing' && allMarked(game, 'chosen'));
@@ -756,8 +771,8 @@ document.querySelector('.brand')?.addEventListener('click', event => {
 
 window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
 const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
-window.addEventListener('online', () => { s.online = true; resyncClock(); heartbeat(); void checkVersion(); render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { resyncClock(); heartbeat(); tick(); void checkVersion(); } });
+window.addEventListener('online', () => { s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { resyncClock(); void heartbeat(true); tick(); void checkVersion(); } });
 setInterval(tick, 200);
 setInterval(heartbeat, 2000);
 setInterval(checkVersion, 60000);
