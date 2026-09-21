@@ -28,7 +28,7 @@ test('el bloqueo de actualización sólo acepta versiones realmente más nuevas'
 });
 
 
-test('0.19 se instala como app móvil y mantiene fresco el gate de versión', async () => {
+test('0.20 se instala como app móvil y mantiene fresco el gate de versión', async () => {
   const html = await readFile('index.html', 'utf8');
   const manifest = JSON.parse(await readFile('public/manifest.webmanifest', 'utf8'));
   const worker = await readFile('public/sw.js', 'utf8');
@@ -43,6 +43,7 @@ test('0.19 se instala como app móvil y mantiene fresco el gate de versión', as
   assert.equal(manifest.scope, '/');
   assert.ok(manifest.icons.some(icon => icon.sizes === '192x192' && icon.src === '/icon-192.png'));
   assert.ok(manifest.icons.some(icon => icon.sizes === 'any' && icon.src === '/icon.svg'));
+  assert.match(worker, /pelaobolao-shell-0\.20\.0/);
   assert.match(worker, /skipWaiting/);
   assert.match(worker, /url\.pathname === '\/version\.json'/);
   const icon = Buffer.from(encodedIcon, 'base64');
@@ -51,9 +52,21 @@ test('0.19 se instala como app móvil y mantiene fresco el gate de versión', as
 });
 
 
-test('0.19 no vuelve a mostrar los dos overlays retirados del targeting', async () => {
-  const visuals = await readFile('src/visuals.js', 'utf8');
-  const condorCss = await readFile('src/condor.css', 'utf8');
+test('0.20 mantiene el targeting limpio y recalibra la guía en viewport móvil', async () => {
+  const [html, visuals, legacyCss, condor20Css, condor20Js] = await Promise.all([
+    readFile('index.html', 'utf8'),
+    readFile('src/visuals.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+    readFile('src/condor20.css', 'utf8'),
+    readFile('src/condor20.js', 'utf8'),
+  ]);
   assert.doesNotMatch(visuals, /attack-target-badge/);
-  assert.match(condorCss, /\.player\.drag-target::after,[\s\S]*?content:none!important;[\s\S]*?display:none!important;/);
+  assert.match(legacyCss, /\.player\.drag-target::after,[\s\S]*?content:none!important;[\s\S]*?display:none!important;/);
+  assert.match(condor20Css, /\.condor-aim-guide::before,[\s\S]*?#blow-drag-vector::before[\s\S]*?content:none!important;[\s\S]*?display:none!important;/);
+  assert.match(html, /src="\/src\/condor20\.js"/);
+  assert.match(condor20Js, /visualViewport\?\.addEventListener\('resize'/);
+  assert.match(condor20Js, /visualViewport\?\.addEventListener\('scroll'/);
+  assert.match(condor20Js, /orientationchange/);
+  assert.match(condor20Js, /visibilitychange/);
+  assert.match(condor20Js, /dispatchEvent\(new Event\('resize'\)\)/);
 });

@@ -1,0 +1,10 @@
+/* Plan Cóndor 0.20.0 — targeting limpio y estable.
+   Esta capa final evita que reglas heredadas vuelvan a dibujar overlays retirados. */
+.player.drag-target::after,
+.center-item.drag-target::after,
+.attack-target-badge,
+.condor-aim-guide::before,
+#blow-drag-vector::before {
+  content:none!important;
+  display:none!important;
+}
