@@ -1,5 +1,15 @@
 # Estado del MVP Spark
 
+## 0.6.4 — arranque limpio y feedback expresivo
+
+- Un jugador que quedó marcado Listo pero perdió su lease ya no entra a una partida nueva.
+- El host no puede iniciar mientras haya participantes visibles desconectados; la transacción vuelve a validar y elimina asientos vencidos antes de crear el game.
+- Los avatares cambian expresión al Soplar, Tomar aire, Esconderse, recibir daño y quedar Pelados.
+- En móviles compatibles, recibir daño o bloquear un ataque produce vibración breve; la vibración es opcional y nunca bloquea el turno.
+- Ganador, Pelo crítico, Soplo bloqueado y transiciones de fase tienen feedback visual más fuerte.
+- Se añadió cobertura de integración para el caso Listo + desconectado y cobertura de render para ganador/expresiones.
+- Sin cambios en las reglas de combate ni en la arquitectura Firebase Spark.
+
 ## 0.6.3 — presencia, claridad de combate y robustez visual
 
 - El lobby muestra progreso de Listos, conectividad por jugador y cuántos participantes siguen pendientes antes de iniciar.
