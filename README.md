@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.6.7): mantiene el logo escolar centrado y pegado con cinta pero elimina el eslogan, evita salir de una partida al tocar el logo y elimina el aviso global redundante al guardar una jugada.
+Última corrección (0.6.8): HUD de combate más legible con barras de Pelo/Soplos, confirmación visual de quién ya eligió, prompts cortos tipo microjuego, ganador más expresivo y resumen de ronda propio sin emojis.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
