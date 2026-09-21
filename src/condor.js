@@ -81,6 +81,7 @@ function updateAimGuide(board) {
   guide.style.top = `${geometry.top}px`;
   guide.style.width = `${Math.max(20, geometry.length - stopShort)}px`;
   guide.style.transform = `rotate(${geometry.angle}deg)`;
+  guide.classList.toggle('is-reversed', geometry.angle > 90 || geometry.angle < -90);
 }
 
 export function startCondor(root = document) {
