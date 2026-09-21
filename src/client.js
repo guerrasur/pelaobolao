@@ -66,6 +66,10 @@ export function createClient(db, uid, clock = Date.now) {
           const id = command === 'create' ? candidate : command === 'join' ? data.code : data.roomId;
           const ref = doc(db, 'rooms', id);
           const old = (await tx.get(ref)).data();
+          let activeGame = null;
+          if (old?.gameId && command !== 'join' && ['playing','finished'].includes(old.status)) {
+            activeGame = (await tx.get(doc(db, 'games', old.gameId))).data();
+          }
           if (command === 'create') {
             requireThat(!old, 'CODE_COLLISION');
             tx.set(ref, { schemaVersion: 3, code: id, hostId: uid, status: 'lobby', gameId: null,
@@ -79,16 +83,20 @@ export function createClient(db, uid, clock = Date.now) {
           let room = { ...old, members: { ...old.members } };
           if (command !== 'join') requireThat(room.members[uid] && !room.members[uid].left, 'Volvé a entrar con el código.', 'permission-denied');
           if (command === 'join') {
-            requireThat(room.status === 'lobby' || room.members[uid], 'La partida ya empezó.');
+            requireThat(['lobby','playing','finished'].includes(room.status) || room.members[uid], 'La sala ya no está disponible.');
             requireThat(room.members[uid] || Object.keys(room.members).length < RULES.maxPlayers, 'La sala está llena.');
-            room.members[uid] = { name: profile.name, joinedAt: room.members[uid]?.joinedAt ?? time, lastSeenAt: serverTimestamp(), left: false, ready: room.members[uid]?.ready ?? false };
+            const joiningActiveMatch = ['playing','finished'].includes(room.status) && !room.members[uid];
+            room.members[uid] = { name: profile.name, joinedAt: room.members[uid]?.joinedAt ?? time, lastSeenAt: serverTimestamp(), left: false,
+              ready: joiningActiveMatch ? false : (room.members[uid]?.ready ?? false) };
             tx.set(sessionRef, { roomId: id, updatedAt: serverTimestamp() }, { merge: true });
           } else if (command === 'leave') {
             if (room.status === 'lobby') delete room.members[uid];
-            else if (room.status === 'playing' && room.gameId) {
+            else if (['playing','finished'].includes(room.status) && room.gameId && !activeGame?.memberIds?.includes(uid)) {
+              // A late spectator owns only a future lobby seat. Leaving must never abort the match.
+              delete room.members[uid];
+            } else if (room.status === 'playing' && room.gameId) {
               // Leaving an active match closes that match for every participant.
               const activeGameRef = doc(db, 'games', room.gameId);
-              const activeGame = (await tx.get(activeGameRef)).data();
               room.members[uid] = { ...room.members[uid], left: true, lastSeenAt: serverTimestamp() };
               room.status = 'closed'; room.gameId = null;
               if (activeGame && !['finished', 'abandoned'].includes(activeGame.phase)) {
@@ -103,7 +111,8 @@ export function createClient(db, uid, clock = Date.now) {
           } else {
             room.members[uid] = { ...room.members[uid], lastSeenAt: serverTimestamp() };
             // Read the old lease; the transaction conflicts with a returning host's heartbeat.
-            if (!live(old.members[old.hostId], time, ['playing','finished'].includes(old.status) ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS)) room.hostId = uid;
+            if (!live(old.members[old.hostId], time, ['playing','finished'].includes(old.status) ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS)
+              && (old.status !== 'playing' || activeGame?.memberIds?.includes(uid))) room.hostId = uid;
             if (command === 'ready') {
               room.members[uid] = { ...room.members[uid], ready: data.ready === true };
             }
