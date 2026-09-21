@@ -101,10 +101,20 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await choose(a, /Tomar aire/); await choose(b, /Esconderse/);
   await turn(8);
   await blow(a, 'Beto');
+  await expect(a.getByRole('heading', { name: 'Fin de la partida' })).toBeVisible({ timeout: 18000 });
+  await expect(b.getByRole('heading', { name: 'Fin de la partida' })).toBeVisible({ timeout: 18000 });
+  await expect(a.locator('.end-celebration[data-outcome="win"]')).toBeVisible();
+  await expect(a.locator('.outcome-card')).toContainText('¡GANASTE!');
+  await expect(a.locator('.confetti i')).toHaveCount(36);
+  await expect(b.locator('.end-celebration[data-outcome="lose"]')).toBeVisible();
+  await expect(b.locator('.outcome-card')).toContainText('PERDISTE');
+  await expect(b.locator('.outcome-winner')).toContainText('Ganó Ana');
+  await expect(b.locator('.tomato')).toHaveCount(6);
   for (const page of [a, b]) {
-    await expect(page.getByRole('heading', { name: 'Ganó Ana' })).toBeVisible({ timeout: 18000 });
     await expect(page.locator('[data-player]').filter({ hasText: 'Beto' })).toContainText('Pelado');
   }
+  await a.screenshot({ path: 'test-results/winner-celebration.png', fullPage: true });
+  await b.screenshot({ path: 'test-results/loser-tomatoes.png', fullPage: true });
   await a.getByRole('button', { name: 'Volver al lobby / revancha' }).click();
   await expect(b.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
