@@ -125,6 +125,34 @@ test('el lobby expone progreso de listos y presencia sin revelar acciones', asyn
   assert.doesNotMatch(html, /Soplar →/);
 });
 
+test('el lobby conserva el orden de ingreso aunque cambien Listo y presencia', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = {
+    code:'ABCD', status:'lobby', hostId:'me',
+    members:{
+      third:{name:'Cami',ready:true,joinedAt:300,lastSeenAt:now},
+      me:{name:'Ana',ready:false,joinedAt:100,lastSeenAt:now},
+      second:{name:'Beto',ready:true,joinedAt:200,lastSeenAt:now - 30000},
+    },
+  };
+  ui.render();
+  let html = ui.nodes.get('#app').innerHTML;
+  assert.ok(html.indexOf('Ana') < html.indexOf('Beto'));
+  assert.ok(html.indexOf('Beto') < html.indexOf('Cami'));
+  assert.match(html, /lobby-slot[^>]*>1<\/span>.*Ana/s);
+  assert.match(html, /Beto.*Reconectando/s);
+
+  ui.s.room.members.me.ready = true;
+  ui.s.room.members.second.ready = false;
+  ui.s.room.members.second.lastSeenAt = now;
+  ui.render();
+  html = ui.nodes.get('#app').innerHTML;
+  assert.ok(html.indexOf('Ana') < html.indexOf('Beto'));
+  assert.ok(html.indexOf('Beto') < html.indexOf('Cami'));
+});
+
 test('tarjetas toleran índices heredados y distinguen crítico, desconexión y bloqueos', () => {
   const base = { uid:'legacy', player:{ name:'Rival', hair:1, breath:0 }, index:-1, self:false, selected:false, chosen:false,
     connected:false, rules:{ maxHair:4, maxBreath:2 } };
@@ -150,6 +178,9 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(self, /hair-resource/);
   assert.match(self, /breath-resource/);
   assert.match(self, /--hair-fill:0\.25/);
+  const selected = renderPlayerCard({ ...base, connected:true, selected:true, effects:{} });
+  assert.match(selected, /selected-target/);
+  assert.match(selected, /ATAQUE ELEGIDO/);
 });
 
 

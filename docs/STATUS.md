@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.9.0 — Plan Águila: lobby estable y Soplar con objetivo visible
+
+- El lobby se ordena explícitamente por `joinedAt`: cambiar Listo, recibir heartbeats o cambiar de host ya no mueve las filas.
+- Las desconexiones breves conservan la posición. Si un jugador abandona o expira su lease y el lobby lo remueve, un reingreso posterior cuenta como una incorporación nueva y ocupa el último lugar.
+- Cada fila muestra un número de posición estable que coincide con el orden usado para crear los asientos de la partida.
+- Arrastrar Soplar ahora mueve una ficha/ráfaga visible bajo el dedo, resalta los objetivos válidos y da feedback háptico al entrar sobre uno.
+- Al soltar sobre un rival, la tarjeta queda fuertemente marcada en rojo con “ATAQUE ELEGIDO” y el texto confirma el objetivo mientras la intención se guarda y después de ser aceptada.
+- El drag limpia correctamente ghost, outlines y estado visual al cancelar, perder captura, cambiar de fase o quedar offline.
+- Los efectos son puramente de presentación: no cambian daño, Soplos, deadlines, autoridad del host ni protocolo Firestore.
+- Se añadieron regresiones de UI para el orden de ingreso y la marca de objetivo.
+
 ## 0.8.0 — Plan Cóndor: presión de ronda y game feel aislado
 
 - Se agregó una capa de presentación independiente (`src/condor.js` + `src/condor.css`) que observa únicamente el DOM ya renderizado; no escribe en Firestore ni participa de la autoridad de la partida.

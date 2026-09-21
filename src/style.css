@@ -2244,3 +2244,133 @@ header { min-height:48px; }
 @media(prefers-reduced-motion:reduce) {
   .countdown-splash strong { animation:none!important; }
 }
+
+
+/* Plan Águila 0.9.0 — lobby estable y Soplar con feedback directo. */
+.lobby-list li { position:relative; }
+.lobby-list li.is-offline {
+  background:#f4ecdd;
+  border-style:dashed;
+}
+.lobby-player strong {
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.lobby-slot {
+  display:inline-grid!important;
+  place-items:center;
+  flex:0 0 20px;
+  width:20px;
+  height:20px;
+  border:1.5px solid var(--ink);
+  border-radius:50%;
+  background:#ffdf4f;
+  color:var(--ink);
+  font-size:10px!important;
+  font-weight:1000;
+  line-height:1;
+  box-shadow:1px 1px 0 #20263366;
+}
+.player.selected-target {
+  z-index:9;
+  border-color:#8e102b!important;
+  background:linear-gradient(145deg,#fff0f3 0 42%,#ffc2ce 100%)!important;
+  outline:5px solid #ff244d!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 4px #fff7f8,0 0 0 8px #bc1738,2px 5px 0 #49352396!important;
+  animation:pb-target-lock .75s ease-in-out infinite alternate;
+}
+.player.selected-target .player-name {
+  background:#98112d;
+}
+.player.selected-target .avatar-wrap {
+  filter:saturate(1.2) contrast(1.04);
+}
+.attack-target-badge {
+  position:absolute;
+  z-index:12;
+  left:50%;
+  top:-14px;
+  transform:translateX(-50%) rotate(-2deg);
+  min-width:max-content;
+  padding:3px 7px;
+  border:2px solid #4d0716;
+  border-radius:5px;
+  background:#e4153f;
+  color:white;
+  font-size:8px!important;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.45px;
+  box-shadow:2px 2px 0 #4d0716;
+  pointer-events:none;
+}
+@keyframes pb-target-lock {
+  from { filter:saturate(1); }
+  to { filter:saturate(1.18) brightness(1.03); }
+}
+.game.is-dragging-blow .player:not(.valid-target):not(.drag-target):not(.self) {
+  filter:saturate(.48) brightness(.86);
+}
+.game.is-dragging-blow #blow {
+  transform:translateY(2px) scale(.97);
+  filter:saturate(1.2) brightness(1.06);
+}
+#blow-drag-ghost {
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  width:92px;
+  min-height:52px;
+  transform:translate(-50%,-50%) rotate(-5deg);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:1px;
+  padding:5px 9px;
+  border:3px solid #5e0c22;
+  border-radius:50% 50% 42% 42%;
+  background:radial-gradient(circle at 35% 20%,#ff93aa,#f23265 62%,#a31338);
+  color:white;
+  box-shadow:inset 0 0 0 2px #ffffff66,0 5px 0 #5e0c22,0 10px 18px #3b0b173d;
+  animation:pb-drag-pop .12s ease-out;
+}
+#blow-drag-ghost.is-over-target {
+  border-color:#ffdf4f;
+  box-shadow:inset 0 0 0 2px #ffffff88,0 0 0 4px #ffdf4f,0 5px 0 #5e0c22,0 10px 18px #3b0b174d;
+}
+#blow-drag-ghost b {
+  max-width:82px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px;
+  line-height:1.1;
+  text-transform:uppercase;
+}
+.blow-drag-wind {
+  display:flex!important;
+  flex-direction:column;
+  width:58px;
+  gap:3px;
+}
+.blow-drag-wind i {
+  display:block;
+  height:3px;
+  border-radius:999px;
+  background:white;
+  box-shadow:1px 1px 0 #5e0c22;
+  transform-origin:left center;
+}
+.blow-drag-wind i:nth-child(1) { width:48px; transform:skewX(-22deg); }
+.blow-drag-wind i:nth-child(2) { width:58px; transform:translateX(5px); }
+.blow-drag-wind i:nth-child(3) { width:40px; transform:translateX(12px) skewX(20deg); }
+@keyframes pb-drag-pop {
+  from { opacity:.35; transform:translate(-50%,-50%) scale(.78) rotate(-8deg); }
+  to { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(-5deg); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .player.selected-target,#blow-drag-ghost { animation:none!important; transition:none!important; }
+}
