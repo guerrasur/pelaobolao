@@ -96,6 +96,8 @@ export function startCondor(root = document) {
   let tickCleanup = 0;
   let lobbyInitialized = false;
   let lobbyState = new Map();
+  let waitingInitialized = false;
+  let waitingIds = new Set();
 
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
@@ -133,6 +135,8 @@ export function startCondor(root = document) {
       lastPhase = null;
       lastTickKey = null;
       lastTargetUid = null;
+      waitingInitialized = false;
+      waitingIds = new Set();
       enhanceLobby();
       return;
     }
@@ -158,6 +162,15 @@ export function startCondor(root = document) {
     }
     lastTargetUid = targetUid;
     updateAimGuide(board);
+
+    const queue = board.querySelector('[data-waiting-ids]');
+    const nextWaitingIds = new Set((queue?.dataset.waitingIds || '').split(',').filter(Boolean));
+    if (queue && waitingInitialized && [...nextWaitingIds].some(uid => !waitingIds.has(uid))) {
+      pulseClass(queue, 'condor-queue-join', 720);
+      playCue('ready');
+    }
+    waitingIds = nextWaitingIds;
+    waitingInitialized = true;
 
     const seconds = timerSeconds(board.querySelector('#timer')?.textContent);
     const tickKey = `${phase}:${seconds}`;
