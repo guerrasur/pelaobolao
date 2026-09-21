@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.7.0 — spectator mode, countdown y robustez de versión
+
+- Las tarjetas de rivales sólo son interactuables cuando realmente están disponibles como objetivo de Soplar; fuera de targeting quedan visualmente intactas pero dejan de comportarse como botones falsos.
+- El gate de actualización sólo bloquea si version.json anuncia una versión realmente más nueva. Una respuesta vieja por caché ya no puede pedir un downgrade ni dejar el juego inutilizable.
+- Un jugador Pelado durante una partida activa entra en un modo espectador explícito: “PELADO · MIRANDO” + cantidad de jugadores que siguen con Pelo.
+- El inicio de partida usa un overlay de tiza 3 · 2 · 1 · ¡YA! sin consumir altura del tablero.
+- El reveal suma un sello corto según lo ocurrido: VOLÓ PELO, DEFENSA PERFECTA, CAOS EN EL AULA o RONDA TRANQUILA.
+- Los estados de targeting atenúan rivales no válidos y resaltan únicamente tarjetas realmente seleccionables.
+- Se añadieron pruebas para comparación de versiones, versión pública vieja, tarjetas targetables, espectador, countdown y sellos de ronda.
+- Inspiración conceptual: Stumble Guys mantiene a eliminados como espectadores; Brawl Stars refuerza highlights de fin de batalla; Fall Guys ha corregido soft-locks y UI superpuesta alrededor de desconexiones/celebraciones.
+- Sin cambios en reglas de combate ni arquitectura Firebase Spark.
+
 ## 0.6.9 — celebraciones de victoria y derrota
 
 - El final de partida ahora es personalizado para cada jugador.
