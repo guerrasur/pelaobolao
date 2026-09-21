@@ -25,7 +25,14 @@ let operationGeneration = 0;
 let renderedHtml;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
 const now = () => api?.now() ?? Date.now();
-const message = text => { notice.textContent = text; };
+const setText = (node, value) => {
+  if (!node) return false;
+  const next = String(value ?? '');
+  if (node.textContent === next) return false;
+  node.textContent = next;
+  return true;
+};
+const message = text => { setText(notice, text); };
 const actionName = action => ({ air: 'Tomar aire', hide: 'Esconderse', blow: 'Soplar', grab: 'Agarrar +1 Pelo', distracted: 'Distraído' }[action] ?? 'Sin elegir');
 const centerItemActive = () => s.game?.centerItem?.kind === HAIR_ITEM_KIND;
 const freeCenterPickup = () => Number(s.game?.rules?.version ?? 0) >= 3;
@@ -117,7 +124,7 @@ function updateDragGhost(x, y, targetName = null) {
   ghost.style.top = `${y}px`;
   ghost.classList.toggle('is-over-target', Boolean(targetName));
   const label = ghost.querySelector('b');
-  if (label) label.textContent = targetName ? `→ ${targetName}` : 'SOPLO';
+  if (label) setText(label, targetName ? `→ ${targetName}` : 'SOPLO');
   document.querySelector('.game')?.classList.add('is-dragging-blow');
 }
 function updateDragVector(x, y, targetNode = null) {
@@ -529,7 +536,6 @@ function resultHtml(game) {
 }
 
 function render() {
-  if (drag) return; // Keep pointer capture intact during room heartbeat snapshots.
   let html;
   const active = document.activeElement;
   const focusId = active?.id;
@@ -692,7 +698,7 @@ function bind() {
       node.classList.toggle('drag-target', id === drag.target);
     });
     updateDragVector(event.clientX, event.clientY, drag.target ? target : null);
-    document.querySelector('#selection').textContent = drag.target ? `Soltá para soplar a ${targetName(drag.target)}` : freeCenterPickup() ? 'Arrastrá sobre un rival.' : 'Arrastrá sobre un rival o el objeto del centro.';
+    setText(document.querySelector('#selection'), drag.target ? `Soltá para soplar a ${targetName(drag.target)}` : freeCenterPickup() ? 'Arrastrá sobre un rival.' : 'Arrastrá sobre un rival o el objeto del centro.');
   });
   const finish = event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
@@ -712,14 +718,14 @@ function bind() {
 function tick() {
   const checkingConnection = s.online && Boolean(lastContact && Date.now() - lastContact > 30000 && s.roomId);
   const connecting = s.online && !api;
-  connection.textContent = !s.online ? 'Sin conexión · reconectando al volver la señal' : checkingConnection ? 'Comprobando conexión con el servidor…' : api ? 'Conectado' : 'Conectando…';
+  setText(connection, !s.online ? 'Sin conexión · reconectando al volver la señal' : checkingConnection ? 'Comprobando conexión con el servidor…' : api ? 'Conectado' : 'Conectando…');
   connection.classList.toggle('offline', !s.online);
   connection.classList.toggle('checking', checkingConnection);
   connection.classList.toggle('connecting', connecting);
   if (s.updateRequired) return;
   document.querySelectorAll('[data-presence]').forEach(el => {
     const online = memberOnline(el.dataset.presence);
-    el.textContent = online ? 'Conectado' : 'Reconectando…';
+    setText(el, online ? 'Conectado' : 'Reconectando…');
     el.classList.toggle('is-online', online);
   });
   document.querySelectorAll('[data-presence-dot]').forEach(el => {
@@ -731,9 +737,9 @@ function tick() {
   const lobbyReturn = document.querySelector('[data-lobby-return]');
   if (lobbyReturn) {
     lobbyReturn.hidden = returnSeconds === null;
-    if (returnSeconds !== null) lobbyReturn.textContent = returnSeconds > 0
+    if (returnSeconds !== null) setText(lobbyReturn, returnSeconds > 0
       ? `Regresando al lobby en ${returnSeconds}s`
-      : 'Regresando al lobby…';
+      : 'Regresando al lobby…');
   }
   if (game.phase === 'finished' && returnSeconds === 0 && !returningLobby && s.room?.hostId === api?.uid
     && s.online && Date.now() - lastLobbyReturnAttempt > 1500) {
@@ -743,9 +749,9 @@ function tick() {
   const deadline = phaseDeadline(game);
   const seconds = Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now()) / 1000)) : null;
   const timer = document.querySelector('#timer');
-  if (timer) timer.textContent = seconds === null || seconds === 0 || ['syncing', 'locked'].includes(game.phase) ? '···' : `${String(seconds).padStart(2, '0')}s`;
+  if (timer) setText(timer, seconds === null || seconds === 0 || ['syncing', 'locked'].includes(game.phase) ? '···' : `${String(seconds).padStart(2, '0')}s`);
   const countdownSplash = document.querySelector('[data-countdown-splash]');
-  if (countdownSplash) countdownSplash.textContent = seconds === null ? '' : seconds <= 0 ? '¡YA!' : String(seconds);
+  if (countdownSplash) setText(countdownSplash, seconds === null ? '' : seconds <= 0 ? '¡YA!' : String(seconds));
   if (timer) {
     timer.classList.toggle('warning', game.phase === 'choosing' && seconds !== null && seconds <= 5);
     timer.classList.toggle('urgent', game.phase === 'choosing' && seconds !== null && seconds <= 3);
@@ -764,7 +770,7 @@ function tick() {
   }
   if (s.game.phase === 'choosing' && seconds === 0) {
     const status = document.querySelector('#turn-status');
-    if (status) status.textContent = 'Resolviendo el turno…';
+    if (status) setText(status, 'Resolviendo el turno…');
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
