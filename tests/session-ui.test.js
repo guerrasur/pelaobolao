@@ -439,7 +439,7 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
   }};
   ui.render();
   html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/OBJETO DISPUTADO/);
+  assert.match(html,/MECHÓN DISPUTADO/);
   assert.match(html,/2 fueron por él/);
 });
 
