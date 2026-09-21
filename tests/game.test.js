@@ -197,6 +197,7 @@ test('partidas nuevas habilitan objetos centrales raros sin alterar recursos ini
   assert.equal(state.rules.centerItems, true);
   assert.equal(state.rules.itemFirstTurn, 4);
   assert.equal(state.rules.itemMinGap, 5);
+  assert.equal(state.rules.itemCriticalForceGap, 7);
   assert.equal(state.rules.itemPityGap, 9);
   assert.equal(state.rules.itemSpawnChance, 0.18);
   assert.equal(state.rules.itemCriticalChance, 0.45);
@@ -332,6 +333,19 @@ test('la lectura de HP aumenta la chance pero respeta el cooldown entre items', 
     const scheduled = scheduleCenterItem(state, turn);
     assert.equal(scheduled.centerItem, null);
   }
+});
+
+test('una sequía larga con desventaja crítica fuerza el mechón antes del pity', () => {
+  const state = game();
+  state.players['0'].hair = 1;
+  state.players['1'].hair = 3;
+  state.rules.itemCriticalChance = 0;
+  state.rules.itemSpawnChance = 0;
+  const before = scheduleCenterItem(state, 6);
+  assert.equal(before.centerItem, null);
+  const forced = scheduleCenterItem(state, 7);
+  assert.equal(forced.centerItem.kind, HAIR_ITEM_KIND);
+  assert.equal(forced.centerItem.source, 'critical');
 });
 
 test('aparición normal sigue siendo determinista entre hosts', () => {
