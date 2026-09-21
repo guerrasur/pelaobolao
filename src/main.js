@@ -389,14 +389,14 @@ function sealedChoiceHtml(game, choice, me) {
 function centerItemHtml(game, choice) {
   if (game.centerItem?.kind !== HAIR_ITEM_KIND || !['choosing', 'locked', 'reveal'].includes(game.phase)) return '';
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
-  const selected = freePickup
-    ? choice?.action === 'grab' && choice.target === CENTER_ITEM_TARGET
-    : choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
-  const targetable = Boolean(canChoose() && (freePickup || s.targeting));
+  const selectedGrab = freePickup && choice?.action === 'grab' && choice.target === CENTER_ITEM_TARGET;
+  const selectedLegacyTarget = !freePickup && choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
+  // A free pickup is contextual: while aiming a Soplo the item stops acting like a control.
+  const targetable = Boolean(canChoose() && (freePickup ? !s.targeting : s.targeting));
   const isNew = game.phase === 'choosing' && game.centerItem.spawnedTurn === game.turn;
   const label = freePickup ? '+1 Pelo. Agarrar no cuesta Soplos, pero te deja expuesto.' : '+1 Pelo, cuesta 1 Soplo';
-  return `<button type="button" class="center-item hair-item ${targetable ? 'targetable' : ''} ${selected ? 'selected-target' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" tabindex="${targetable ? '0' : '-1'}" aria-label="${label}">
-    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>OBJETO EN EL AULA</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
+  return `<button type="button" class="center-item hair-item ${targetable ? 'targetable' : ''} ${selectedGrab ? 'selected-grab' : ''} ${selectedLegacyTarget ? 'selected-target' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" aria-pressed="${selectedGrab || selectedLegacyTarget ? 'true' : 'false'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
+    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>OBJETO EN EL AULA</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${selectedGrab ? 'YENDO…' : freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
   </button>`;
 }
 
@@ -652,8 +652,8 @@ function bind() {
   }));
   document.querySelector('[data-center-item]')?.addEventListener('click', event => {
     const target = event.currentTarget.dataset.centerItem;
-    if (freeCenterPickup()) choose('grab', target);
-    else if (s.targeting) choose('blow', target);
+    if (freeCenterPickup() && !s.targeting) choose('grab', target);
+    else if (!freeCenterPickup() && s.targeting) choose('blow', target);
   });
   const blow = document.querySelector('#blow');
   if (!blow) return;
