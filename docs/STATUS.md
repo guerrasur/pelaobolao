@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.6.8 — HUD de combate y prompts de acción
+
+- Las tarjetas muestran barras compactas de Pelo y Soplos sin sumar altura al tablero.
+- Un check visual indica quién ya eligió durante la ronda sin revelar qué acción eligió.
+- Los prompts pasan a formato corto de acción: “¡ELEGÍ!”, “¡APUNTÁ!” y “¡TOMÁ AIRE!”.
+- El resumen de ronda usa chips visuales propios para Ataque, Aire, Abajo, Distraído, Bloqueos y pérdida de Pelo; se eliminaron emojis decorativos.
+- El resumen compacto ahora cuenta también a quienes quedaron Distraídos.
+- El ganador recibe una animación liviana sobre el avatar sin assets externos y respetando reduced-motion.
+- La matriz E2E renderiza también estados de jugador que ya eligió para detectar overflow en 2–6 jugadores.
+- Referencias de diseño consultadas: Brawl Stars (lectura rápida de estado/vida), Clash Royale (foco en arena y feedback inmediato), Among Us (estado global claro/version locking) y WarioWare (prompts breves e imperativos).
+- Sin cambios en reglas de combate ni arquitectura Firebase Spark.
+
 ## 0.6.7 — logo limpio y navegación más segura
 
 - El logo sigue centrado, sobre papel rayado y pegado con cinta, pero se eliminó por completo el texto "MENOS PELO · MÁS PROBLEMAS".
