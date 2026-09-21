@@ -52,12 +52,12 @@ function effectMarkup(effects = {}) {
   return bits.length ? '<span class="player-fx" aria-hidden="true">' + bits.join('') + '</span>' : '';
 }
 
-export function playerCard({ uid, player: p, index, self, selected, chosen, connected = true, winner = false, rules, effects = {} }) {
+export function playerCard({ uid, player: p, index, self, selected, chosen, connected = true, winner = false, targetable = false, rules, effects = {} }) {
   const seat = Number.isInteger(index) && index >= 0 ? index : 0;
   const effectClass = [effects.action ? 'action-' + effects.action : '', effects.hit ? 'took-hit' : '', effects.blockedDefense ? 'blocked-hit' : '', effects.blockedAttack ? 'attack-blocked' : ''].filter(Boolean).join(' ');
   const hairFill = Math.max(0, Math.min(1, Number(p.hair || 0) / Math.max(1, Number(rules.maxHair || 1))));
   const breathFill = Math.max(0, Math.min(1, Number(p.breath || 0) / Math.max(1, Number(rules.maxBreath || 1))));
-  return `<button class="player ${self ? 'self' : ''} ${winner ? 'winner' : ''} ${chosen ? 'has-chosen' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${!connected ? 'offline-player' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]};--hair-fill:${hairFill};--breath-fill:${breathFill}" ${p.hair <= 0 || self ? 'disabled' : ''}>
+  return `<button class="player ${self ? 'self' : ''} ${winner ? 'winner' : ''} ${targetable ? 'targetable' : ''} ${chosen ? 'has-chosen' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${!connected ? 'offline-player' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]};--hair-fill:${hairFill};--breath-fill:${breathFill}" ${p.hair <= 0 || self || !targetable ? 'disabled' : ''}>
     <strong class="player-name"><i>${seat + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}</span>${self ? '<span class="self-tag">VOS</span>' : ''}<span class="presence-dot ${connected ? 'online' : ''}" data-presence-dot="${esc(uid)}" aria-hidden="true"></span></strong>
     <div class="player-body"><div class="avatar-wrap"><div class="avatar">${avatar(seat, p.hair, effects)}</div></div>${effectMarkup(effects)}<div class="resources">
     <span class="resource-label hair-resource">Pelo <b>${p.hair}</b>/${rules.maxHair}</span><span class="hair-pips" aria-hidden="true">${Array.from({ length: rules.maxHair }, (_, n) => `<i class="${n < p.hair ? 'full' : ''}"></i>`).join('')}</span>
