@@ -184,7 +184,7 @@ service cloud.firestore {
             && request.time.toMillis() >= old.nextTurnAt
             && d.phase == 'choosing' && d.turn == old.turn + 1 && d.resolvedTurn == old.resolvedTurn
             && d.deadline > request.time.toMillis() && d.nextTurnAt == null
-            && d.diff(old).affectedKeys().hasOnly(['phase','turn','deadline','nextTurnAt','lastProgressAt'])));
+            && d.diff(old).affectedKeys().hasOnly(['phase','turn','deadline','nextTurnAt','centerItem','lastItemSpawnTurn','lastProgressAt'])));
       }
       function synchronizedTransition(old, d) {
         let time = request.time.toMillis();
