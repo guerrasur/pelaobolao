@@ -1123,3 +1123,202 @@ main#app { min-height:0; overflow:hidden; }
     font-size:7px;
   }
 }
+
+
+/* v0.6.3 lobby, presence and danger-state polish */
+.lobby-screen { position:relative; }
+.lobby-heading {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.lobby-heading h1 { margin-bottom:8px; }
+.compact-button {
+  width:auto;
+  min-width:112px;
+  min-height:42px;
+  padding:7px 12px;
+  margin-top:4px;
+}
+.ready-progress {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:9px;
+  margin:10px 0 14px;
+}
+.ready-progress>div {
+  height:12px;
+  overflow:hidden;
+  border:2px solid var(--ink);
+  border-radius:999px;
+  background:#e8dfc8;
+  box-shadow:1px 2px 0 #20263355;
+}
+.ready-progress i {
+  display:block;
+  width:calc(var(--ready,0) * 100%);
+  height:100%;
+  border-radius:inherit;
+  background:repeating-linear-gradient(135deg,#20bc86 0 8px,#35d79b 8px 16px);
+  transition:width .2s ease;
+}
+.ready-progress span {
+  font-size:10px;
+  font-weight:850;
+  white-space:nowrap;
+}
+.lobby-list {
+  display:grid;
+  gap:6px;
+  margin-bottom:14px;
+}
+.lobby-list li {
+  min-width:0;
+  padding:8px 9px;
+  margin:0;
+  border:2px solid #c4b792;
+  box-shadow:1px 2px 0 #79674c4f;
+  transition:transform .14s ease,background .14s ease,border-color .14s ease;
+}
+.lobby-list li.is-ready {
+  background:#edfff3;
+  border-color:#5eaa7e;
+}
+.lobby-player {
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+}
+.lobby-player strong {
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.presence-text {
+  display:inline-flex!important;
+  align-items:center;
+  gap:4px!important;
+  color:#8b5c34;
+  font-size:9px!important;
+  font-weight:700;
+}
+.presence-text::before,
+.presence-dot {
+  content:'';
+  display:inline-block;
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  border-radius:50%;
+  border:1px solid #202633;
+  background:#db9b57;
+  box-shadow:0 0 0 2px #fff9e9;
+}
+.presence-text.is-online::before,
+.presence-dot.online {
+  background:#1fc781;
+}
+.lobby-state {
+  display:flex!important;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:4px!important;
+}
+.lobby-state em {
+  padding:2px 5px;
+  border:1px solid #202633;
+  border-radius:4px;
+  background:#ffdf4f;
+  color:#202633;
+  font-size:8px;
+  font-style:normal;
+  font-weight:1000;
+  letter-spacing:.35px;
+}
+.lobby-state b {
+  min-width:58px;
+  text-align:center;
+  font-size:8px!important;
+  letter-spacing:.25px;
+}
+.lobby-list li.is-ready .lobby-state b {
+  background:#bff3d2;
+  border-color:#397453;
+  color:#214f37;
+}
+.ready-toggle-on {
+  background:#eafff1!important;
+  color:#24573a!important;
+  border-color:#397453!important;
+}
+.lobby-help {
+  min-height:18px;
+  margin:7px 0 3px;
+  text-align:center;
+  font-weight:700;
+}
+
+.player-name .presence-dot {
+  margin-left:auto;
+  box-shadow:none;
+}
+.player.offline-player:not(.eliminated) {
+  filter:saturate(.58) contrast(.92);
+  border-style:dashed;
+}
+.player.offline-player:not(.eliminated) .avatar {
+  opacity:.72;
+}
+.player.critical:not(.eliminated) {
+  border-color:#b61f43;
+  box-shadow:inset 0 0 0 2px #ff9ab066,1px 2px 0 #49352396;
+  background:#fff0f2;
+}
+.player.critical .hair-pips i.full {
+  background:#b61f43;
+  box-shadow:0 0 0 2px #ffbdca;
+}
+.player.eliminated::before {
+  content:'PELADO';
+  position:absolute;
+  z-index:6;
+  left:50%;
+  top:54%;
+  transform:translate(-50%,-50%) rotate(-9deg);
+  padding:3px 8px;
+  border:2px solid #202633;
+  border-radius:5px;
+  background:#ece5d5e8;
+  color:#202633;
+  box-shadow:2px 2px 0 #202633;
+  font-size:9px;
+  font-weight:1000;
+  letter-spacing:1px;
+  pointer-events:none;
+}
+.fx-label-rebound {
+  background:#ffe279;
+  color:#3d2b00;
+}
+.phase-banner strong {
+  padding:2px 6px;
+  border-radius:999px;
+  background:#ffffff7d;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+@media(max-height:650px) {
+  .player.eliminated::before { padding:1px 4px; border-width:1px; font-size:6px; box-shadow:1px 1px 0 #202633; }
+}
+@media(max-width:420px) {
+  .lobby-heading { align-items:center; }
+  .compact-button { min-width:96px; padding-inline:9px; }
+  .ready-progress { grid-template-columns:1fr; gap:4px; }
+  .ready-progress span { text-align:center; }
+}
