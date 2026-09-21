@@ -138,3 +138,15 @@ test('una versión nueva bloquea el juego hasta actualizar', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Actualizar ahora' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Crear sala' })).toHaveCount(0);
 });
+
+
+test('una versión pública anterior no bloquea un cliente más nuevo', async ({ page }) => {
+  await page.route('**/version.json*', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ version: '0.1.0' }),
+  }));
+  await page.goto('http://127.0.0.1:5173');
+  await expect(page.getByRole('heading', { name: 'Hay que actualizar para seguir' })).toHaveCount(0);
+  await expect(page.getByLabel('Nombre', { exact: true })).toBeVisible();
+});
