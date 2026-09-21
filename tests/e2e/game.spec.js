@@ -39,7 +39,7 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
     }
   };
   const savedOrRevealed = page => expect.poll(() => page.evaluate(() =>
-    /Elegido:/.test(document.querySelector('#selection')?.textContent ?? '')
+    /(Elegido:|OBJETIVO FIJADO:)/.test(document.querySelector('#selection')?.textContent ?? '')
       || ['locked','reveal','finished'].includes(document.querySelector('.game')?.dataset.phase)
   )).toBe(true);
   const choose = async (page, action) => {
@@ -74,6 +74,9 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
       y: from.y + (to.y - from.y) * step / 12,
     }] });
   }
+  await expect(a.locator('#blow-drag-ghost')).toBeVisible();
+  await expect(a.locator('#blow-drag-ghost')).toContainText('Beto');
+  await expect(a.locator('[data-player]').filter({ hasText: 'Beto' })).toHaveClass(/drag-target/);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await touch.detach();
   await savedOrRevealed(a);
