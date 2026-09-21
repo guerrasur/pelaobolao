@@ -9,9 +9,9 @@ test.afterAll(async () => { await env.cleanup(); });
 
 test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({page}) => {
   await page.goto('/');
-  await page.getByLabel('Nombre',{exact:true}).fill('Nombre de veinticuatro');
-  await page.getByRole('button',{name:'Continuar'}).click();
-  await page.getByRole('button',{name:'Crear sala'}).click();
+  await page.getByLabel('Nombre del jugador',{exact:true}).fill('Nombre de veinticuatro');
+  await page.getByRole('button',{name:'Entrar al aula'}).click();
+  await page.getByRole('button',{name:'CREAR SALA',exact:true}).click();
   const code=await page.locator('.code').textContent();
   // Freeze only automatic test progression, while retaining real app rendering/listeners.
   await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
