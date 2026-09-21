@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.11.0 — Plan Águila: salida automática y trayectoria entre personajes
+
+- Al finalizar una partida se preservan 3 segundos completos para ver la celebración de victoria/derrota. Después aparece “Regresando al lobby en 5s” y baja 4, 3, 2, 1 antes de volver automáticamente.
+- El retorno usa `finishedAt` y el reloj calibrado, por lo que todos los celulares muestran la misma cuenta sin depender de timers locales iniciados al renderizar.
+- El botón manual de revancha desaparece: al llegar a cero, el host devuelve la sala al lobby y todos vuelven con `ready:false`, conservando el flujo de revancha existente.
+- Si el host queda suspendido o se desconecta en la pantalla final, el estado `finished` usa el lease corto de 5 s para transferir autoridad a otro participante conectado antes del retorno.
+- La guía roja de Soplar ya no nace del botón: parte del avatar del jugador local y termina en el avatar del rival seleccionado.
+- La trayectoria conserva punta de flecha, suma un marcador de origen y muestra el nombre del objetivo en la propia guía (“SOPLO → NOMBRE”).
+- La etiqueta se corrige automáticamente si el ángulo dejaría el texto invertido; el overlay sigue sin interceptar punteros y respeta reduced motion.
+- Se agregaron pruebas unitarias de la cuenta 5→0, integración del relevo de host al finalizar y E2E para origen de la flecha + regreso automático.
+- Sin cambios en daño, Pelo, consumo de Soplos, resolución simultánea ni arquitectura Firebase Spark.
+
 ## 0.10.0 — Plan Cóndor: intención de ataque y lobby reactivo
 
 - Sobre la base 0.9.0 se mantuvo intacto el orden fijo por `joinedAt` y se añadieron regresiones E2E que verifican que marcar Listo no cambia ninguna posición.
