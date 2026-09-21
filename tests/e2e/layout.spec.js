@@ -30,6 +30,23 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
     await expect(page.locator('[data-player]')).toHaveCount(count);
     for(const [width,height] of [[320,568],[390,664],[390,844],[768,1024],[1366,768],[844,390]]) {
       await page.setViewportSize({width,height});
+      const brand = await page.evaluate(() => {
+        const el = document.querySelector('.brand');
+        const rect = el.getBoundingClientRect();
+        const tape = getComputedStyle(el, '::before');
+        return {
+          centerDelta: Math.abs((rect.left + rect.width / 2) - innerWidth / 2),
+          top: rect.top,
+          bottom: rect.bottom,
+          tapeDisplay: tape.display,
+          tapeContent: tape.content,
+        };
+      });
+      expect(brand.centerDelta, `logo centrado ${width}x${height}`).toBeLessThanOrEqual(2);
+      expect(brand.top).toBeGreaterThanOrEqual(0);
+      expect(brand.bottom).toBeLessThanOrEqual(height);
+      expect(brand.tapeDisplay).not.toBe('none');
+      expect(brand.tapeContent).not.toBe('none');
       for(const phase of ['choosing','reveal','finished']) {
         const result=resolveRound(game,{}).result;
         await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{
