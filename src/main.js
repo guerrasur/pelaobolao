@@ -370,7 +370,7 @@ function endCelebrationHtml(game, uid) {
       const rotation = 160 + (index % 8) * 55;
       return `<i style="--x:${x}%;--drift:${drift}px;--delay:${delay}s;--duration:${duration}s;--rotation:${rotation}deg"></i>`;
     }).join('');
-    return `<div class="end-celebration end-win" data-outcome="win" role="status" aria-live="assertive"><div class="confetti" aria-hidden="true">${confetti}</div><div class="outcome-card"><small>ÚLTIMO CON PELO</small><strong>¡GANASTE!</strong><span>La clase es tuya.</span></div></div>`;
+    return `<div class="end-celebration end-win" data-outcome="win" role="status" aria-live="assertive"><div class="confetti" aria-hidden="true">${confetti}</div><div class="outcome-card"><small>ÚLTIMO CON PELO</small><strong>¡GANASTE!</strong></div></div>`;
   }
   const tomatoes = [
     ['18%','38%','-130px','0s','-22deg'],
