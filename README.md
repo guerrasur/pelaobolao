@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.6.8): HUD de combate más legible con barras de Pelo/Soplos, confirmación visual de quién ya eligió, prompts cortos tipo microjuego, ganador más expresivo y resumen de ronda propio sin emojis.
+Última corrección (0.6.9): pantalla final personalizada por jugador: confeti + ¡GANASTE! para el ganador, tomatazos + PERDISTE para quien pierde, ganador indicado aparte, sonidos/háptica distintos y pruebas de overflow/compatibilidad móvil.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
