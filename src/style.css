@@ -1091,3 +1091,35 @@ main#app { min-height:0; overflow:hidden; }
   .player-name { min-height:17px; padding-block:1px; }
   .player-name i { height:17px; }
 }
+
+
+/* Short landscape results use the compact summary instead of an internal scroll area. */
+@media(max-height:520px) and (min-width:600px) {
+  .game[data-phase="reveal"] .result,
+  .game[data-phase="finished"] .result {
+    max-height:none;
+    overflow:visible;
+    padding:4px 6px;
+  }
+  .game[data-phase="reveal"] .result ul,
+  .game[data-phase="finished"] .result ul,
+  .game[data-phase="reveal"] .result-head h2,
+  .game[data-phase="finished"] .result-head h2 {
+    display:none;
+  }
+  .game[data-phase="reveal"] .result-head,
+  .game[data-phase="finished"] .result-head {
+    margin:0;
+    justify-content:center;
+  }
+  .game[data-phase="reveal"] .result-summary,
+  .game[data-phase="finished"] .result-summary {
+    justify-content:center;
+  }
+  .game[data-phase="reveal"] .result-summary span,
+  .game[data-phase="finished"] .result-summary span {
+    min-height:14px;
+    padding:1px 4px;
+    font-size:7px;
+  }
+}
