@@ -9,7 +9,7 @@ export const RULES = Object.freeze({
   centerItems: true,
   itemFirstTurn: 4,
   itemMinGap: 5,
-  itemCriticalGap: 4,
+  itemCriticalForceGap: 7,
   itemPityGap: 9,
   itemSpawnChance: 0.18,
   itemCriticalChance: 0.45,
@@ -94,16 +94,12 @@ export function scheduleCenterItem(game, nextTurn) {
   if (active.length <= 1) return { centerItem: null, lastItemSpawnTurn };
 
   const minGap = Number(game.rules.itemMinGap ?? 5);
-  const criticalGap = Number(game.rules.itemCriticalGap ?? 4);
+  const criticalForceGap = Number(game.rules.itemCriticalForceGap ?? 7);
   const pityGap = Number(game.rules.itemPityGap ?? 9);
   const chance = Number(game.rules.itemSpawnChance ?? 0.18);
   const criticalChance = Number(game.rules.itemCriticalChance ?? 0.45);
   const sinceLast = cooldownTurn > 0 ? nextTurn - cooldownTurn : nextTurn;
   const seed = game.itemSeed ?? `${game.roomId ?? 'room'}:${millis(game.createdAt)}`;
-
-  if (cooldownTurn > 0 && sinceLast < criticalGap) {
-    return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
-  }
 
   const hairs = active.map(player => Number(player.hair || 0));
   const minHair = Math.min(...hairs);
@@ -116,6 +112,10 @@ export function scheduleCenterItem(game, nextTurn) {
 
   if (sinceLast >= pityGap) {
     return { centerItem: hairItem(nextTurn, 'pity'), lastItemSpawnTurn: nextTurn };
+  }
+
+  if (critical && sinceLast >= criticalForceGap) {
+    return { centerItem: hairItem(nextTurn, 'critical'), lastItemSpawnTurn: nextTurn };
   }
 
   if (critical && stableUnit(`${seed}:${nextTurn}:${HAIR_ITEM_KIND}:critical`) < criticalChance) {
