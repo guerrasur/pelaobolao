@@ -1,5 +1,18 @@
 # Estado del MVP Spark
 
+## 0.8.0 — Plan Cóndor: presión de ronda y game feel aislado
+
+- Se agregó una capa de presentación independiente (`src/condor.js` + `src/condor.css`) que observa únicamente el DOM ya renderizado; no escribe en Firestore ni participa de la autoridad de la partida.
+- Los últimos 3 segundos de elección tienen un tick breve y un pulso visual único por segundo; al llegar a 1 s el tablero refuerza la urgencia sin modificar el deadline.
+- Al sellarse las jugadas aparece un sello central corto y un cue de audio propio. El reveal suma una ráfaga de tiza que no intercepta punteros.
+- Los botones de acción reciben feedback de pulsación y el modo Soplar atenúa objetivos inválidos para reducir errores de targeting.
+- Los cambios de fase visibles tienen una entrada corta y el sello de resultado gana jerarquía, manteniendo geometría estable y fullscreen.
+- Todos los efectos respetan `prefers-reduced-motion`; audio y partículas son mejoras opcionales y nunca bloquean una ronda.
+- Se añadieron pruebas unitarias para parseo del timer, ticks 3-2-1 y clases de transición. El script `npm test` las incluye.
+- Inspiración de esta pasada: la separación entre momento destacado y resumen de Brawl Stars, y el uso de feedback visual/sonoro inmediato en juegos mobile para comunicar estado con poco espacio.
+- Sin cambios en reglas de combate, protocolo multijugador, Firestore Rules ni arquitectura Firebase Spark.
+
+
 ## 0.7.0 — spectator mode, countdown y robustez de versión
 
 - Las tarjetas de rivales sólo son interactuables cuando realmente están disponibles como objetivo de Soplar; fuera de targeting quedan visualmente intactas pero dejan de comportarse como botones falsos.
