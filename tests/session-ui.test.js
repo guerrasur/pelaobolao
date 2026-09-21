@@ -398,7 +398,7 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   assert.match(html,/class="center-item hair-item targetable/);
   assert.match(html,/data-center-item="__center_item__"/);
   assert.match(html,/class="hair-tuft"/);
-  assert.match(html,/>+1 PELO</strong>/);
+  assert.match(html,/>\+1 PELO<\/strong>/);
   assert.match(html,/AGARRAR/);
   assert.match(html,/gratis; al hacerlo quedás expuesto/);
   assert.doesNotMatch(html,/1 SOPLO/);
