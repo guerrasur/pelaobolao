@@ -1661,3 +1661,14 @@ header {
     padding-block:2px;
   }
 }
+
+
+/* v0.6.7 — cleaner taped logo and stable in-game header */
+header { min-height:48px; }
+.brand { padding:6px 14px 5px; }
+.brand small { display:none!important; }
+
+@media(max-height:700px) {
+  header { min-height:37px; }
+  .brand { padding:3px 10px; }
+}
