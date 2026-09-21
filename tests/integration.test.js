@@ -119,6 +119,10 @@ test('partida completa, ganador, revancha y perfil persistente intacto',async()=
   assert.equal(g.winnerId,a.uid);assert.equal(g.phase,'finished');
   assert.deepEqual(await read(a.db,`profiles/${a.uid}`),old);
   await a.client.call('roomCommand',{command:'lobby',roomId});
+  const rematchLobby=await read(a.db,`rooms/${roomId}`);
+  assert.ok(Object.values(rematchLobby.members).every(member=>member.ready===false));
+  await assert.rejects(a.client.call('roomCommand',{command:'start',roomId}));
+  for(const player of [a,b]) await player.client.call('roomCommand',{command:'ready',roomId,ready:true});
   await a.client.call('roomCommand',{command:'start',roomId});
   assert.notEqual((await read(a.db,`rooms/${roomId}`)).gameId,gameId);
 });
