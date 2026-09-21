@@ -70,7 +70,7 @@ test('actualización cancela arrastre, bloquea acciones y permite reingresar con
     await expect(page.locator('#selection b')).toHaveCount(0);
     const selectedTarget = page.locator('[data-player]').filter({ hasText: '<b>Beto</b>' });
     await expect(selectedTarget).toHaveClass(/selected-target/);
-    await expect(selectedTarget.locator('.attack-target-badge')).toHaveText('ATAQUE ELEGIDO');
+    await expect(selectedTarget.locator('.attack-target-badge')).toHaveText('◎');
     const intentPath = `games/${gameId}/intents/${room.hostId}`;
     const before = await read(intentPath);
     await page.evaluate(() => { window.oldActionButton = document.querySelector('[data-action="air"]'); });

@@ -228,7 +228,10 @@ service cloud.firestore {
             && ((d.action in ['air','hide'] && d.target == null)
               || (d.action == 'blow' && d.target is string && d.target != uid && actor.get('breath', 0) > 0
                 && ((d.target in g.memberIds && g.players.get(d.target, {}).get('hair', 0) > 0)
-                  || (d.target == '__center_item__' && g.get('centerItem', {}).get('kind', '') == 'hair_plus_1'))));
+                  || (g.get('rules', {}).get('version', 0) < 3 && d.target == '__center_item__'
+                    && g.get('centerItem', {}).get('kind', '') == 'hair_plus_1')))
+              || (d.action == 'grab' && g.get('rules', {}).get('version', 0) >= 3
+                && d.target == '__center_item__' && g.get('centerItem', {}).get('kind', '') == 'hair_plus_1'));
         }
       }
       match /rounds/{turnId} {
