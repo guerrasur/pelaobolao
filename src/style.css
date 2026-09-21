@@ -2374,3 +2374,43 @@ header { min-height:48px; }
 @media(prefers-reduced-motion:reduce) {
   .player.selected-target,#blow-drag-ghost { animation:none!important; transition:none!important; }
 }
+
+
+/* v0.11.0 — regreso automático al lobby tras la celebración */
+.lobby-return-countdown {
+  position:absolute;
+  z-index:48;
+  left:50%;
+  top:42%;
+  transform:translateX(-50%) rotate(-1deg);
+  min-width:min(78%,320px);
+  padding:7px 12px;
+  border:2px solid var(--ink);
+  border-radius:7px;
+  background:#fff9e9;
+  color:#34292d;
+  box-shadow:3px 4px 0 #202633;
+  text-align:center;
+  font-size:clamp(11px,2.8vw,15px);
+  line-height:1.1;
+  font-weight:1000;
+  letter-spacing:.25px;
+  pointer-events:none;
+  animation:pb-lobby-return-in .24s ease-out both;
+}
+.lobby-return-countdown[hidden] { display:none; }
+@keyframes pb-lobby-return-in {
+  from { opacity:0; transform:translateX(-50%) translateY(7px) rotate(-1deg) scale(.96); }
+  to { opacity:1; transform:translateX(-50%) rotate(-1deg) scale(1); }
+}
+@media(max-height:520px) and (min-width:600px) {
+  .lobby-return-countdown {
+    top:46%;
+    padding:4px 8px;
+    font-size:10px;
+    min-width:220px;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .lobby-return-countdown { animation:none!important; }
+}
