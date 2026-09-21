@@ -309,7 +309,7 @@ function endCelebrationHtml(game, uid) {
     ['49%','43%','-115px','.46s','-8deg'],
     ['84%','72%','135px','.58s','31deg'],
   ].map(([x,y,sx,delay,rot]) => `<i class="tomato" style="--x:${x};--y:${y};--sx:${sx};--delay:${delay};--rot:${rot}"></i>`).join('');
-  return `<div class="end-celebration end-lose" data-outcome="lose" role="status" aria-live="assertive"><div class="tomato-volley" aria-hidden="true">${tomatoes}</div><div class="outcome-card"><small>TE DEJARON PELADO</small><strong>PERDISTE</strong><span class="outcome-winner">Ganó <b>${winnerName}</b></span></div></div>`;
+  return `<div class="end-celebration end-lose" data-outcome="lose" role="status" aria-live="assertive"><div class="tomato-volley" aria-hidden="true">${tomatoes}</div><div class="outcome-card"><small>TE DEJARON PELADO</small><strong>PERDISTE</strong></div><div class="outcome-winner">Ganó <b>${winnerName}</b></div></div>`;
 }
 
 function resultHtml(game) {
