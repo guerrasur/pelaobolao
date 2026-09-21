@@ -2903,3 +2903,292 @@ header { min-height:48px; }
   .hair-tuft { filter:none; }
 }
 
+
+
+/* Plan Águila 0.18.0 — concept-art floating lock + zero-layout pickup + clean rival targeting. */
+.center-item-slot {
+  display:grid;
+  place-items:center;
+}
+.center-item-slot .floating-hair-item {
+  position:relative!important;
+  left:auto!important;
+  top:auto!important;
+  width:clamp(78px,21vw,104px)!important;
+  height:auto!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:24px!important;
+  background:transparent!important;
+  color:#202633!important;
+  box-shadow:none!important;
+  opacity:1!important;
+  filter:none!important;
+  overflow:visible;
+  display:grid!important;
+  place-items:center;
+  gap:0;
+  isolation:isolate;
+  animation:pb-floating-hair 1.8s ease-in-out infinite alternate;
+}
+.center-item-slot .floating-hair-item::before {
+  content:'';
+  position:absolute;
+  z-index:-2;
+  left:50%;
+  top:49%;
+  width:76%;
+  height:64%;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:radial-gradient(circle,#b9f0ff80 0 30%,#5fcfff3c 52%,transparent 72%);
+  filter:blur(3px);
+  opacity:.95;
+  pointer-events:none;
+}
+.center-item-slot .floating-hair-item::after {
+  content:'';
+  position:absolute;
+  z-index:-1;
+  left:50%;
+  bottom:17px;
+  width:64%;
+  height:9px;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:#152b3833;
+  filter:blur(2px);
+  pointer-events:none;
+}
+.floating-hair-art {
+  width:100%;
+  height:auto;
+  display:block;
+  overflow:visible;
+  filter:drop-shadow(0 4px 0 #20263330) drop-shadow(0 0 8px #5dd7ff66);
+  pointer-events:none;
+}
+.hair-aura {
+  stroke-dasharray:9 6;
+  animation:pb-hair-aura 1.05s linear infinite;
+}
+.hair-aura-front { animation-direction:reverse; }
+.hair-sparkles {
+  transform-origin:center;
+  animation:pb-hair-sparkle .9s ease-in-out infinite alternate;
+}
+.item-copy {
+  display:grid!important;
+  place-items:center;
+  gap:1px;
+  margin-top:-14px;
+  padding:3px 7px 4px;
+  border:2px solid #202633;
+  border-radius:7px;
+  background:#fff9e9;
+  box-shadow:2px 3px 0 #202633;
+  transform:rotate(-2deg);
+  white-space:nowrap;
+  pointer-events:none;
+}
+.floating-hair-item .item-copy small {
+  display:block!important;
+  padding:0!important;
+  color:#4e4750!important;
+  font-size:6px!important;
+  line-height:1!important;
+  font-weight:1000!important;
+  letter-spacing:.45px;
+}
+.floating-hair-item .item-copy .item-label {
+  color:#176b43!important;
+  font-size:clamp(12px,3.6vw,17px)!important;
+  line-height:1!important;
+  font-weight:1000!important;
+  letter-spacing:-.5px;
+  text-shadow:none!important;
+}
+.floating-hair-item .item-copy em {
+  color:#7a3150;
+  font-size:5.5px;
+  line-height:1;
+  font-style:normal;
+  font-weight:1000;
+  letter-spacing:.2px;
+}
+.floating-hair-item.item-available {
+  cursor:pointer;
+}
+.floating-hair-item.item-available .floating-hair-art {
+  animation:pb-hair-ready .72s ease-in-out infinite alternate;
+}
+.floating-hair-item.item-available:focus-visible {
+  outline:3px solid #5ad7ff!important;
+  outline-offset:6px!important;
+}
+.floating-hair-item.item-available:active {
+  transform:scale(.96)!important;
+}
+.floating-hair-item.selected-item .item-copy {
+  background:#dff7ec;
+  border-color:#176b43;
+  box-shadow:2px 3px 0 #176b43;
+}
+.floating-hair-item.selected-item::before {
+  background:radial-gradient(circle,#79edb88f 0 28%,#56dcae48 48%,transparent 72%);
+}
+.floating-hair-item.selected-item .floating-hair-art {
+  filter:drop-shadow(0 4px 0 #20263330) drop-shadow(0 0 11px #57e5afaa);
+}
+.floating-hair-item .item-new-badge {
+  top:-5px!important;
+  right:-7px!important;
+  z-index:5;
+  background:#fff9e9!important;
+  color:#15704a!important;
+  border-color:#15704a!important;
+  box-shadow:2px 2px 0 #15704a!important;
+}
+
+/* No label/block over a selected rival: card + reticle + aim line are enough. */
+.attack-target-badge,
+.player.drag-target::after {
+  display:none!important;
+}
+.player.selected-target {
+  z-index:12!important;
+  border-color:#850f2a!important;
+  background:linear-gradient(145deg,#fff2f5 0 42%,#ffb9c8 100%)!important;
+  outline:5px solid #ff244d!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 3px #fff7f8,0 0 0 7px #c4183b,2px 5px 0 #49352396!important;
+}
+.player.selected-target .player-name::after { display:none!important; }
+.player.selected-target .avatar-wrap {
+  position:relative;
+  filter:saturate(1.28) contrast(1.05);
+}
+.player.selected-target .avatar-wrap::after {
+  content:'';
+  position:absolute;
+  z-index:8;
+  left:50%;
+  top:50%;
+  width:58%;
+  aspect-ratio:1;
+  transform:translate(-50%,-50%);
+  border:2px solid #ff244d;
+  border-radius:50%;
+  box-shadow:
+    0 -11px 0 -9px #ff244d,
+    0 11px 0 -9px #ff244d,
+    -11px 0 0 -9px #ff244d,
+    11px 0 0 -9px #ff244d,
+    0 0 9px #ff244d88;
+  pointer-events:none;
+  animation:pb-target-reticle .72s ease-in-out infinite alternate;
+}
+.player.valid-target,
+.game[data-targeting="true"] .player.targetable {
+  outline-color:#ff6a85!important;
+}
+#blow-drag-ghost.is-over-target {
+  border-color:#ff5f7a!important;
+  box-shadow:inset 0 0 0 2px #ffffff88,0 0 0 4px #ff5f7a,0 5px 0 #5e0c22,0 10px 18px #3b0b174d!important;
+}
+
+/* Reveal feedback for the free grab action. */
+.fx-grab {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+.fx-grab i {
+  position:absolute;
+  left:34%;
+  top:38%;
+  width:24px;
+  height:10px;
+  border:3px solid #65d7ff;
+  border-left-color:transparent;
+  border-radius:50%;
+  opacity:0;
+  transform:rotate(-18deg) scale(.5);
+  animation:pb-grab-swirl .9s ease-out .16s both;
+}
+.fx-grab i:nth-child(2) {
+  left:41%;
+  top:29%;
+  transform:rotate(17deg) scale(.4);
+  animation-delay:.29s;
+}
+.fx-label-grab {
+  left:50%;
+  bottom:3px;
+  transform:translateX(-50%) rotate(-2deg) scale(.2);
+  opacity:0;
+  background:#dff7ff;
+  color:#164e66;
+  border-color:#164e66;
+  animation:pb-pop-label 1.05s cubic-bezier(.17,.89,.32,1.35) .2s both;
+  white-space:nowrap;
+}
+.player.action-grab:not(.took-hit) {
+  animation:pb-grab-card .65s ease-out .14s both;
+}
+
+@keyframes pb-floating-hair {
+  from { transform:translateY(2px) rotate(-1.5deg); }
+  to { transform:translateY(-5px) rotate(1.5deg); }
+}
+@keyframes pb-hair-aura {
+  from { stroke-dashoffset:0; opacity:.55; }
+  to { stroke-dashoffset:-30; opacity:1; }
+}
+@keyframes pb-hair-sparkle {
+  from { opacity:.55; transform:scale(.92); }
+  to { opacity:1; transform:scale(1.08); }
+}
+@keyframes pb-hair-ready {
+  from { filter:drop-shadow(0 4px 0 #20263330) drop-shadow(0 0 7px #5dd7ff70); }
+  to { filter:drop-shadow(0 4px 0 #20263330) drop-shadow(0 0 14px #5dd7ffdd); }
+}
+@keyframes pb-target-reticle {
+  from { opacity:.68; transform:translate(-50%,-50%) scale(.94); }
+  to { opacity:1; transform:translate(-50%,-50%) scale(1.07); }
+}
+@keyframes pb-grab-swirl {
+  0% { opacity:0; transform:rotate(-18deg) scale(.35); }
+  35% { opacity:1; }
+  100% { opacity:0; transform:rotate(125deg) scale(2.4); }
+}
+@keyframes pb-grab-card {
+  0% { filter:none; }
+  42% { filter:brightness(1.08) saturate(1.16); }
+  100% { filter:none; }
+}
+
+@media(max-width:380px), (max-height:600px) {
+  .center-item-slot .floating-hair-item { width:68px!important; }
+  .floating-hair-item .item-copy { margin-top:-11px; padding:2px 5px 3px; }
+  .floating-hair-item .item-copy small,
+  .floating-hair-item .item-copy em { display:none!important; }
+  .floating-hair-item .item-copy .item-label { font-size:11px!important; }
+}
+@media(max-height:520px) and (min-width:600px) {
+  .center-item-slot .floating-hair-item { width:54px!important; }
+  .floating-hair-item .item-copy { display:none!important; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item-slot .floating-hair-item,
+  .floating-hair-item.item-available .floating-hair-art,
+  .hair-aura,
+  .hair-sparkles,
+  .player.selected-target .avatar-wrap::after,
+  .fx-grab i,
+  .player.action-grab {
+    animation:none!important;
+  }
+}
