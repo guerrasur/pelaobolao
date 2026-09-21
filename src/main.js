@@ -291,10 +291,12 @@ function resultHtml(game) {
       ${hairLost ? `<span class="danger">✂ −${hairLost} Pelo</span>` : '<span>Sin daño</span>'}
     </div></div>
     <ul>${Object.entries(result.actions).map(([uid, action]) => {
-      const target = action.target ? ` → ${esc(game.players[action.target]?.name)}` : '';
-      const loss = result.losses[uid] ? ` · perdió ${result.losses[uid]} Pelo` : '';
-      const blocked = result.hits.find(hit => hit.from === uid)?.blocked ? ' · soplo bloqueado' : '';
-      return `<li><strong>${esc(game.players[uid].name)}</strong>: ${actionName(action.action)}${target}${blocked}${loss}</li>`;
+      const playerName = esc(game.players[uid]?.name ?? 'Jugador');
+      const target = action.target ? ` → ${esc(game.players[action.target]?.name ?? 'jugador')}` : '';
+      const lossValue = Number(result.losses?.[uid] || 0);
+      const loss = lossValue ? ` · perdió ${lossValue} Pelo` : '';
+      const blocked = (result.hits || []).find(hit => hit.from === uid)?.blocked ? ' · soplo bloqueado' : '';
+      return `<li data-result-action="${esc(action.action)}" class="${lossValue ? 'result-damaged' : ''}"><strong>${playerName}</strong><span>${actionName(action.action)}${target}${blocked}${loss}</span></li>`;
     }).join('')}</ul>
   </section>`;
 }
