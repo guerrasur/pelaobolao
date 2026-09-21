@@ -478,9 +478,12 @@ function bind() {
     if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) > 8) drag.moved = true;
     if (!drag.moved) return;
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-player]');
-    drag.target = target && !target.disabled ? target.dataset.player : null;
+    const targetUid = target?.dataset.player;
+    const validUid = uid => Boolean(uid && uid !== api.uid && s.game?.players?.[uid]?.hair > 0);
+    drag.target = validUid(targetUid) ? targetUid : null;
     document.querySelectorAll('[data-player]').forEach(player => {
-      player.classList.toggle('valid-target', !player.disabled);
+      const valid = validUid(player.dataset.player);
+      player.classList.toggle('valid-target', valid);
       player.classList.toggle('drag-target', player.dataset.player === drag.target);
     });
     document.querySelector('#selection').textContent = drag.target ? `Soltá para soplar a ${s.game.players[drag.target].name}` : 'Arrastrá sobre otro jugador.';
