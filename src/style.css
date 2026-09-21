@@ -2815,3 +2815,91 @@ header { min-height:48px; }
     animation:none!important;
   }
 }
+
+/* Plan Águila 0.17.0 — mechón flotante, geometría estable y targeting sin bloque. */
+.center-item-slot {
+  position:absolute;
+  z-index:8;
+  inset:0;
+  pointer-events:none;
+}
+.center-item-slot .center-item { pointer-events:auto; }
+
+.hair-tuft {
+  position:relative;
+  display:block;
+  width:38px;
+  height:24px;
+  margin:-1px auto 1px;
+  transform:rotate(-7deg);
+  filter:drop-shadow(1px 2px 0 #ffffffaa);
+  pointer-events:none;
+}
+.hair-tuft b {
+  position:absolute;
+  bottom:1px;
+  width:17px;
+  height:24px;
+  border:0 solid #2b2328;
+  border-left-width:5px;
+  border-radius:75% 0 0 25%;
+  transform-origin:50% 100%;
+}
+.hair-tuft b:nth-child(1) { left:4px; transform:rotate(-23deg) skewY(-8deg); }
+.hair-tuft b:nth-child(2) { left:12px; height:27px; transform:rotate(2deg) skewY(-11deg); }
+.hair-tuft b:nth-child(3) { left:21px; height:23px; transform:rotate(25deg) skewY(-7deg); }
+
+.item-notice-free {
+  border-style:solid;
+  border-color:#2f7249;
+  background:#e6f5dc;
+}
+.center-item.targetable {
+  outline-color:#45b86c;
+  box-shadow:0 0 0 4px #f7fff5,0 0 0 7px #2f7249,3px 5px 0 #202633!important;
+}
+.game[data-targeting="true"] .center-item.targetable {
+  outline-color:#45b86c;
+}
+
+/* El objetivo elegido se marca con una retícula lateral, no con una placa sobre la cabeza. */
+.attack-target-badge {
+  left:auto!important;
+  right:-18px!important;
+  top:50%!important;
+  width:38px;
+  height:38px;
+  min-width:38px!important;
+  padding:0!important;
+  display:grid;
+  place-items:center;
+  transform:translateY(-50%) rotate(5deg)!important;
+  border:3px solid #4d0716!important;
+  border-radius:50%!important;
+  background:#e4153f!important;
+  color:white!important;
+  font-size:27px!important;
+  line-height:1!important;
+  letter-spacing:0!important;
+  box-shadow:0 0 0 3px #fff7f8,2px 3px 0 #4d0716!important;
+}
+.player.selected-target .player-name::after {
+  content:'OBJETIVO';
+  margin-left:auto;
+  padding:2px 4px;
+  border:1px solid #ff9bad;
+  border-radius:999px;
+  color:#ffe8ed;
+  font-size:7px;
+  line-height:1;
+  letter-spacing:.4px;
+}
+
+@media(max-width:380px), (max-height:600px) {
+  .hair-tuft { width:31px; height:19px; transform:rotate(-7deg) scale(.88); }
+  .attack-target-badge { right:-13px!important; width:32px; height:32px; min-width:32px!important; font-size:23px!important; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .hair-tuft { filter:none; }
+}
+
