@@ -167,7 +167,8 @@ test('modo objetivo expone una guía clara sin revelar elecciones ajenas', async
   ui.render();
   const html = ui.nodes.get('#app').innerHTML;
   assert.match(html, /data-targeting="true"/);
-  assert.match(html, /Modo objetivo activo/);
+  assert.match(html, /¡APUNTÁ!/);
+  assert.match(html, /Tocá SOPLAR de nuevo para cancelar/);
   assert.doesNotMatch(html, /Beto.*Tomar aire/);
 });
 
