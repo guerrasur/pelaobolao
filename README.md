@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.21.0): Plan Cóndor estabiliza el arrastre de Soplar frente a heartbeats/snapshots que antes podían reemplazar el DOM en medio del gesto, limpia el arrastre al ocultar o abandonar la página y vuelve a alinear `package-lock.json` con la versión publicada.
+Última corrección (0.22.0): Plan Cóndor elimina el guard global de render que todavía podía saltarse la lógica selectiva del drag y reduce escrituras DOM redundantes del timer, conexión y feedback de apuntado para bajar repaints durante la ronda, especialmente en móviles.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
