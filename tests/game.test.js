@@ -192,9 +192,15 @@ test('recalibración inválida conserva la última hora válida y permite recupe
 });
 
 
-test('partidas nuevas habilitan objetos centrales sin alterar recursos iniciales', () => {
+test('partidas nuevas habilitan objetos centrales raros sin alterar recursos iniciales', () => {
   const state = newGame('room', members(2), 1000);
   assert.equal(state.rules.centerItems, true);
+  assert.equal(state.rules.itemFirstTurn, 4);
+  assert.equal(state.rules.itemMinGap, 5);
+  assert.equal(state.rules.itemCriticalForceGap, 7);
+  assert.equal(state.rules.itemPityGap, 9);
+  assert.equal(state.rules.itemSpawnChance, 0.18);
+  assert.equal(state.rules.itemCriticalChance, 0.45);
   assert.equal(state.centerItem, null);
   assert.equal(state.lastItemSpawnTurn, 0);
   assert.equal(typeof state.itemSeed, 'string');
@@ -291,22 +297,37 @@ test('si sobrevive al ataque mientras agarra, el mechón cura después', () => {
   assert.equal(result.players['0'].hair, 2);
 });
 
-test('aparición adaptativa no ocurre antes del turno 4 y respeta cooldown largo', () => {
+test('aparición adaptativa aumenta la chance pero no fuerza un item inmediato', () => {
   const state = game();
   state.players['0'].hair = 1;
   state.players['1'].hair = 3;
+  state.rules.itemCriticalChance = 0;
+  state.rules.itemSpawnChance = 0;
   assert.equal(scheduleCenterItem(state, 2).centerItem, null);
   assert.equal(scheduleCenterItem(state, 3).centerItem, null);
+  assert.equal(scheduleCenterItem(state, 4).centerItem, null);
+  assert.equal(scheduleCenterItem(state, 6).centerItem, null);
 
-  let scheduled = scheduleCenterItem(state, 4);
+  const forced = scheduleCenterItem(state, 7);
+  assert.equal(forced.centerItem.kind, HAIR_ITEM_KIND);
+  assert.equal(forced.centerItem.source, 'critical');
+  assert.equal(forced.lastItemSpawnTurn, 7);
+});
+
+test('la chance crítica puede adelantar el evento sin volverlo garantizado', () => {
+  const state = game();
+  state.players['0'].hair = 1;
+  state.players['1'].hair = 3;
+  state.rules.itemCriticalChance = 1;
+  state.rules.itemSpawnChance = 0;
+  const scheduled = scheduleCenterItem(state, 4);
   assert.equal(scheduled.centerItem.kind, HAIR_ITEM_KIND);
   assert.equal(scheduled.centerItem.source, 'critical');
-  assert.equal(scheduled.lastItemSpawnTurn, 4);
 
+  state.centerItem = null;
   state.lastItemSpawnTurn = 4;
-  for (const turn of [5, 6, 7]) assert.equal(scheduleCenterItem(state, turn).centerItem, null);
-  scheduled = scheduleCenterItem(state, 8);
-  assert.equal(scheduled.centerItem.source, 'critical');
+  state.lastResult = { item: null };
+  for (const turn of [5, 6, 7, 8]) assert.equal(scheduleCenterItem(state, turn).centerItem, null);
 });
 
 test('aparición normal es determinista, poco frecuente y el pity recién llega en turno 9', () => {
