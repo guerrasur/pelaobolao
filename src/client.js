@@ -115,8 +115,11 @@ export function createClient(db, uid, clock = Date.now) {
               requireThat(old.hostId === uid, 'Solo el host puede iniciar.', 'permission-denied');
               if (room.status !== 'playing') {
                 requireThat(room.status === 'lobby', 'Volvé al lobby antes de iniciar otra partida.');
-                room.members = Object.fromEntries(Object.entries(room.members).filter(([,m]) => !m.left));
-                requireThat(Object.keys(room.members).length >= RULES.minPlayers && Object.values(room.members).every(m => m.ready), 'Todos los jugadores deben estar listos.');
+                // A player can remain marked Ready after closing the tab. Do not carry stale seats into a match.
+                room.members = Object.fromEntries(Object.entries(room.members)
+                  .filter(([memberId,m]) => !m.left && (memberId === uid || live(m, time))));
+                requireThat(Object.keys(room.members).length >= RULES.minPlayers, 'Esperá a que vuelva otro jugador conectado.');
+                requireThat(Object.values(room.members).every(m => m.ready), 'Todos los jugadores conectados deben estar listos.');
                 const game = newGame(id, room.members, time);
                 tx.set(gameRef, { ...game, phaseStartedAt: serverTimestamp(), lastProgressAt: serverTimestamp() }); room.status = 'playing'; room.gameId = gameRef.id;
               }
