@@ -415,7 +415,7 @@ function centerItemHtml(game, choice) {
   const selected = choice?.action === 'grab' && choice.target === CENTER_ITEM_TARGET;
   const available = Boolean(canChoose());
   const isNew = game.phase === 'choosing' && game.centerItem.spawnedTurn === game.turn;
-  return `<div class="center-item-layer" aria-live="polite"><button type="button" class="center-item hair-item ${available ? 'item-available' : ''} ${selected ? 'selected-item' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${available ? 'false' : 'true'}" tabindex="${available ? '0' : '-1'}" aria-label="Mechón flotante, +1 Pelo. Agarrarlo no cuesta Soplos pero te deja vulnerable">
+  return `<div class="center-item-layer" aria-live="polite"><button type="button" class="center-item hair-item ${available ? 'item-available' : ''} ${selected ? 'selected-item' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${available ? 'false' : 'true'}" tabindex="${available ? '0' : '-1'}" ${available ? '' : 'disabled'} aria-label="Mechón flotante, +1 Pelo. Agarrarlo no cuesta Soplos pero te deja vulnerable">
     ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}${floatingHairArt()}<span class="item-copy"><small>MECHÓN FLOTANTE</small><strong class="item-label">+1 PELO</strong><em>SIN COSTO · VULNERABLE</em></span>
   </button></div>`;
 }
@@ -766,6 +766,8 @@ function tick() {
     const status = document.querySelector('#turn-status');
     if (status) status.textContent = 'Resolviendo el turno…';
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
+    const itemButton = document.querySelector('[data-center-item]');
+    if (itemButton) { itemButton.disabled = true; itemButton.setAttribute('aria-disabled', 'true'); itemButton.classList.remove('item-available'); }
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
   const staleAt = millis(game.lastProgressAt || game.phaseStartedAt || game.finishedAt);
