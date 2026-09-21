@@ -1632,3 +1632,32 @@ header {
   #connection.connecting::before,
   #connection.checking::before { animation:none!important; }
 }
+
+
+/* Short phones keep the taped identity while prioritizing the six-seat board. */
+@media(max-height:700px) {
+  header { min-height:37px; padding:1px 0; }
+  .brand {
+    min-width:0;
+    flex-direction:row;
+    gap:4px;
+    padding:3px 10px;
+    transform:rotate(-1.4deg);
+  }
+  .brand span { font-size:18px; line-height:.9; }
+  .brand small { display:none; }
+  .brand::before { width:36px; height:11px; top:-7px; }
+  #app-meta { font-size:8px; }
+  #connection { min-height:10px; line-height:10px; font-size:8px; }
+
+  .players[data-count="5"] .hair-pips,
+  .players[data-count="6"] .hair-pips,
+  .players[data-count="5"] .breath-pips,
+  .players[data-count="6"] .breath-pips {
+    display:none!important;
+  }
+  .players[data-count="5"] .player-body,
+  .players[data-count="6"] .player-body {
+    padding-block:2px;
+  }
+}
