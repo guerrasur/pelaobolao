@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.6.5 — revancha segura y targeting más claro
+
+- Volver al lobby después de una partida reinicia el estado Listo de todos; ninguna revancha puede arrancar sin una nueva confirmación.
+- El modo Soplar muestra instrucciones contextuales según haya Soplos disponibles o esté activo el targeting.
+- En targeting, sólo los rivales válidos reciben énfasis visual; el propio asiento se mantiene claramente diferenciado.
+- El asiento local usa un badge compacto VOS en vez de repetir "(vos)" dentro del nombre.
+- El resumen del turno se organiza en filas con color por acción y señal específica cuando hubo pérdida de Pelo.
+- Elegir una acción produce feedback háptico breve en móviles compatibles.
+- Se añadieron pruebas de integración, UI y E2E para revancha, targeting y asiento propio.
+- Sin cambios en las reglas de combate ni en la arquitectura Firebase Spark.
+
 ## 0.6.4 — arranque limpio y feedback expresivo
 
 - Un jugador que quedó marcado Listo pero perdió su lease ya no entra a una partida nueva.
