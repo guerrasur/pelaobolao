@@ -87,7 +87,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.getByRole('button', { name: 'Continuar' }).click();
   await b.getByLabel('Código de sala').fill(code);
   await b.getByRole('button', { name: 'Unirse a sala' }).click();
-  await expect(b.locator('.players')).toContainText('Beto (vos)');
+  await expect(b.locator('[data-player].self .player-label')).toHaveText('Beto');
+  await expect(b.locator('[data-player].self .self-tag')).toHaveText('VOS');
   await turn(6);
   await blow(a, 'Beto');
   await turn(7);
