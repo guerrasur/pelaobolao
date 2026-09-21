@@ -192,30 +192,35 @@ test('recalibración inválida conserva la última hora válida y permite recupe
 });
 
 
-test('partidas nuevas habilitan objetos centrales sin alterar recursos iniciales', () => {
+test('partidas nuevas habilitan objetos centrales raros sin alterar recursos iniciales', () => {
   const state = newGame('room', members(2), 1000);
   assert.equal(state.rules.centerItems, true);
+  assert.equal(state.rules.itemFirstTurn, 4);
+  assert.equal(state.rules.itemMinGap, 5);
+  assert.equal(state.rules.itemPityGap, 9);
+  assert.equal(state.rules.itemSpawnChance, 0.18);
+  assert.equal(state.rules.itemCriticalChance, 0.45);
   assert.equal(state.centerItem, null);
   assert.equal(state.lastItemSpawnTurn, 0);
   assert.equal(typeof state.itemSeed, 'string');
 });
 
-test('Soplar al +1 Pelo requiere objeto presente y 1 Soplo', () => {
+test('agarrar el mechón no requiere Soplos y Soplar al objeto ya no es válido', () => {
   const state = game();
-  state.players['0'].breath = 1;
-  assert.throws(() => validateIntent(state, '0', choice('blow', CENTER_ITEM_TARGET), 1001));
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
-  assert.doesNotThrow(() => validateIntent(state, '0', choice('blow', CENTER_ITEM_TARGET), 1001));
   state.players['0'].breath = 0;
+  assert.throws(() => validateIntent(state, '0', choice('grab', CENTER_ITEM_TARGET), 1001));
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'random' };
+  assert.doesNotThrow(() => validateIntent(state, '0', choice('grab', CENTER_ITEM_TARGET), 1001));
+  state.players['0'].breath = 1;
   assert.throws(() => validateIntent(state, '0', choice('blow', CENTER_ITEM_TARGET), 1001));
 });
 
-test('un solo intento consume Soplo, entrega +1 Pelo y retira el objeto', () => {
+test('un solo jugador agarra el mechón gratis, recupera +1 Pelo y retira el objeto', () => {
   const state = game();
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'random' };
   state.players['0'].hair = 2;
-  state.players['0'].breath = 1;
-  const result = resolveRound(state, { 0: choice('blow', CENTER_ITEM_TARGET), 1: choice('hide') });
+  state.players['0'].breath = 0;
+  const result = resolveRound(state, { 0: choice('grab', CENTER_ITEM_TARGET), 1: choice('hide') });
   assert.equal(result.players['0'].hair, 3);
   assert.equal(result.players['0'].breath, 0);
   assert.equal(result.centerItem, null);
@@ -223,44 +228,34 @@ test('un solo intento consume Soplo, entrega +1 Pelo y retira el objeto', () => 
   assert.equal(result.result.item.winnerId, '0');
   assert.equal(result.result.item.healed, 1);
   assert.equal(result.result.heals['0'], 1);
+  assert.equal(result.result.actions['0'].action, 'grab');
 });
 
-test('dos o más intentos consumen Soplo, destruyen el objeto y nadie cura', () => {
+test('ir por el mechón deja vulnerable: el daño entra antes de la curación', () => {
   const state = game();
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'critical' };
   state.players['0'].hair = 2;
-  state.players['1'].hair = 2;
-  state.players['0'].breath = state.players['1'].breath = 1;
-  const result = resolveRound(state, {
-    0: choice('blow', CENTER_ITEM_TARGET),
-    1: choice('blow', CENTER_ITEM_TARGET),
-  });
-  assert.equal(result.centerItem, null);
-  assert.equal(result.result.item.outcome, 'contested');
-  assert.equal(result.result.item.attempts.length, 2);
-  assert.deepEqual(result.result.heals, {});
-  assert.equal(result.players['0'].hair, 2);
-  assert.equal(result.players['1'].hair, 2);
-  assert.equal(result.players['0'].breath, 0);
-  assert.equal(result.players['1'].breath, 0);
-});
-
-test('si nadie intenta obtenerlo, el +1 Pelo permanece para el turno siguiente', () => {
-  const state = game();
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
-  const result = resolveRound(state, { 0: choice('air'), 1: choice('hide') });
-  assert.deepEqual(result.centerItem, state.centerItem);
-  assert.equal(result.result.item.outcome, 'stayed');
-});
-
-test('el daño ocurre antes de la curación y llegar a 0 Pelo no revive', () => {
-  const state = game();
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'critical' };
-  state.players['0'].hair = 1;
-  state.players['0'].breath = 1;
+  state.players['0'].breath = 0;
   state.players['1'].breath = 1;
   const result = resolveRound(state, {
-    0: choice('blow', CENTER_ITEM_TARGET),
+    0: choice('grab', CENTER_ITEM_TARGET),
+    1: choice('blow', '0'),
+  });
+  assert.equal(result.result.hits[0].blocked, false);
+  assert.equal(result.result.losses['0'], 1);
+  assert.equal(result.result.heals['0'], 1);
+  assert.equal(result.players['0'].hair, 2);
+  assert.equal(result.players['0'].breath, 0);
+});
+
+test('si queda en 0 Pelo mientras va por el mechón, no revive', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'critical' };
+  state.players['0'].hair = 1;
+  state.players['0'].breath = 0;
+  state.players['1'].breath = 1;
+  const result = resolveRound(state, {
+    0: choice('grab', CENTER_ITEM_TARGET),
     1: choice('blow', '0'),
   });
   assert.equal(result.players['0'].hair, 0);
@@ -271,65 +266,97 @@ test('el daño ocurre antes de la curación y llegar a 0 Pelo no revive', () => 
   assert.equal(result.centerItem, null);
 });
 
-test('si sobrevive al daño, el objeto cura después y conserva ambos eventos', () => {
+test('dos o más jugadores que van por el mechón no gastan Soplos y nadie cura', () => {
   const state = game();
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'critical' };
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'random' };
   state.players['0'].hair = 2;
+  state.players['1'].hair = 2;
   state.players['0'].breath = 1;
-  state.players['1'].breath = 1;
+  state.players['1'].breath = 0;
   const result = resolveRound(state, {
-    0: choice('blow', CENTER_ITEM_TARGET),
-    1: choice('blow', '0'),
+    0: choice('grab', CENTER_ITEM_TARGET),
+    1: choice('grab', CENTER_ITEM_TARGET),
   });
-  assert.equal(result.result.losses['0'], 1);
-  assert.equal(result.result.heals['0'], 1);
+  assert.equal(result.centerItem, null);
+  assert.equal(result.result.item.outcome, 'contested');
+  assert.equal(result.result.item.attempts.length, 2);
+  assert.deepEqual(result.result.heals, {});
   assert.equal(result.players['0'].hair, 2);
+  assert.equal(result.players['1'].hair, 2);
+  assert.equal(result.players['0'].breath, 1);
+  assert.equal(result.players['1'].breath, 0);
 });
 
-test('aparición adaptativa lee HP y respeta cooldown', () => {
+test('si nadie intenta obtenerlo, el mechón permanece para el turno siguiente', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'random' };
+  const result = resolveRound(state, { 0: choice('air'), 1: choice('hide') });
+  assert.deepEqual(result.centerItem, state.centerItem);
+  assert.equal(result.result.item.outcome, 'stayed');
+});
+
+test('los items no aparecen antes de la ronda 4 y la aparición base puede no ocurrir', () => {
+  const state = game();
+  state.rules.itemSpawnChance = 0;
+  state.rules.itemCriticalChance = 0;
+  for (const turn of [2, 3, 4, 5, 6, 7, 8]) {
+    const scheduled = scheduleCenterItem(state, turn);
+    assert.equal(scheduled.centerItem, null);
+  }
+});
+
+test('el pity tardío evita una sequía infinita sin volver frecuente al evento', () => {
+  const state = game();
+  state.rules.itemSpawnChance = 0;
+  state.rules.itemCriticalChance = 0;
+  const before = scheduleCenterItem(state, 8);
+  assert.equal(before.centerItem, null);
+  const pity = scheduleCenterItem(state, 9);
+  assert.equal(pity.centerItem.kind, HAIR_ITEM_KIND);
+  assert.equal(pity.centerItem.source, 'pity');
+  assert.equal(pity.lastItemSpawnTurn, 9);
+});
+
+test('la lectura de HP aumenta la chance pero respeta el cooldown entre items', () => {
   const state = game();
   state.players['0'].hair = 1;
   state.players['1'].hair = 3;
-  let scheduled = scheduleCenterItem(state, 2);
-  assert.equal(scheduled.centerItem.kind, HAIR_ITEM_KIND);
-  assert.equal(scheduled.centerItem.source, 'critical');
-  assert.equal(scheduled.lastItemSpawnTurn, 2);
+  state.rules.itemCriticalChance = 1;
+  state.rules.itemSpawnChance = 0;
+  const critical = scheduleCenterItem(state, 4);
+  assert.equal(critical.centerItem.kind, HAIR_ITEM_KIND);
+  assert.equal(critical.centerItem.source, 'critical');
 
-  state.lastItemSpawnTurn = 2;
-  scheduled = scheduleCenterItem(state, 3);
-  assert.equal(scheduled.centerItem, null);
-  scheduled = scheduleCenterItem(state, 4);
-  assert.equal(scheduled.centerItem.source, 'critical');
+  state.lastItemSpawnTurn = 4;
+  for (const turn of [5, 6, 7, 8]) {
+    const scheduled = scheduleCenterItem(state, turn);
+    assert.equal(scheduled.centerItem, null);
+  }
 });
 
-test('aparición normal es determinista y el pity garantiza objeto antes de tardar indefinidamente', () => {
+test('aparición normal sigue siendo determinista entre hosts', () => {
   const state = game();
   state.players['0'].hair = state.players['1'].hair = 3;
-  const a = scheduleCenterItem(state, 3);
-  const b = scheduleCenterItem(structuredClone(state), 3);
+  const a = scheduleCenterItem(state, 7);
+  const b = scheduleCenterItem(structuredClone(state), 7);
   assert.deepEqual(a, b);
-  const pity = scheduleCenterItem(state, 5);
-  assert.equal(pity.centerItem.kind, HAIR_ITEM_KIND);
-  assert.equal(pity.centerItem.source, 'pity');
-  assert.equal(pity.lastItemSpawnTurn, 5);
 });
 
 test('un objeto existente bloquea nuevos spawns', () => {
   const state = game();
-  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
-  state.lastItemSpawnTurn = 3;
-  const scheduled = scheduleCenterItem(state, 8);
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'random' };
+  state.lastItemSpawnTurn = 4;
+  const scheduled = scheduleCenterItem(state, 10);
   assert.deepEqual(scheduled.centerItem, state.centerItem);
-  assert.equal(scheduled.lastItemSpawnTurn, 3);
+  assert.equal(scheduled.lastItemSpawnTurn, 4);
 });
-
 
 test('cooldown del item empieza cuando sale del escritorio aunque haya quedado varios turnos', () => {
   const state = game();
   state.turn = 8;
   state.centerItem = null;
-  state.lastItemSpawnTurn = 3;
-  state.lastResult = { item: { kind: HAIR_ITEM_KIND, outcome: 'claimed', attempts: ['0'], winnerId: '0', healed: 1, spawnedTurn: 3 } };
+  state.lastItemSpawnTurn = 4;
+  state.lastResult = { item: { kind: HAIR_ITEM_KIND, outcome: 'claimed', attempts: ['0'], winnerId: '0', healed: 1, spawnedTurn: 4 } };
   const afterClaim = scheduleCenterItem(state, 9);
   assert.equal(afterClaim.centerItem, null);
   assert.equal(afterClaim.lastItemSpawnTurn, 8);
