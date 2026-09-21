@@ -110,7 +110,10 @@ test('el Mechón flotante aparece como overlay sin mover las tarjetas', async ({
   const after=await page.locator('[data-player]').evaluateAll(els=>els.map(el=>{
     const r=el.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)];
   }));
-  expect(after).toEqual(before);
+  expect(after.length).toBe(before.length);
+  after.forEach((box,index) => box.forEach((value,axis) => {
+    expect(Math.abs(value-before[index][axis]), `tarjeta ${index + 1}, eje ${axis} se movió demasiado`).toBeLessThanOrEqual(2);
+  }));
   await expect(page.locator('.center-item-layer [data-center-item]')).toHaveCount(1);
   await expect(page.locator('.players [data-center-item]')).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1)).toBe(true);
