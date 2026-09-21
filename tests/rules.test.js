@@ -48,11 +48,14 @@ test('propietario cambia solo intención propia válida; no estado ni resultados
   await assertFails(updateDoc(doc(b,'rooms',roomId),{hostId:'bob',updatedAt:serverTimestamp()}));
   await assertFails(updateDoc(doc(b,'rooms',roomId),{'members.alice.left':true,updatedAt:serverTimestamp()}));
 });
-test('ajenos y anónimos sin autenticar no acceden a partida; salas no enumerables',async()=>{
-  for(const db of [outsider,env.unauthenticatedContext().firestore()]) {
-    for(const path of [`games/${gameId}`,`games/${gameId}/intents/alice`,`games/${gameId}/rounds/1`,`rooms/${roomId}`])
+test('ajenos no acceden a la partida; el código exacto permite descubrir una sala activa sin enumerarla',async()=>{
+  const anonymous=env.unauthenticatedContext().firestore();
+  for(const db of [outsider,anonymous]) {
+    for(const path of [`games/${gameId}`,`games/${gameId}/intents/alice`,`games/${gameId}/rounds/1`])
       await assertFails(getDoc(doc(db,path)));
   }
+  await assertSucceeds(getDoc(doc(outsider,`rooms/${roomId}`)));
+  await assertFails(getDoc(doc(anonymous,`rooms/${roomId}`)));
   await assertFails(getDocs(collection(a,'rooms')));
 });
 test('después del cierre host lee; intenciones tardías, resolución prematura y reescritura bloqueadas',async()=>{
