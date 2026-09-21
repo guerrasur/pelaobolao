@@ -1080,3 +1080,14 @@ main#app { min-height:0; overflow:hidden; }
     animation:none!important;
   }
 }
+
+
+/* Landscape phones: preserve readable resource labels without forcing cards taller. */
+@media(max-height:520px) and (min-width:600px) {
+  .player-body { padding:1px 3px; gap:3px; overflow:hidden; }
+  .avatar-wrap { width:32%; max-height:54px; }
+  .player .hair-pips,.player .breath-pips { display:none!important; }
+  .player .resources>span:not(.hair-pips):not(.breath-pips) { font-size:9px; line-height:1; }
+  .player-name { min-height:17px; padding-block:1px; }
+  .player-name i { height:17px; }
+}
