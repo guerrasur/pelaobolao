@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.6.3): lobby con progreso de Listos y presencia visible, estados críticos/desconectados en mesa, feedback de bloqueos diferenciado, render de asientos más robusto y documentación sincronizada con producción.
+Última corrección (0.6.4): evita iniciar con jugadores Listos pero desconectados, añade reacciones expresivas de los avatares, feedback háptico opcional, estados de ganador/Pelo crítico y transiciones de fase más claras.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
