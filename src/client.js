@@ -144,6 +144,13 @@ export function createClient(db, uid, clock = Date.now) {
             if (command === 'touch' && old.hostId === uid && room.status === 'lobby') {
               room.members = Object.fromEntries(Object.entries(room.members).filter(([id,m]) => id === uid || live(m,time)));
             }
+            if (command === 'touch' && old.hostId === uid && ['playing','finished'].includes(room.status) && activeGame) {
+              // Keep active match participants even while reconnecting, but do not let abandoned
+              // late-spectator seats block the room until the match returns to the lobby.
+              const participants = new Set(activeGame.memberIds || []);
+              room.members = Object.fromEntries(Object.entries(room.members)
+                .filter(([id,m]) => participants.has(id) || id === uid || live(m,time)));
+            }
           }
           // A full-document replacement can fail rules before a stale transaction
           // retries, because it also overwrites another player's newer heartbeat.
