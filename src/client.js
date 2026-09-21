@@ -13,9 +13,10 @@ const successor = (members, now) => Object.keys(members).filter(id => live(membe
 export function createClient(db, uid, clock = Date.now) {
   const serverClock = createServerClock(clock);
   const now = serverClock.now;
-  let clockSync;
+  let clockSync, lastClockSyncAt = -Infinity;
   const sessionRef = doc(db, 'sessions', uid);
   async function syncClock() {
+    if (performance.now() - lastClockSyncAt < 45000) return;
     if (clockSync) return clockSync;
     clockSync = (async () => {
       let best;
@@ -31,6 +32,7 @@ export function createClient(db, uid, clock = Date.now) {
       requireThat(best, 'No pudimos confirmar la hora del servidor. Reintentá.', 'unavailable');
       requireThat(serverClock.calibrate(best.server + performance.now() - best.end, best.start, best.end),
         'La hora del servidor no es válida. Reintentá.', 'unavailable');
+      lastClockSyncAt = performance.now();
     })().finally(() => { clockSync = null; });
     return clockSync;
   }
@@ -269,6 +271,8 @@ export function createClient(db, uid, clock = Date.now) {
   const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, acknowledgeRound, abandonGame, advanceGame };
   return { now, syncClock, call: async (name, data) => {
     requireThat(commands[name], 'Comando inválido.');
+    // Creating/joining a lobby can be instant; a match itself always starts from a fresh server clock.
+    if (name === 'roomCommand' && data?.command === 'start') await syncClock();
     return { ...await commands[name](data), serverNow: now() };
   } };
 }
