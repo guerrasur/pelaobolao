@@ -22,6 +22,7 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
     for(let i=1;i<count;i++) members[`layout-${i}`]={name:`Rival largo número ${i}`,joinedAt:Date.now()+i,lastSeenAt:Timestamp.now(),left:false,ready:true};
     const game=newGame(code,members,Date.now());
     game.phase='choosing'; game.phaseStartedAt=Timestamp.now(); game.lastProgressAt=Timestamp.now();
+    game.chosen = Object.fromEntries(game.memberIds.map((uid,index)=>[uid,index % 2 === 0]));
     const gameId=`layout-${code}-${count}`;
     await env.withSecurityRulesDisabled(async ctx=>{
       await setDoc(doc(ctx.firestore(),'games',gameId),game);
