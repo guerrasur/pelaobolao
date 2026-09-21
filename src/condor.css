@@ -511,3 +511,28 @@
   }
   #blow-drag-vector i { display:none!important; }
 }
+
+
+/* Plan Águila 0.14.0 — center item arrival/lock feedback. */
+.center-item.condor-item-arrive {
+  animation:condor-item-arrive .78s cubic-bezier(.16,.86,.27,1.25) both!important;
+}
+.center-item.condor-target-lock {
+  animation:condor-item-lock .58s cubic-bezier(.16,.85,.28,1.28) both!important;
+}
+@keyframes condor-item-arrive {
+  0% { opacity:0; transform:translate(-50%,-50%) rotate(-10deg) scale(.35); filter:blur(2px) brightness(1.35); }
+  55% { opacity:1; transform:translate(-50%,-50%) rotate(2deg) scale(1.12); filter:none; }
+  100% { opacity:1; transform:translate(-50%,-50%) rotate(-3deg) scale(1); filter:none; }
+}
+@keyframes condor-item-lock {
+  0% { transform:translate(-50%,-50%) rotate(-3deg) scale(1); }
+  45% { transform:translate(-50%,-50%) rotate(2deg) scale(1.14); }
+  100% { transform:translate(-50%,-50%) rotate(-3deg) scale(1.04); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item.condor-item-arrive,
+  .center-item.condor-target-lock {
+    animation:none!important;
+  }
+}
