@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.18.0 — Plan Cóndor: feedback contextual para Agarrar
+
+- Se corrigió una ambigüedad introducida por la 0.17: elegir `grab` ya no puede generar la guía roja “SOPLO → +1 PELO”. La guía de ataque sólo reconoce jugadores rivales seleccionados.
+- Mientras el jugador está apuntando un Soplo, el mechón queda deshabilitado y atenuado. Así no se puede cambiar accidentalmente a `grab` tocando el centro durante el modo de ataque.
+- Fuera del modo Soplar, el mechón funciona como control contextual directo: estado verde `selected-grab`, `aria-pressed`, texto “YENDO…” y un pulso/cue propio al confirmar la elección.
+- El reveal incorpora expresión facial y efecto de mano para `grab`, además de la etiqueta “¡AGARRA!”, diferenciándolo visualmente de Soplar, Tomar aire y Esconderse.
+- La interacción táctil sigue el principio de mostrar y enfatizar sólo el control relevante al contexto, con feedback visual/sonoro inmediato.
+- Se añadió E2E dedicado: verifica que el objeto quede deshabilitado durante targeting, que `grab` no cree aim guide, que la intención conserve Soplos y que el reveal renderice el feedback específico.
+- Se ampliaron regresiones de UI para `selected-grab`, accesibilidad y efecto de resultado.
+- Sin cambios en daño, Pelo, Soplos, frecuencia de aparición, resolución simultánea, autoridad del host ni arquitectura Firebase Spark.
+
 ## 0.17.0 — Plan Águila: mechón flotante, pickup gratis y tablero estable
 
 - El objeto `+1 Pelo` pasa a representarse como un mechón flotante y usa una acción propia, `grab`, en partidas nuevas.
