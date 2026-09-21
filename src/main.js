@@ -24,6 +24,7 @@ const now = () => api?.now() ?? Date.now();
 const message = text => { notice.textContent = text; };
 const actionName = action => ({ air: 'Tomar aire', hide: 'Esconderse', blow: 'Soplar', distracted: 'Distraído' }[action] ?? 'Sin elegir');
 const choiceName = choice => `${actionName(choice.action)}${choice.target ? ` → ${s.game?.players[choice.target]?.name ?? 'jugador'}` : ''}`;
+const memberOnline = uid => { const member = s.room?.members?.[uid]; return Boolean(member && now() - member.lastSeenAt < 25000); };
 appMeta.textContent = `MVP · v${APP_VERSION}`;
 
 async function checkVersion() {
@@ -258,7 +259,8 @@ function playerEffects(game, uid) {
     action,
     loss,
     hit: loss > 0,
-    blocked: incoming.some(hit => hit.blocked) || outgoing?.blocked === true,
+    blockedDefense: incoming.some(hit => hit.blocked),
+    blockedAttack: outgoing?.blocked === true,
   };
 }
 
@@ -281,8 +283,8 @@ function resultHtml(game) {
     </div></div>
     <ul>${Object.entries(result.actions).map(([uid, action]) => {
       const target = action.target ? ` → ${esc(game.players[action.target]?.name)}` : '';
-      const loss = result.losses[uid] ? ` · −${result.losses[uid]} Pelo` : '';
-      const blocked = result.hits.find(hit => hit.from === uid)?.blocked ? ' (bloqueado)' : '';
+      const loss = result.losses[uid] ? ` · perdió ${result.losses[uid]} Pelo` : '';
+      const blocked = result.hits.find(hit => hit.from === uid)?.blocked ? ' · soplo bloqueado' : '';
       return `<li><strong>${esc(game.players[uid].name)}</strong>: ${actionName(action.action)}${target}${blocked}${loss}</li>`;
     }).join('')}</ul>
   </section>`;
@@ -364,7 +366,7 @@ function bind() {
   document.querySelector('#share-room')?.addEventListener('click', async () => {
     const url = `${location.origin}/?s=${s.room.code}`;
     try {
-      if (navigator.share) await navigator.share({ title: 'Pelao Bolao', text: `Sala ${s.room.code}`, url });
+      if (navigator.share) { await navigator.share({ title: 'Pelao Bolao', text: `Sala ${s.room.code}`, url }); message('Sala compartida.'); }
       else { await navigator.clipboard.writeText(url); message('Enlace de sala copiado.'); }
     } catch { message(`Código: ${s.room.code}`); }
   });
@@ -417,8 +419,12 @@ function tick() {
   connection.classList.toggle('offline', !s.online);
   if (s.updateRequired) return;
   document.querySelectorAll('[data-presence]').forEach(el => {
-    const member = s.room?.members[el.dataset.presence];
-    el.textContent = member && now() - member.lastSeenAt < 25000 ? 'Conectado' : 'Reconectando…';
+    const online = memberOnline(el.dataset.presence);
+    el.textContent = online ? 'Conectado' : 'Reconectando…';
+    el.classList.toggle('is-online', online);
+  });
+  document.querySelectorAll('[data-presence-dot]').forEach(el => {
+    el.classList.toggle('online', memberOnline(el.dataset.presenceDot));
   });
   if (!s.game || document.hidden) return;
   const game = s.game;
