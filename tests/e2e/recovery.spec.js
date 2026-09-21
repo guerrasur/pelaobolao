@@ -21,14 +21,14 @@ async function pair(browser, host) {
   const guest = await guestContext.newPage();
   for (const [page, name] of [[host, 'Ana'], [guest, '<b>Beto</b>']]) {
     await page.goto('http://127.0.0.1:5173');
-    await page.getByLabel('Nombre', { exact: true }).fill(name);
-    await page.getByRole('button', { name: 'Continuar' }).click();
-    await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+    await page.getByLabel('Nombre del jugador', { exact: true }).fill(name);
+    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toBeVisible();
   }
-  await host.getByRole('button', { name: 'Crear sala' }).click();
+  await host.getByRole('button', { name: 'CREAR SALA', exact: true }).click();
   const code = await host.locator('.code').textContent();
   await guest.getByLabel('Código de sala').fill(code);
-  await guest.getByRole('button', { name: 'Unirse a sala' }).click();
+  await guest.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   for (const page of [host, guest]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await host.getByRole('button', { name: 'Iniciar partida' }).click();
   await expect(host.getByRole('heading', { name: 'Turno 1', exact: true })).toBeVisible();
@@ -43,14 +43,14 @@ test('reingresar con un turno vencido no rompe la pantalla del nombre', async ({
   const { guestContext, guest, gameId, code } = await pair(browser, page);
   try {
     await page.reload();
-    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
+    await expect(page.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Ana');
     await patch(`games/${gameId}`, { deadline: Date.now() - 5000, phaseStartedAt: Timestamp.fromMillis(Date.now()-15000) });
     // The reloaded host does not resume or advance the saved match on its own.
-    await expect(page.getByLabel('Nombre', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Continuar' }).click();
-    await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+    await expect(page.getByLabel('Nombre del jugador', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toBeVisible();
     await page.getByLabel('Código de sala').fill(code);
-    await page.getByRole('button', { name: 'Unirse a sala' }).click();
+    await page.getByRole('button', { name: 'ENTRAR', exact: true }).click();
     await expect(page.locator('[data-player].self .player-label')).toHaveText('Ana');
     await expect(page.locator('[data-player].self .self-tag')).toHaveText('VOS');
     expect(errors).toEqual([]);
@@ -87,11 +87,11 @@ test('actualización cancela arrastre, bloquea acciones y permite reingresar con
     await expect(page.locator('.controls')).toHaveCount(0);
     version = packageInfo.version;
     await page.getByRole('button', { name: 'Actualizar ahora' }).click();
-    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
-    await page.getByRole('button', { name: 'Continuar' }).click();
-    await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+    await expect(page.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Ana');
+    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toBeVisible();
     await page.getByLabel('Código de sala').fill(code);
-    await page.getByRole('button', { name: 'Unirse a sala' }).click();
+    await page.getByRole('button', { name: 'ENTRAR', exact: true }).click();
     await expect(page.locator('.game .eyebrow')).toHaveText(`Sala ${code}`);
     expect(errors).toEqual([]);
     await page.screenshot({ path: 'test-results/recovered-mobile.png', fullPage: true });
@@ -176,9 +176,9 @@ test('una partida desaparecida tiene salida y permite crear otra sala', async ({
   try {
     await admin(db => deleteDoc(doc(db, 'games', gameId)));
     // A denied subscription resets locally immediately; a missing snapshot offers an exit.
-    await expect(page.getByRole('button', { name: 'Crear sala', exact: true }).or(page.getByRole('button', { name: 'Volver al inicio' }))).toBeVisible();
+    await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true }).or(page.getByRole('button', { name: 'Volver al inicio' }))).toBeVisible();
     if (await page.getByRole('button', { name: 'Volver al inicio' }).count()) await page.getByRole('button', { name: 'Volver al inicio' }).click();
-    await page.getByRole('button', { name: 'Crear sala' }).click();
+    await page.getByRole('button', { name: 'CREAR SALA', exact: true }).click();
     await expect(page.locator('.code')).toBeVisible();
     await expect(page.locator('.code')).not.toHaveText(code);
     expect(errors).toEqual([]);
@@ -211,13 +211,13 @@ test('cancelar compartir después de salir de la sala no rompe la app', async ({
     });
   });
   await page.goto('http://127.0.0.1:5173');
-  await page.getByLabel('Nombre', { exact: true }).fill('Ana');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByRole('button', { name: 'Crear sala' }).click();
+  await page.getByLabel('Nombre del jugador', { exact: true }).fill('Ana');
+  await page.getByRole('button', { name: 'Entrar al aula' }).click();
+  await page.getByRole('button', { name: 'CREAR SALA', exact: true }).click();
   await page.getByRole('button', { name: 'Compartir' }).click();
   await expect.poll(() => page.evaluate(() => typeof window.rejectPendingShare)).toBe('function');
   await page.getByRole('button', { name: 'Salir de la sala' }).click();
   await page.evaluate(() => window.rejectPendingShare(new Error('cancelled')));
-  await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
