@@ -603,11 +603,11 @@
 .center-item.condor-item-grab {
   animation:condor-item-grab .68s cubic-bezier(.16,.85,.28,1.24) both!important;
 }
-.game[data-targeting="true"] .center-item {
+.game[data-targeting="true"] .center-item.free-pickup {
   opacity:.48!important;
   filter:grayscale(.45) saturate(.65)!important;
 }
-.game[data-targeting="true"] .center-item::after {
+.game[data-targeting="true"] .center-item.free-pickup::after {
   content:'SOPLO: SOLO RIVALES';
   position:absolute;
   left:50%;
