@@ -59,7 +59,7 @@ test('abrir la web no recupera automáticamente la sesión remota', async () => 
   const ui = await setup();
   assert.equal(ui.subscriptions.some(sub => sub.path.startsWith('sessions/')), false);
   assert.equal(ui.s.roomId, null);
-  assert.match(ui.nodes.get('#app').innerHTML, /Crear sala/);
+  assert.match(ui.nodes.get('#app').innerHTML, /id="create-room"/);
 });
 
 test('salir funciona sin conexión aunque limpieza y salida queden pendientes', async () => {
@@ -70,7 +70,7 @@ test('salir funciona sin conexión aunque limpieza y salida queden pendientes', 
   assert.equal(ui.s.roomId, null);
   assert.equal(ui.s.game, null);
   assert.equal(ui.s.busy, false);
-  assert.match(ui.nodes.get('#app').innerHTML, /Crear sala/);
+  assert.match(ui.nodes.get('#app').innerHTML, /id="create-room"/);
   assert.equal(ui.subscriptions.filter(sub => sub.path === 'rooms/ABCD').every(sub => !sub.active), true);
 });
 
@@ -97,7 +97,7 @@ test('denegación de acceso a la partida vuelve al inicio aun si falla limpiar s
   await Promise.resolve();
   assert.equal(ui.s.roomId, null);
   assert.equal(ui.s.gameId, null);
-  assert.match(ui.nodes.get('#app').innerHTML, /Crear sala/);
+  assert.match(ui.nodes.get('#app').innerHTML, /id="create-room"/);
 });
 
 test('volver de otra pestaña conserva la sala actual', async () => {
