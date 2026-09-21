@@ -56,7 +56,7 @@
   transform:scale(.2);
   animation:condor-ripple .48s ease-out both;
 }
-.controls button > :not(.condor-ripple) { position:relative; z-index:1; }
+.controls button > :not(.condor-ripple) { z-index:1; }
 
 .game[data-targeting="true"] .player.targetable {
   outline:3px dashed #ffe15c;
