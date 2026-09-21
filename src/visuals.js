@@ -35,15 +35,15 @@ function effectMarkup(effects = {}) {
   return bits.length ? '<span class="player-fx" aria-hidden="true">' + bits.join('') + '</span>' : '';
 }
 
-export function playerCard({ uid, player: p, index, self, selected, chosen, rules, effects = {} }) {
+export function playerCard({ uid, player: p, index, self, selected, chosen, connected = true, rules, effects = {} }) {
   const seat = Number.isInteger(index) && index >= 0 ? index : 0;
   const effectClass = [effects.action ? 'action-' + effects.action : '', effects.hit ? 'took-hit' : '', effects.blockedDefense ? 'blocked-hit' : '', effects.blockedAttack ? 'attack-blocked' : ''].filter(Boolean).join(' ');
-  return `<button class="player ${self ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]}" ${p.hair <= 0 || self ? 'disabled' : ''}>
-    <strong class="player-name"><i>${seat + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}${self ? ' (vos)' : ''}</span></strong>
+  return `<button class="player ${self ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${!connected ? 'offline-player' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]}" ${p.hair <= 0 || self ? 'disabled' : ''}>
+    <strong class="player-name"><i>${seat + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}${self ? ' (vos)' : ''}</span><span class="presence-dot ${connected ? 'online' : ''}" data-presence-dot="${esc(uid)}" aria-hidden="true"></span></strong>
     <div class="player-body"><div class="avatar-wrap"><div class="avatar">${avatar(seat, p.hair)}</div></div>${effectMarkup(effects)}<div class="resources">
     <span>Pelo <b>${p.hair}</b>/${rules.maxHair}</span><span class="hair-pips" aria-hidden="true">${Array.from({ length: rules.maxHair }, (_, n) => `<i class="${n < p.hair ? 'full' : ''}"></i>`).join('')}</span>
     <span>Soplos <b>${p.breath}</b>/${rules.maxBreath}</span><span class="breath-pips" aria-hidden="true">${Array.from({ length: rules.maxBreath }, (_, n) => `<i class="${n < p.breath ? 'full' : ''}">≋</i>`).join('')}</span>
-    </div></div><small>${p.hair === 0 ? 'Pelado' : chosen ? '✓ Ya eligió' : self ? 'Tu posición' : 'En juego'}</small></button>`;
+    </div></div><small>${p.hair === 0 ? 'Pelado' : !connected ? 'Reconectando…' : chosen ? '✓ Ya eligió' : self ? 'Tu posición' : 'En juego'}</small></button>`;
 }
 const icons = {
   blow: svg('<g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M8 24h28c12 0 10-17 1-15-4 1-5 4-4 6M5 34h44c13 0 13-19 2-19M12 44h22c13 0 12 14 4 13-4 0-5-3-5-5"/></g>'),
