@@ -314,9 +314,14 @@ async function flushIntent() {
 function roundImpact(game) {
   const result = game?.lastResult;
   if (!result || !['reveal', 'finished'].includes(game.phase)) return 'none';
-  if (Object.values(result.losses || {}).some(loss => Number(loss) > 0)) return 'hit';
+  const lost = Object.values(result.losses || {}).some(loss => Number(loss) > 0);
+  const healed = Object.values(result.heals || {}).some(heal => Number(heal) > 0);
+  if (lost && healed) return 'swing';
+  if (lost) return 'hit';
   if ((result.hits || []).some(hit => hit.blocked)) return 'block';
-  if (Object.values(result.heals || {}).some(heal => Number(heal) > 0)) return 'heal';
+  if (healed) return 'heal';
+  if (result.item?.outcome === 'contested') return 'item-clash';
+  if (result.item?.outcome === 'claimed') return 'item-claim';
   return 'reveal';
 }
 
@@ -349,13 +354,26 @@ function selectionText(choice) {
 }
 
 function centerItemHtml(game, choice) {
-  if (game.centerItem?.kind !== HAIR_ITEM_KIND) return '';
+  if (game.centerItem?.kind !== HAIR_ITEM_KIND || !['choosing', 'locked', 'reveal'].includes(game.phase)) return '';
   const selected = choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
   const targetable = Boolean(s.targeting && canChoose());
-  const sourceLabel = 'OBJETO EN EL AULA';
-  return `<button class="center-item hair-item ${targetable ? 'targetable' : ''} ${selected ? 'selected-target' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" ${targetable ? '' : 'disabled'} aria-label="+1 Pelo, cuesta 1 Soplo">
-    <small>${sourceLabel}</small><strong class="item-label">+1 PELO</strong><span>1 SOPLO</span>
+  const isNew = game.phase === 'choosing' && game.centerItem.spawnedTurn === game.turn;
+  return `<button type="button" class="center-item hair-item ${targetable ? 'targetable' : ''} ${selected ? 'selected-target' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" tabindex="${targetable ? '0' : '-1'}" aria-label="+1 Pelo, cuesta 1 Soplo">
+    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>OBJETO EN EL AULA</small><strong class="item-label">+1 PELO</strong><span>1 SOPLO</span>
   </button>`;
+}
+
+function centerItemNotice(game, me) {
+  if (game.phase !== 'choosing' || game.centerItem?.kind !== HAIR_ITEM_KIND) return '';
+  const maxHair = Number(game.rules?.maxHair || 4);
+  const detail = !me || me.hair <= 0
+    ? 'Los jugadores pueden disputarlo con 1 Soplo.'
+    : me.breath < 1
+      ? 'Necesitás 1 Soplo para disputarlo.'
+      : me.hair >= maxHair
+        ? 'Tenés Pelo al máximo: todavía podés disputarlo para negárselo a otro.'
+        : 'Cuesta 1 Soplo. Si van 2 o más, nadie se lo lleva.';
+  return `<div class="item-notice" role="status"><b>+1 PELO EN JUEGO</b><span>${detail}</span></div>`;
 }
 
 function outcomeKind(game, uid) {
@@ -405,11 +423,15 @@ function roundCallout(game) {
   if (!result) return '';
   const blocked = (result.hits || []).filter(hit => hit.blocked).length;
   const hairLost = Object.values(result.losses || {}).reduce((total, loss) => total + Number(loss || 0), 0);
+  const hairHealed = Object.values(result.heals || {}).reduce((total, heal) => total + Number(heal || 0), 0);
+  if (hairLost > 0 && hairHealed > 0) return 'PELO VA, PELO VIENE';
   if (hairLost >= 2) return 'CAOS EN EL AULA';
   if (blocked > 0 && hairLost === 0) return 'DEFENSA PERFECTA';
   if (hairLost > 0) return 'VOLÓ PELO';
   if (result.item?.outcome === 'claimed' && result.item.healed > 0) return 'PELO RECUPERADO';
-  if (result.item?.outcome === 'contested') return 'OBJETO PERDIDO';
+  if (result.item?.outcome === 'claimed' && result.item.claimantAlive === false) return 'LLEGÓ TARDE';
+  if (result.item?.outcome === 'claimed') return 'SE LO NEGÓ';
+  if (result.item?.outcome === 'contested') return 'NADIE SE LO LLEVA';
   return 'RONDA TRANQUILA';
 }
 
@@ -417,7 +439,8 @@ function resultHtml(game) {
   const result = game.lastResult;
   if (!result) return '<p class="muted">Las acciones se revelan al terminar el turno.</p>';
   const actions = Object.values(result.actions || {});
-  const blows = actions.filter(action => action.action === 'blow').length;
+  const blows = actions.filter(action => action.action === 'blow' && action.target !== CENTER_ITEM_TARGET).length;
+  const itemBlows = actions.filter(action => action.action === 'blow' && action.target === CENTER_ITEM_TARGET).length;
   const breaths = actions.filter(action => action.action === 'air').length;
   const hides = actions.filter(action => action.action === 'hide').length;
   const distracted = actions.filter(action => action.action === 'distracted').length;
@@ -437,6 +460,7 @@ function resultHtml(game) {
     ${itemSummary}
     <div class="result-head"><h2>Turno ${esc(result.turn)}</h2><div class="result-summary" aria-label="Resumen del turno">
       ${blows ? `<span data-kind="blow"><b>ATAQUE</b> ${blows}</span>` : ''}
+      ${itemBlows ? `<span class="item-chip" data-kind="item"><b>OBJETO</b> ${itemBlows}</span>` : ''}
       ${breaths ? `<span data-kind="air"><b>AIRE</b> ${breaths}</span>` : ''}
       ${hides ? `<span data-kind="hide"><b>ABAJO</b> ${hides}</span>` : ''}
       ${distracted ? `<span data-kind="distracted"><b>DISTRAÍDO</b> ${distracted}</span>` : ''}
@@ -518,15 +542,16 @@ function render() {
     const actionHint = s.targeting
       ? centerItemActive() ? 'Tocá un rival o el +1 Pelo del centro.' : 'Tocá un rival o soltá el Soplo encima.'
       : me?.breath < 1
-        ? 'No tenés Soplos para atacar.'
-        : 'Soplá, tomá aire o escondete.';
+        ? centerItemActive() ? 'No tenés Soplos: tomá aire si querés disputar el +1 Pelo.' : 'No tenés Soplos para atacar.'
+        : centerItemActive() ? 'Podés atacar a un rival o disputar el +1 Pelo.' : 'Soplá, tomá aire o escondete.';
     const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     const countdownSplash = game.phase === 'countdown' ? '<div class="countdown-splash" aria-hidden="true"><strong data-countdown-splash>3</strong><span>¡PREPARATE!</span></div>' : '';
     const lobbyReturn = game.phase === 'finished' ? '<div class="lobby-return-countdown" data-lobby-return hidden aria-live="polite"></div>' : '';
     const centerItem = centerItemHtml(game, choice);
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}${centerItem}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    const itemNotice = centerItemNotice(game, me);
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}${centerItem}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
