@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.5.2): abrir o recargar la web lleva al inicio después de confirmar el nombre; para volver a una sala hay que entrar con su código. Cambiar brevemente de pestaña conserva la partida actual. Salir funciona inmediatamente aunque no haya conexión o Firestore rechace la operación. Crear sala siempre crea una nueva y las respuestas de una sesión anterior no vuelven a abrirla. Las partidas vencidas regresan al inicio aunque falle su cierre remoto.
+Última corrección (0.6.3): lobby con progreso de Listos y presencia visible, estados críticos/desconectados en mesa, feedback de bloqueos diferenciado, render de asientos más robusto y documentación sincronizada con producción.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
