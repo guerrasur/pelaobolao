@@ -127,7 +127,9 @@ export function createClient(db, uid, clock = Date.now) {
             if (command === 'lobby') {
               requireThat(old.hostId === uid, 'Solo el host puede volver al lobby.', 'permission-denied');
               requireThat(['lobby','finished'].includes(room.status), 'La partida sigue en curso.');
-              room.members = Object.fromEntries(Object.entries(room.members).filter(([id,m]) => id === uid || live(m,time)));
+              room.members = Object.fromEntries(Object.entries(room.members)
+                .filter(([id,m]) => id === uid || live(m,time))
+                .map(([id,m]) => [id, { ...m, ready: false }]));
               room.status = 'lobby'; room.gameId = null;
             }
             if (command === 'touch' && old.hostId === uid && room.status === 'lobby') {
