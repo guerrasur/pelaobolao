@@ -125,8 +125,8 @@ test('Plan Condor 0.18: Agarrar no se mezcla con apuntar Soplar y tiene feedback
     await expect(page.locator('.condor-aim-guide')).toHaveCount(0);
     await expect(item).toHaveClass(/condor-grab-confirmed/);
 
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('grab');
     const intent = await read(`games/${gameId}/intents/${room.hostId}`);
-    expect(intent.action).toBe('grab');
     expect(intent.target).toBe('__center_item__');
     expect((await read(`games/${gameId}`)).players[room.hostId].breath).toBe(1);
 
