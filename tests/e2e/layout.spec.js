@@ -42,6 +42,8 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
           tapeContent: tape.content,
         };
       });
+      expect(await page.locator('.brand small').count()).toBe(0);
+      await expect(page.locator('.brand')).not.toContainText('MENOS PELO');
       expect(brand.centerDelta, `logo centrado ${width}x${height}`).toBeLessThanOrEqual(2);
       expect(brand.top).toBeGreaterThanOrEqual(0);
       expect(brand.bottom).toBeLessThanOrEqual(height);
