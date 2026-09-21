@@ -201,3 +201,37 @@ test('resultado usa chips del juego y prompts cortos sin emojis decorativos', as
   assert.match(html, /data-kind="damage"/);
   assert.doesNotMatch(html, /💨|🫁|🪑|🛡|✂/);
 });
+
+
+test('final de partida diferencia victoria, derrota y muestra ganador aparte', async () => {
+  const makeGame = winnerId => ({
+    phase:'finished', turn:4, protocolVersion:2, phaseStartedAt:Date.now(), winnerId, draw:false,
+    memberIds:['me','other'], chosen:{}, ready:{},
+    players:{ me:{name:'Ana',hair:winnerId==='me'?1:0,breath:0}, other:{name:'Beto',hair:winnerId==='other'?1:0,breath:0} },
+    rules:{ maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500 },
+    lastResult:{ turn:4, actions:{ me:{action:'distracted'}, other:{action:'distracted'} }, hits:[], losses:{} },
+  });
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+
+  ui.s.game=makeGame('me');
+  ui.render();
+  let html=ui.nodes.get('#app').innerHTML;
+  assert.match(html, /data-outcome="win"/);
+  assert.match(html, /¡GANASTE!/);
+  assert.match(html, /class="confetti"/);
+
+  ui.s.game=makeGame('other');
+  ui.render();
+  html=ui.nodes.get('#app').innerHTML;
+  assert.match(html, /data-outcome="lose"/);
+  assert.match(html, /PERDISTE/);
+  assert.match(html, /outcome-winner">Ganó <b>Beto<\/b>/);
+  assert.match(html, /class="tomato"/);
+});
