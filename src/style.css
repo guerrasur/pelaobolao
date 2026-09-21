@@ -2019,7 +2019,7 @@ header { min-height:48px; }
 @keyframes pb-tomato-hit {
   0% {
     opacity:0;
-    transform:translate3d(var(--sx),-220px,0) rotate(calc(var(--rot) * -2)) scale(.55);
+    transform:translate3d(var(--sx),-220px,0) rotate(-35deg) scale(.55);
   }
   18% { opacity:1; }
   72% {
