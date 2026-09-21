@@ -1796,3 +1796,18 @@ header { min-height:48px; }
 @media(max-height:520px) and (min-width:600px) {
   .player.has-chosen:not(.eliminated)::after { top:17px; }
 }
+
+
+/* Winner emphasis without extra layout or assets. */
+.player.winner .avatar-wrap {
+  animation:pb-winner-pop .72s cubic-bezier(.2,.9,.25,1.15) both;
+  filter:drop-shadow(0 0 5px #ffe15a99);
+}
+@keyframes pb-winner-pop {
+  0% { transform:scale(.9) rotate(-2deg); }
+  55% { transform:scale(1.08) rotate(2deg); }
+  100% { transform:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .player.winner .avatar-wrap { animation:none!important; }
+}
