@@ -26,6 +26,8 @@ export function playCue(kind) {
       reveal: { notes:[523.25,659.25], step:.08, length:.16, type:'triangle', gain:.06 },
       hit: { notes:[150,105,82], step:.055, length:.13, type:'square', gain:.045 },
       block: { notes:[260,390], step:.07, length:.14, type:'triangle', gain:.055 },
+      tick: { notes:[880], step:.04, length:.075, type:'square', gain:.032 },
+      lock: { notes:[330,220], step:.045, length:.10, type:'triangle', gain:.04 },
       win: { notes:[523.25,659.25,783.99,1046.5], step:.075, length:.24, type:'triangle', gain:.075 },
       lose: { notes:[196,164.81,130.81,98], step:.085, length:.22, type:'sawtooth', gain:.045 },
       end: { notes:[659.25,523.25,392], step:.09, length:.18, type:'triangle', gain:.07 },

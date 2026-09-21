@@ -1,0 +1,163 @@
+/* Plan Cóndor 0.8.0: isolated game-feel layer. No layout/state authority lives here. */
+.game.condor-enter-choosing .phase-banner {
+  animation:condor-stamp-in .48s cubic-bezier(.2,.9,.25,1.25) both;
+}
+.game.condor-enter-locked .phase-banner {
+  animation:condor-lock-snap .5s cubic-bezier(.2,.9,.3,1.2) both;
+}
+.game.condor-enter-reveal .result-callout,
+.game.condor-enter-finished .outcome-card {
+  animation:condor-stamp-in .58s cubic-bezier(.2,.9,.25,1.25) both;
+}
+
+.game[data-condor-tick] #timer {
+  animation:condor-tick .32s cubic-bezier(.2,.85,.3,1.3) both;
+}
+.game[data-condor-tick="1"] {
+  box-shadow:inset 0 0 0 5px #ff4866, inset 0 0 34px #ff486638;
+}
+
+.condor-chalk-burst {
+  position:absolute;
+  z-index:19;
+  left:50%;
+  top:48%;
+  width:1px;
+  height:1px;
+  pointer-events:none;
+}
+.condor-chalk-burst i {
+  position:absolute;
+  left:0;
+  top:0;
+  width:16px;
+  height:4px;
+  border-radius:999px;
+  background:#fff9e9;
+  border:1px solid #5d4c68;
+  box-shadow:0 0 7px #fff9e9aa;
+  opacity:0;
+  transform-origin:left center;
+  animation:condor-chalk .78s cubic-bezier(.14,.68,.25,1) var(--delay) both;
+}
+
+.controls button { isolation:isolate; }
+.condor-ripple {
+  position:absolute;
+  z-index:0;
+  left:var(--x);
+  top:var(--y);
+  width:12px;
+  height:12px;
+  margin:-6px;
+  border-radius:50%;
+  background:#fff9e980;
+  pointer-events:none;
+  transform:scale(.2);
+  animation:condor-ripple .48s ease-out both;
+}
+.controls button > :not(.condor-ripple) { z-index:1; }
+
+.game[data-targeting="true"] .player.targetable {
+  outline:3px dashed #ffe15c;
+  outline-offset:3px;
+  filter:brightness(1.1) saturate(1.08);
+  animation:condor-target-pulse .72s ease-in-out infinite alternate;
+}
+.game[data-targeting="true"] .player:not(.targetable):not(.self) {
+  filter:saturate(.45) brightness(.82);
+}
+.game[data-targeting="true"] .player.self {
+  filter:saturate(.75);
+}
+.play-hint.is-targeting {
+  border:2px solid #202633;
+  background:#ffe15c;
+  color:#202633;
+  box-shadow:2px 3px 0 #202633;
+}
+
+.result-callout {
+  display:inline-block;
+  margin:-3px 0 4px;
+  padding:3px 8px;
+  border:2px solid #202633;
+  border-radius:5px;
+  background:#ffdf4f;
+  color:#202633;
+  font-size:clamp(9px,1.5vh,12px);
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.4px;
+  box-shadow:2px 2px 0 #202633;
+  transform:rotate(-1deg);
+}
+
+.game[data-phase="locked"] .players::after {
+  content:'JUGADAS SELLADAS';
+  position:absolute;
+  z-index:12;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%) rotate(-2deg);
+  padding:5px 10px;
+  border:2px solid #202633;
+  border-radius:6px;
+  background:#d8c6ff;
+  color:#36214e;
+  box-shadow:3px 3px 0 #202633;
+  font-size:clamp(9px,2.3vw,13px);
+  font-weight:1000;
+  letter-spacing:.45px;
+  white-space:nowrap;
+  animation:condor-lock-snap .52s cubic-bezier(.2,.9,.3,1.2) both;
+}
+
+@keyframes condor-stamp-in {
+  0% { opacity:0; transform:translateY(8px) rotate(-4deg) scale(.72); }
+  62% { opacity:1; transform:translateY(-1px) rotate(1deg) scale(1.06); }
+  100% { opacity:1; transform:none; }
+}
+@keyframes condor-lock-snap {
+  0% { opacity:0; transform:translateY(-7px) scale(1.18); filter:blur(2px); }
+  55% { opacity:1; transform:translateY(1px) scale(.96); filter:none; }
+  100% { opacity:1; transform:none; }
+}
+@keyframes condor-tick {
+  0% { transform:scale(1); }
+  48% { transform:scale(1.24) rotate(-3deg); text-shadow:0 0 12px #ffe15c; }
+  100% { transform:scale(1); }
+}
+@keyframes condor-chalk {
+  0% { opacity:0; transform:rotate(var(--angle)) translateX(0) rotate(var(--rotation)) scale(.35); }
+  18% { opacity:1; }
+  100% { opacity:0; transform:rotate(var(--angle)) translateX(var(--distance)) rotate(var(--rotation)) scale(1.1); }
+}
+@keyframes condor-ripple {
+  0% { opacity:.85; transform:scale(.2); }
+  100% { opacity:0; transform:scale(9); }
+}
+@keyframes condor-target-pulse {
+  from { box-shadow:1px 2px 0 #49352396,0 0 0 0 #ffe15c55; }
+  to { box-shadow:1px 2px 0 #49352396,0 0 0 5px #ffe15c30; }
+}
+
+@media(max-height:520px) and (min-width:600px) {
+  .game[data-phase="locked"] .players::after { font-size:9px; padding:3px 6px; }
+  .result-callout { font-size:8px; padding:2px 5px; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .game.condor-enter-choosing .phase-banner,
+  .game.condor-enter-locked .phase-banner,
+  .game.condor-enter-reveal .result-callout,
+  .game.condor-enter-finished .outcome-card,
+  .game[data-condor-tick] #timer,
+  .condor-chalk-burst i,
+  .condor-ripple,
+  .game[data-targeting="true"] .player.targetable,
+  .game[data-phase="locked"] .players::after {
+    animation:none!important;
+  }
+  .condor-chalk-burst,.condor-ripple { display:none!important; }
+}
