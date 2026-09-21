@@ -25,6 +25,7 @@ const message = text => { notice.textContent = text; };
 const actionName = action => ({ air: 'Tomar aire', hide: 'Esconderse', blow: 'Soplar', distracted: 'Distraído' }[action] ?? 'Sin elegir');
 const choiceName = choice => `${actionName(choice.action)}${choice.target ? ` → ${s.game?.players[choice.target]?.name ?? 'jugador'}` : ''}`;
 const memberOnline = uid => { const member = s.room?.members?.[uid]; return Boolean(member && now() - member.lastSeenAt < 25000); };
+const vibrate = pattern => { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
 appMeta.textContent = `MVP · v${APP_VERSION}`;
 
 async function checkVersion() {
@@ -134,7 +135,14 @@ function subscribeGame(id) {
     s.game = snap.data();
     if (oldPhase && oldPhase !== s.game.phase) {
       if (s.game.phase === 'choosing') playCue('start');
-      if (s.game.phase === 'reveal') playCue(roundImpact(s.game) === 'hit' ? 'hit' : roundImpact(s.game) === 'block' ? 'block' : 'reveal');
+      if (s.game.phase === 'reveal') {
+        const impact = roundImpact(s.game);
+        playCue(impact === 'hit' ? 'hit' : impact === 'block' ? 'block' : 'reveal');
+        const mine = playerEffects(s.game, api.uid);
+        if (mine.hit) vibrate([38, 28, 62]);
+        else if (mine.blockedDefense) vibrate([22, 32, 22]);
+        else if (mine.blockedAttack) vibrate(18);
+      }
       if (['finished', 'abandoned'].includes(s.game.phase)) playCue('end');
     }
     lastPhase = s.game.phase;
@@ -327,7 +335,7 @@ function render() {
     const me = game.players[api.uid];
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
-    const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
+    const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name ?? 'un jugador')}` : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const seats = game.memberIds || Object.keys(game.players);
     const order = [...seats.filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
     const activeCount = Object.values(game.players).filter(player => player.hair > 0).length;
@@ -335,7 +343,7 @@ function render() {
     const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<p class="play-hint">Arrastrá SOPLAR hacia un rival</p>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${s.targeting ? 'Elegí a quién soplar.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Elegí una jugada · si no: Distraído'}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
-    html = `<section class="game" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
