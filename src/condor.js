@@ -1,5 +1,4 @@
 import './condor.css';
-import './entry.css';
 import { playCue } from './sound.js';
 import { aimGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from './condor-core.js';
 
@@ -31,12 +30,6 @@ function pulseEntrance(board, phase) {
 }
 
 function addPressRipple(event) {
-  const entryButton = event.target.closest?.('.entry-screen button, .lobby-screen button');
-  if (entryButton && !entryButton.disabled && event.button <= 0) {
-    pulseClass(entryButton, 'condor-entry-press', 180);
-    playCue('tap');
-    try { navigator.vibrate?.(6); } catch {}
-  }
   const button = event.target.closest?.('.controls button');
   if (!button || button.disabled || event.button > 0) return;
   const rect = button.getBoundingClientRect();
@@ -108,32 +101,6 @@ export function startCondor(root = document) {
   let itemInitialized = false;
   let lastItemTurn = null;
   let lastGrabSelected = false;
-  let lastEntryMode = null;
-  let entryTransitionTimer = 0;
-
-  const enhanceEntry = () => {
-    const screen = app.querySelector('.entry-screen');
-    let mode = '';
-    if (screen?.classList.contains('entry-loading')) mode = 'loading';
-    else if (screen?.classList.contains('profile-screen')) mode = 'profile';
-    else if (screen?.classList.contains('home-screen')) mode = 'home';
-    else if (screen?.classList.contains('room-loading')) mode = 'room';
-
-    if (mode) document.body.dataset.entryMode = mode;
-    else delete document.body.dataset.entryMode;
-
-    if (mode !== lastEntryMode) {
-      document.body.classList.remove('entry-transition');
-      void document.body.offsetWidth;
-      if (mode) document.body.classList.add('entry-transition');
-      window.clearTimeout(entryTransitionTimer);
-      entryTransitionTimer = window.setTimeout(() => document.body.classList.remove('entry-transition'), 620);
-      if (lastEntryMode === 'profile' && mode === 'home') playCue('door');
-      if (lastEntryMode === 'home' && mode === 'room') playCue('door');
-      lastEntryMode = mode;
-    }
-  };
-
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
     if (!list) {
@@ -163,7 +130,6 @@ export function startCondor(root = document) {
   };
 
   const enhance = () => {
-    enhanceEntry();
     const board = app.querySelector('.game');
     if (!board) {
       lastBoard?.querySelector('.condor-aim-guide')?.remove();
@@ -251,9 +217,6 @@ export function startCondor(root = document) {
     root.removeEventListener('pointerdown', addPressRipple);
     window.removeEventListener('resize', enhance);
     window.clearTimeout(tickCleanup);
-    window.clearTimeout(entryTransitionTimer);
-    delete document.body.dataset.entryMode;
-    document.body.classList.remove('entry-transition');
     lastBoard?.querySelector('.condor-aim-guide')?.remove();
   };
 }
