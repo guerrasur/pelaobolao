@@ -33,3 +33,18 @@ export function aimGuideGeometry(sourceRect, targetRect, boardRect) {
     angle: Math.atan2(dy, dx) * 180 / Math.PI,
   };
 }
+
+
+export function dragGuideGeometry(sourceRect, pointerX, pointerY, targetRect = null) {
+  if (!sourceRect || ![sourceRect.left, sourceRect.top, sourceRect.width, sourceRect.height, pointerX, pointerY].every(Number.isFinite)) return null;
+  const sourceX = sourceRect.left + sourceRect.width / 2;
+  const sourceY = sourceRect.top + sourceRect.height / 2;
+  const endX = targetRect && [targetRect.left, targetRect.width].every(Number.isFinite)
+    ? targetRect.left + targetRect.width / 2 : pointerX;
+  const endY = targetRect && [targetRect.top, targetRect.height].every(Number.isFinite)
+    ? targetRect.top + targetRect.height / 2 : pointerY;
+  const dx = endX - sourceX, dy = endY - sourceY;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length < 1) return null;
+  return { left: sourceX, top: sourceY, length, angle: Math.atan2(dy, dx) * 180 / Math.PI };
+}
