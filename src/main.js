@@ -318,6 +318,7 @@ function selectionText(choice) {
 
 function outcomeKind(game, uid) {
   if (game?.phase !== 'finished') return null;
+  if (!game.players?.[uid]) return 'spectator';
   if (game.draw || !game.winnerId) return 'draw';
   return game.winnerId === uid ? 'win' : 'lose';
 }
@@ -325,6 +326,12 @@ function outcomeKind(game, uid) {
 function endCelebrationHtml(game, uid) {
   const outcome = outcomeKind(game, uid);
   if (!outcome) return '';
+  if (outcome === 'spectator') {
+    const result = game.draw || !game.winnerId
+      ? 'La partida terminó en empate.'
+      : `Ganó <b>${esc(game.players?.[game.winnerId]?.name ?? 'un jugador')}</b>.`;
+    return `<div class="end-celebration end-spectator" data-outcome="spectator" role="status" aria-live="assertive"><div class="outcome-card"><small>FIN DE LA PARTIDA</small><strong>SE TERMINÓ</strong><span>${result} Entrás en la próxima.</span></div></div>`;
+  }
   if (outcome === 'draw') {
     return '<div class="end-celebration end-draw" data-outcome="draw" role="status" aria-live="assertive"><div class="outcome-card"><small>FIN DE LA PARTIDA</small><strong>EMPATE</strong><span>Todos quedaron pelados.</span></div></div>';
   }
@@ -428,6 +435,7 @@ function render() {
   } else {
     const game = s.game;
     const me = game.players[api.uid];
+    const lateSpectator = !me && !(game.memberIds || []).includes(api.uid);
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
     const outcome = terminal && game.phase === 'finished' ? outcomeKind(game, api.uid) : null;
@@ -436,8 +444,10 @@ function render() {
     const order = [...seats.filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
     const activeCount = Object.values(game.players).filter(player => player.hair > 0).length;
     const chosenCount = Object.keys(game.chosen || {}).filter(uid => game.players[uid]?.hair > 0 && game.chosen[uid]).length;
-    const spectating = !terminal && me?.hair <= 0;
-    const spectatorStrip = spectating ? `<div class="spectator-strip"><strong>PELADO · MIRANDO</strong><span>${activeCount} siguen con Pelo</span></div>` : '';
+    const spectating = !terminal && (lateSpectator || me?.hair <= 0);
+    const spectatorStrip = lateSpectator && !terminal
+      ? `<div class="spectator-strip is-waiting"><strong>ESPECTADOR · PRÓXIMA PARTIDA</strong><span>Entrás cuando vuelvan al lobby</span></div>`
+      : spectating ? `<div class="spectator-strip"><strong>PELADO · MIRANDO</strong><span>${activeCount} siguen con Pelo</span></div>` : '';
     const actionPrompt = s.targeting ? '¡APUNTÁ!' : me?.breath < 1 ? '¡TOMÁ AIRE!' : '¡ELEGÍ!';
     const actionHint = s.targeting
       ? 'Tocá un rival o soltá el Soplo encima.'
@@ -449,7 +459,7 @@ function render() {
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     const countdownSplash = game.phase === 'countdown' ? '<div class="countdown-splash" aria-hidden="true"><strong data-countdown-splash>3</strong><span>¡PREPARATE!</span></div>' : '';
     const lobbyReturn = game.phase === 'finished' ? '<div class="lobby-return-countdown" data-lobby-return hidden aria-live="polite"></div>' : '';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -593,7 +603,7 @@ function tick() {
     board.style.setProperty('--turn-progress', String(remaining / duration));
   }
   if (!acknowledging && Date.now() - lastAck > 1000 && s.nameConfirmed && !document.hidden && s.online && game.protocolVersion === 2
-    && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
+    && game.memberIds?.includes(api.uid) && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
     acknowledging = true; lastAck = Date.now();
     call('acknowledgeRound', { gameId: s.gameId, turn: game.turn })
       .catch(showError).finally(() => { acknowledging = false; });
@@ -606,7 +616,12 @@ function tick() {
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
   const staleAt = millis(game.lastProgressAt || game.phaseStartedAt || game.finishedAt);
   if (!abandoning && staleAt > 0 && now() - staleAt > ABANDON_MS && !['abandoned'].includes(game.phase) && s.online && Date.now() - lastAbandonAttempt > 1500) {
-    abandoning = true; lastAbandonAttempt = Date.now();
+    lastAbandonAttempt = Date.now();
+    if (!game.memberIds?.includes(api.uid)) {
+      resetRoomSession('La partida que estabas mirando venció por inactividad. Podés volver a entrar a otra sala.');
+      return;
+    }
+    abandoning = true;
     const gameId = s.gameId;
     resetRoomSession('La partida venció por inactividad. Podés crear una sala nueva.');
     void call('abandonGame', { gameId }).catch(() => {}).finally(() => { abandoning = false; });
