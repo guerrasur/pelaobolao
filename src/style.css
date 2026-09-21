@@ -2826,9 +2826,10 @@ header { min-height:48px; }
   width:clamp(66px,18vw,86px);
   height:clamp(66px,18vw,86px);
   transform:translate(-50%,-50%);
-  pointer-events:auto;
+  pointer-events:none;
 }
 .center-item-slot .center-item {
+  z-index:9;
   left:50%;
   top:50%;
   pointer-events:auto;
