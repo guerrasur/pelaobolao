@@ -280,15 +280,17 @@ function resultHtml(game) {
   const blows = actions.filter(action => action.action === 'blow').length;
   const breaths = actions.filter(action => action.action === 'air').length;
   const hides = actions.filter(action => action.action === 'hide').length;
+  const distracted = actions.filter(action => action.action === 'distracted').length;
   const blockedCount = (result.hits || []).filter(hit => hit.blocked).length;
   const hairLost = Object.values(result.losses || {}).reduce((total, loss) => total + Number(loss || 0), 0);
   return `<section class="result" aria-label="Resultado actual">
     <div class="result-head"><h2>Turno ${esc(result.turn)}</h2><div class="result-summary" aria-label="Resumen del turno">
-      ${blows ? `<span>💨 ${blows} soplo${blows === 1 ? '' : 's'}</span>` : ''}
-      ${breaths ? `<span>🫁 ${breaths} aire${breaths === 1 ? '' : 's'}</span>` : ''}
-      ${hides ? `<span>🪑 ${hides} escondido${hides === 1 ? '' : 's'}</span>` : ''}
-      ${blockedCount ? `<span>🛡 ${blockedCount} bloqueado${blockedCount === 1 ? '' : 's'}</span>` : ''}
-      ${hairLost ? `<span class="danger">✂ −${hairLost} Pelo</span>` : '<span>Sin daño</span>'}
+      ${blows ? `<span data-kind="blow"><b>ATAQUE</b> ${blows}</span>` : ''}
+      ${breaths ? `<span data-kind="air"><b>AIRE</b> ${breaths}</span>` : ''}
+      ${hides ? `<span data-kind="hide"><b>ABAJO</b> ${hides}</span>` : ''}
+      ${distracted ? `<span data-kind="distracted"><b>DISTRAÍDO</b> ${distracted}</span>` : ''}
+      ${blockedCount ? `<span data-kind="block"><b>BLOQ.</b> ${blockedCount}</span>` : ''}
+      ${hairLost ? `<span class="danger" data-kind="damage"><b>PELO</b> −${hairLost}</span>` : '<span data-kind="safe"><b>PELO</b> SIN DAÑO</span>'}
     </div></div>
     <ul>${Object.entries(result.actions).map(([uid, action]) => {
       const playerName = esc(game.players[uid]?.name ?? 'Jugador');
@@ -343,12 +345,13 @@ function render() {
     const order = [...seats.filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
     const activeCount = Object.values(game.players).filter(player => player.hair > 0).length;
     const chosenCount = Object.keys(game.chosen || {}).filter(uid => game.players[uid]?.hair > 0 && game.chosen[uid]).length;
+    const actionPrompt = s.targeting ? '¡APUNTÁ!' : me?.breath < 1 ? '¡TOMÁ AIRE!' : '¡ELEGÍ!';
     const actionHint = s.targeting
-      ? 'Elegí un rival · tocá su tarjeta o soltá encima.'
+      ? 'Tocá un rival o soltá el Soplo encima.'
       : me?.breath < 1
-        ? 'Sin Soplos · Tomá aire para poder atacar.'
-        : 'SOPLAR: arrastrá al rival o tocá y después elegilo.';
-    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<p class="play-hint ${s.targeting ? 'is-targeting' : ''}">${actionHint}</p>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${s.targeting ? 'Modo objetivo activo. Tocá SOPLAR de nuevo para cancelar.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Elegí una jugada · si no elegís: Distraído'}</p>` : '';
+        ? 'No tenés Soplos para atacar.'
+        : 'Soplá, tomá aire o escondete.';
+    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${s.targeting ? 'Tocá SOPLAR de nuevo para cancelar.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Si no elegís a tiempo: Distraído'}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     html = `<section class="game" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
