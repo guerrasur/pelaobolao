@@ -136,4 +136,31 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   const winner = renderPlayerCard({ ...base, player:{ ...base.player, hair:2 }, connected:true, winner:true, effects:{ action:'air' } });
   assert.match(winner, /player [^"]*winner/);
   assert.match(winner, /rx="3\.7"/);
+  const self = renderPlayerCard({ ...base, self:true, connected:true, effects:{} });
+  assert.match(self, /self-tag">VOS/);
+  assert.doesNotMatch(self, /\(vos\)/);
+});
+
+
+test('modo objetivo expone una guía clara sin revelar elecciones ajenas', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = { code:'ABCD', status:'playing', hostId:'me', members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId = 'g1';
+  ui.s.game = {
+    phase:'choosing', turn:1, protocolVersion:2, phaseStartedAt:now,
+    deadline:now+8000, memberIds:['me','other'], chosen:{}, ready:{},
+    players:{ me:{name:'Ana',hair:3,breath:1}, other:{name:'Beto',hair:3,breath:0} },
+    rules:{ maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500 },
+  };
+  ui.s.targeting = true;
+  ui.render();
+  const html = ui.nodes.get('#app').innerHTML;
+  assert.match(html, /data-targeting="true"/);
+  assert.match(html, /Modo objetivo activo/);
+  assert.doesNotMatch(html, /Beto.*Tomar aire/);
 });
