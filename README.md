@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.6.9): pantalla final personalizada por jugador: confeti + ¡GANASTE! para el ganador, tomatazos + PERDISTE para quien pierde, ganador indicado aparte, sonidos/háptica distintos y pruebas de overflow/compatibilidad móvil.
+Última corrección (0.7.0): corrige botones de jugador falsamente interactivos y bloqueos por version.json viejo, suma modo espectador para Pelados, countdown 3-2-1 de tiza y sellos visuales en el resultado del turno.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
