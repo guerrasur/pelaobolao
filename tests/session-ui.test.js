@@ -269,3 +269,26 @@ test('jugador pelado entra en modo espectador sin controles de acción', async (
   assert.match(html,/2 siguen con Pelo/);
   assert.doesNotMatch(html,/class="controls"/);
 });
+
+
+test('countdown muestra splash de tiza sin reemplazar el tablero', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'countdown',turn:1,protocolVersion:2,phaseStartedAt:now,deadline:now+3000,
+    memberIds:['me','other'],chosen:{},ready:{},
+    players:{me:{name:'Ana',hair:3,breath:0},other:{name:'Beto',hair:3,breath:0}},
+    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500},
+  };
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/countdown-splash/);
+  assert.match(html,/data-countdown-splash/);
+  assert.match(html,/¡PREPARATE!/);
+});
