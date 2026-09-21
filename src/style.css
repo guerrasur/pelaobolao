@@ -2094,3 +2094,99 @@ header { min-height:48px; }
   .tomato { opacity:.82; transform:scaleX(1.35) scaleY(.72) rotate(var(--rot)); }
   .tomato::after { opacity:.55; transform:scale(1); }
 }
+
+
+/* v0.7.0 — spectator ticket and round spotlight */
+.spectator-strip {
+  position:relative;
+  align-self:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:30px;
+  margin:6px 0 4px;
+  padding:5px 12px;
+  border:2px solid #202633;
+  border-radius:3px;
+  background:repeating-linear-gradient(0deg,#f2ecdf 0 13px,#d5c9b8 14px 15px);
+  color:#3e3434;
+  box-shadow:2px 3px 0 #49352380;
+  transform:rotate(-1deg);
+}
+.spectator-strip::before,
+.spectator-strip::after {
+  content:'';
+  position:absolute;
+  top:50%;
+  width:9px;
+  height:14px;
+  background:#c88d49;
+  border:2px solid #202633;
+  border-radius:50%;
+  transform:translateY(-50%);
+}
+.spectator-strip::before { left:-7px; }
+.spectator-strip::after { right:-7px; }
+.spectator-strip strong {
+  color:#b52645;
+  font-size:10px;
+  font-weight:1000;
+  letter-spacing:.45px;
+}
+.spectator-strip span {
+  font-size:9px;
+  font-weight:800;
+}
+
+.result-callout {
+  width:max-content;
+  max-width:100%;
+  margin:-2px auto 5px;
+  padding:3px 10px;
+  border:2px solid #202633;
+  border-radius:2px;
+  background:#ffdf4f;
+  color:#3d2d18;
+  box-shadow:2px 2px 0 #202633;
+  transform:rotate(-1.4deg);
+  font-size:9px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.55px;
+}
+.game[data-impact="hit"] .result-callout {
+  background:#ffd4dd;
+  color:#781d34;
+}
+.game[data-impact="block"] .result-callout {
+  background:#fff0a9;
+  color:#5c4611;
+}
+.player.targetable {
+  cursor:crosshair;
+}
+.game[data-targeting="true"] .player.targetable {
+  filter:saturate(1.08) brightness(1.03);
+}
+.game[data-targeting="true"] .player:not(.targetable):not(.self) {
+  filter:saturate(.66) brightness(.94);
+}
+
+@media(max-height:700px) {
+  .spectator-strip {
+    min-height:22px;
+    margin:2px 0;
+    padding:2px 8px;
+    gap:5px;
+  }
+  .spectator-strip strong { font-size:8px; }
+  .spectator-strip span { font-size:7px; }
+  .result-callout {
+    margin-bottom:2px;
+    padding:2px 7px;
+    border-width:1px;
+    box-shadow:1px 1px 0 #202633;
+    font-size:7px;
+  }
+}
