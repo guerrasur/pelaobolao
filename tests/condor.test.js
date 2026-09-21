@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aimGuideGeometry, dragGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass, shouldHoldRenderForDrag } from '../src/condor-core.js';
+import { aimGuideGeometry, dragGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass, viewportPixels, shouldHoldRenderForDrag } from '../src/condor-core.js';
 
 test('timerSeconds only accepts rendered second labels', () => {
   assert.equal(timerSeconds('03s'), 3);
@@ -78,4 +78,12 @@ test('active blow drag holds non-critical choosing renders only', () => {
   assert.equal(shouldHoldRenderForDrag(false, 'choosing', false), false);
   assert.equal(shouldHoldRenderForDrag(true, 'locked', false), false);
   assert.equal(shouldHoldRenderForDrag(true, 'choosing', true), false);
+});
+
+
+test('mobile viewport prefers the visual viewport and has a safe layout fallback', () => {
+  assert.deepEqual(viewportPixels(390, 844, 390, 760.4), { width:390, height:760 });
+  assert.deepEqual(viewportPixels(390, 844, 0, undefined), { width:390, height:844 });
+  assert.equal(viewportPixels(0, 844), null);
+  assert.equal(viewportPixels(390, NaN), null);
 });
