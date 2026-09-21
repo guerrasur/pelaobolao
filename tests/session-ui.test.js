@@ -183,7 +183,7 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(self, /--hair-fill:0\.25/);
   const selected = renderPlayerCard({ ...base, connected:true, selected:true, effects:{} });
   assert.match(selected, /selected-target/);
-  assert.match(selected, /ATAQUE ELEGIDO/);
+  assert.doesNotMatch(selected, /ATAQUE ELEGIDO|attack-target-badge/);
 });
 
 
@@ -374,7 +374,7 @@ test('late joiner sees next-match queue position while active players see the sa
 });
 
 
-test('+1 Pelo aparece en el centro y es un objetivo de Soplar sin convertirse en jugador', async () => {
+test('el Mechón flotante usa una capa propia y es una acción gratis vulnerable', async () => {
   const ui = await setup();
   const now = Date.now();
   ui.s.roomId='ABCD';
@@ -384,20 +384,25 @@ test('+1 Pelo aparece en el centro y es un objetivo de Soplar sin convertirse en
   }};
   ui.s.gameId='g1';
   ui.s.game={
-    phase:'choosing',turn:3,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    phase:'choosing',turn:4,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
     memberIds:['me','other'],chosen:{},ready:{},
-    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:3,source:'random'},
-    players:{me:{name:'Ana',hair:2,breath:1},other:{name:'Beto',hair:3,breath:0}},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'random'},
+    players:{me:{name:'Ana',hair:2,breath:0},other:{name:'Beto',hair:3,breath:0}},
     rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
-  ui.s.targeting=true;
   ui.render();
   const html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/class="center-item hair-item targetable/);
+  assert.match(html,/class="table-stage has-center-item"/);
+  assert.match(html,/class="center-item-layer"/);
+  assert.match(html,/class="floating-hair-art"/);
   assert.match(html,/data-center-item="__center_item__"/);
-  assert.match(html,/>\+1 PELO<\/strong>/);
-  assert.match(html,/1 SOPLO/);
-  assert.match(html,/Tocá un rival o el \+1 Pelo del centro/);
+  assert.match(html,/MECHÓN FLOTANTE/);
+  assert.match(html,/\+1 PELO/);
+  assert.match(html,/SIN COSTO · VULNERABLE/);
+  assert.match(html,/No cuesta Soplos/);
+  assert.doesNotMatch(html,/1 SOPLO/);
+  assert.ok(html.indexOf('class="center-item-layer"') > html.indexOf('class="players"'),
+    'el item debe quedar fuera del grid de jugadores');
 });
 
 test('resultado del objeto distingue curación, disputa y permanencia', async () => {
@@ -416,7 +421,7 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
     rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
   ui.s.game={...base,lastResult:{
-    turn:3,actions:{me:{action:'blow',target:CENTER_ITEM_TARGET},other:{action:'hide',target:null}},
+    turn:3,actions:{me:{action:'grab',target:CENTER_ITEM_TARGET},other:{action:'hide',target:null}},
     hits:[],losses:{me:0,other:0},heals:{me:1},
     item:{kind:HAIR_ITEM_KIND,outcome:'claimed',attempts:['me'],winnerId:'me',healed:1,claimantAlive:true,spawnedTurn:3},
   }};
@@ -425,10 +430,10 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
   assert.match(html,/PELO RECUPERADO/);
   assert.match(html,/Ana recuperó 1 Pelo/);
   assert.match(html,/data-kind="heal"/);
-  assert.match(html,/Soplar → \+1 Pelo/);
+  assert.match(html,/Agarrar mechón/);
 
   ui.s.game={...base,lastResult:{
-    turn:3,actions:{me:{action:'blow',target:CENTER_ITEM_TARGET},other:{action:'blow',target:CENTER_ITEM_TARGET}},
+    turn:3,actions:{me:{action:'grab',target:CENTER_ITEM_TARGET},other:{action:'grab',target:CENTER_ITEM_TARGET}},
     hits:[],losses:{me:0,other:0},heals:{},
     item:{kind:HAIR_ITEM_KIND,outcome:'contested',attempts:['me','other'],winnerId:null,healed:0,spawnedTurn:3},
   }};
@@ -439,7 +444,7 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
 });
 
 
-test('Plan Condor: el item explica su costo y no se renderiza encima del final de partida', async () => {
+test('Plan Aguila: el mechón explica vulnerabilidad y no se renderiza encima del final', async () => {
   const ui=await setup();
   const now=Date.now();
   ui.s.roomId='ABCD';
@@ -449,19 +454,20 @@ test('Plan Condor: el item explica su costo y no se renderiza encima del final d
   }};
   ui.s.gameId='g1';
   const base={
-    turn:3,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    turn:4,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
     memberIds:['me','other'],chosen:{},ready:{},
-    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:3,source:'random'},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'random'},
     players:{me:{name:'Ana',hair:4,breath:1},other:{name:'Beto',hair:2,breath:0}},
     rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
   ui.s.game={...base,phase:'choosing'};
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/\+1 PELO EN JUEGO/);
+  assert.match(html,/MECHÓN FLOTANTE/);
   assert.match(html,/Tenés Pelo al máximo/);
   assert.match(html,/item-new-badge">NUEVO/);
-  assert.match(html,/aria-disabled="true"/);
+  assert.match(html,/aria-disabled="false"/);
+  assert.match(html,/SIN COSTO · VULNERABLE/);
 
   ui.s.game={...base,phase:'finished',winnerId:'me',draw:false,finishedAt:now,lastResult:{
     turn:3,actions:{me:{action:'hide',target:null},other:{action:'distracted',target:null}},
@@ -473,7 +479,7 @@ test('Plan Condor: el item explica su costo y no se renderiza encima del final d
   assert.match(html,/¡GANASTE!/);
 });
 
-test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el intercambio de Pelo', async () => {
+test('Plan Aguila: el resumen separa ataques de la acción de agarrar y comunica el intercambio de Pelo', async () => {
   const ui=await setup();
   const now=Date.now();
   ui.s.roomId='ABCD';
@@ -491,7 +497,7 @@ test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el i
     lastResult:{
       turn:4,
       actions:{
-        me:{action:'blow',target:CENTER_ITEM_TARGET},
+        me:{action:'grab',target:CENTER_ITEM_TARGET},
         other:{action:'blow',target:'me'},
         third:{action:'hide',target:null},
       },
@@ -505,7 +511,7 @@ test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el i
   const html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/PELO VA, PELO VIENE/);
   assert.match(html,/data-kind="blow"><b>ATAQUE<\/b> 1/);
-  assert.match(html,/data-kind="item"><b>OBJETO<\/b> 1/);
+  assert.match(html,/data-kind="item"><b>MECHÓN<\/b> 1/);
   assert.match(html,/data-kind="damage"/);
   assert.match(html,/data-kind="heal"/);
 });
