@@ -100,6 +100,9 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   }
   await a.getByRole('button', { name: 'Volver al lobby / revancha' }).click();
   await expect(b.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
+  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
+  for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
+  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
   await a.getByRole('button', { name: 'Iniciar partida' }).click();
   await turn(1);
   await expect(a.locator('[data-player]').filter({ hasText: 'Ana' })).toContainText('Pelo 3/4');
