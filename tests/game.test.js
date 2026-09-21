@@ -322,3 +322,22 @@ test('un objeto existente bloquea nuevos spawns', () => {
   assert.deepEqual(scheduled.centerItem, state.centerItem);
   assert.equal(scheduled.lastItemSpawnTurn, 3);
 });
+
+
+test('cooldown del item empieza cuando sale del escritorio aunque haya quedado varios turnos', () => {
+  const state = game();
+  state.turn = 8;
+  state.centerItem = null;
+  state.lastItemSpawnTurn = 3;
+  state.lastResult = { item: { kind: HAIR_ITEM_KIND, outcome: 'claimed', attempts: ['0'], winnerId: '0', healed: 1, spawnedTurn: 3 } };
+  const afterClaim = scheduleCenterItem(state, 9);
+  assert.equal(afterClaim.centerItem, null);
+  assert.equal(afterClaim.lastItemSpawnTurn, 8);
+
+  state.turn = 9;
+  state.lastResult = { item: null };
+  state.lastItemSpawnTurn = afterClaim.lastItemSpawnTurn;
+  const oneMoreRound = scheduleCenterItem(state, 10);
+  assert.equal(oneMoreRound.centerItem, null);
+  assert.equal(oneMoreRound.lastItemSpawnTurn, 8);
+});
