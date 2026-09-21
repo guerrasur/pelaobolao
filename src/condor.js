@@ -52,7 +52,7 @@ function pulseClass(node, className, duration = 650) {
 
 function updateAimGuide(board) {
   const sourcePlayer = board?.querySelector('.player.self');
-  const targetPlayer = board?.querySelector('.player.selected-target, .center-item.selected-target');
+  const targetPlayer = board?.querySelector('.player.selected-target');
   const source = sourcePlayer?.querySelector('.avatar-wrap') ?? sourcePlayer;
   const target = targetPlayer?.querySelector('.avatar-wrap') ?? targetPlayer;
   let guide = board?.querySelector('.condor-aim-guide');
@@ -74,7 +74,7 @@ function updateAimGuide(board) {
     board.append(guide);
   }
   const label = guide.querySelector('b');
-  const targetName = targetPlayer?.querySelector('.player-label, .item-label')?.textContent?.trim();
+  const targetName = targetPlayer?.querySelector('.player-label')?.textContent?.trim();
   const nextLabel = targetName ? `SOPLO → ${targetName}` : 'ATAQUE';
   if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
   const stopShort = Math.min(targetRect.width, targetRect.height) * .42;
@@ -158,8 +158,8 @@ export function startCondor(root = document) {
     }
     lastBoard = board;
 
-    const target = board.querySelector('.player.selected-target, .center-item.selected-target');
-    const targetUid = target?.dataset.player ?? target?.dataset.centerItem ?? null;
+    const target = board.querySelector('.player.selected-target');
+    const targetUid = target?.dataset.player ?? null;
     if (targetUid && targetUid !== lastTargetUid) {
       pulseClass(target, 'condor-target-lock', 620);
       playCue('target');
