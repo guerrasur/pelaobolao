@@ -7,7 +7,7 @@
 - Un cambio crítico de estado (fin de elección, bloqueo de versión, etc.) sí cancela el drag y limpia ghost/vector antes de reemplazar el DOM.
 - Al ocultar la pestaña/app o abandonar la página se cancela explícitamente cualquier drag transitorio, evitando overlays o captura residual al volver.
 - Se añade una función pura y regresión unitaria para cubrir qué renders pueden mantenerse durante un drag y cuáles deben pasar inmediatamente.
-- Se corrige la deriva de metadatos: `package-lock.json` había quedado en 0.19.0 mientras la app ya estaba en 0.20.0; toda la publicación queda alineada en 0.21.0.
+- Se corrige la deriva de metadatos: `package-lock.json` había quedado en 0.19.0 mientras la app ya estaba en 0.20.0; toda la publicación queda alineada en 0.21.0, incluida la clave de caché del Service Worker.
 - Sin cambios en daño, Pelo, Soplos, objetos, resolución simultánea, Firestore Rules ni autoridad del host.
 
 ## 0.20.0 — Plan Cóndor: targeting estable en viewport móvil
