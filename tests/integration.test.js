@@ -368,3 +368,26 @@ test('Plan Aguila: late joiners spectate safely and enter the next lobby', async
   assert.equal(lobby.members[watcher.uid].ready,false);
   assert.equal(lobby.members[leavingWatcher.uid],undefined);
 });
+
+
+test('Plan Condor: el host limpia espectadores tardíos vencidos sin tocar participantes ni la partida', async () => {
+  const {a,b,gameId,roomId}=await started();
+  const uid=`stale-watcher-${++seq}`;
+  const db=env.authenticatedContext(uid).firestore();
+  const client=createClient(db,uid);
+  await client.call('saveProfile',{name:'Espectador'});
+  await client.call('roomCommand',{command:'join',code:roomId});
+  assert.ok((await read(a.db,`rooms/${roomId}`)).members[uid]);
+
+  await patch(`rooms/${roomId}`,{[`members.${uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-LOBBY_LEASE_MS-5000)});
+  await a.client.call('roomCommand',{command:'touch',roomId});
+
+  const room=await read(a.db,`rooms/${roomId}`);
+  const game=await read(a.db,`games/${gameId}`);
+  assert.equal(room.members[uid],undefined);
+  assert.ok(room.members[a.uid]);
+  assert.ok(room.members[b.uid]);
+  assert.equal(room.status,'playing');
+  assert.equal(room.gameId,gameId);
+  assert.notEqual(game.phase,'abandoned');
+});
