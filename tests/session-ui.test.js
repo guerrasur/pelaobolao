@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS } from '../src/game.js';
+import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND } from '../src/game.js';
 import { playerCard as renderPlayerCard } from '../src/visuals.js';
 import { isNewerVersion } from '../src/version.js';
 import { dragGuideGeometry } from '../src/condor-core.js';
@@ -30,7 +30,7 @@ async function setup(handler = async () => ({})) {
       const sub = { path, next, error, active: true }; subscriptions.push(sub);
       return () => { sub.active = false; };
     },
-    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, isNewerVersion, dragGuideGeometry,
+    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND, isNewerVersion, dragGuideGeometry,
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');
@@ -371,4 +371,69 @@ test('late joiner sees next-match queue position while active players see the sa
   html=player.nodes.get('#app').innerHTML;
   assert.match(html,/data-waiting-ids="next"/);
   assert.match(html,/Cami/);
+});
+
+
+test('+1 Pelo aparece en el centro y es un objetivo de Soplar sin convertirse en jugador', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:3,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other'],chosen:{},ready:{},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:3,source:'random'},
+    players:{me:{name:'Ana',hair:2,breath:1},other:{name:'Beto',hair:3,breath:0}},
+    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.s.targeting=true;
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/class="center-item hair-item targetable/);
+  assert.match(html,/data-center-item="__center_item__"/);
+  assert.match(html,/>\+1 PELO<\/strong>/);
+  assert.match(html,/1 SOPLO/);
+  assert.match(html,/Tocá un rival o el \+1 Pelo del centro/);
+});
+
+test('resultado del objeto distingue curación, disputa y permanencia', async () => {
+  const ui = await setup();
+  const now=Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  const base={
+    phase:'reveal',turn:3,protocolVersion:2,phaseStartedAt:now,
+    memberIds:['me','other'],chosen:{me:true,other:true},ready:{},centerItem:null,
+    players:{me:{name:'Ana',hair:3,breath:0},other:{name:'Beto',hair:3,breath:0}},
+    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.s.game={...base,lastResult:{
+    turn:3,actions:{me:{action:'blow',target:CENTER_ITEM_TARGET},other:{action:'hide',target:null}},
+    hits:[],losses:{me:0,other:0},heals:{me:1},
+    item:{kind:HAIR_ITEM_KIND,outcome:'claimed',attempts:['me'],winnerId:'me',healed:1,claimantAlive:true,spawnedTurn:3},
+  }};
+  ui.render();
+  let html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/PELO RECUPERADO/);
+  assert.match(html,/Ana recuperó 1 Pelo/);
+  assert.match(html,/data-kind="heal"/);
+  assert.match(html,/Soplar → \+1 Pelo/);
+
+  ui.s.game={...base,lastResult:{
+    turn:3,actions:{me:{action:'blow',target:CENTER_ITEM_TARGET},other:{action:'blow',target:CENTER_ITEM_TARGET}},
+    hits:[],losses:{me:0,other:0},heals:{},
+    item:{kind:HAIR_ITEM_KIND,outcome:'contested',attempts:['me','other'],winnerId:null,healed:0,spawnedTurn:3},
+  }};
+  ui.render();
+  html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/OBJETO DISPUTADO/);
+  assert.match(html,/2 fueron por él/);
 });

@@ -1,8 +1,16 @@
 // Rules executed by the current room host. A match snapshots these rules, so later edits affect new games only.
+export const CENTER_ITEM_TARGET = '__center_item__';
+export const HAIR_ITEM_KIND = 'hair_plus_1';
+
 export const RULES = Object.freeze({
-  version: 1, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
+  version: 2, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
   minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 2500,
   countdownMs: 3000,
+  centerItems: true,
+  itemMinGap: 3,
+  itemCriticalGap: 2,
+  itemPityGap: 5,
+  itemSpawnChance: 0.55,
 });
 export const LOBBY_LEASE_MS = 45000;
 export const GAME_HOST_LEASE_MS = 5000;
@@ -50,6 +58,65 @@ export function validId(value) {
   requireThat(typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value), 'Identificador inválido.', 'invalid-argument');
   return value;
 }
+
+function stableUnit(value) {
+  let hash = 2166136261;
+  for (const char of String(value)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967296;
+}
+
+function hairItem(turn, source) {
+  return { kind: HAIR_ITEM_KIND, spawnedTurn: turn, source };
+}
+
+// Item appearance is deterministic from the match seed so a host handoff cannot reroll it.
+// Normal appearance becomes eligible after three turns, is semi-random, and has a five-turn pity.
+// A clear HP disparity (1 Pelo vs 3+) can intentionally surface it sooner, with a two-turn cooldown.
+export function scheduleCenterItem(game, nextTurn) {
+  const current = game?.centerItem ?? null;
+  const lastItemSpawnTurn = Number.isInteger(game?.lastItemSpawnTurn) ? game.lastItemSpawnTurn : 0;
+  if (!game?.rules?.centerItems || current || !Number.isInteger(nextTurn) || nextTurn < 2) {
+    return { centerItem: current, lastItemSpawnTurn };
+  }
+
+  const active = Object.values(game.players || {}).filter(player => player.hair > 0);
+  if (active.length <= 1) return { centerItem: null, lastItemSpawnTurn };
+
+  const minGap = Number(game.rules.itemMinGap ?? 3);
+  const criticalGap = Number(game.rules.itemCriticalGap ?? 2);
+  const pityGap = Number(game.rules.itemPityGap ?? 5);
+  const chance = Number(game.rules.itemSpawnChance ?? 0.55);
+  const sinceLast = lastItemSpawnTurn > 0 ? nextTurn - lastItemSpawnTurn : nextTurn;
+
+  if (lastItemSpawnTurn > 0 && sinceLast < criticalGap) {
+    return { centerItem: null, lastItemSpawnTurn };
+  }
+
+  const hairs = active.map(player => Number(player.hair || 0));
+  const minHair = Math.min(...hairs);
+  const maxHair = Math.max(...hairs);
+  if (minHair === 1 && maxHair - minHair >= 2) {
+    return { centerItem: hairItem(nextTurn, 'critical'), lastItemSpawnTurn: nextTurn };
+  }
+
+  if (nextTurn < 3 || (lastItemSpawnTurn > 0 && sinceLast < minGap)) {
+    return { centerItem: null, lastItemSpawnTurn };
+  }
+
+  if (sinceLast >= pityGap) {
+    return { centerItem: hairItem(nextTurn, 'pity'), lastItemSpawnTurn: nextTurn };
+  }
+
+  const seed = game.itemSeed ?? `${game.roomId ?? 'room'}:${millis(game.createdAt)}`;
+  if (stableUnit(`${seed}:${nextTurn}:${HAIR_ITEM_KIND}`) < chance) {
+    return { centerItem: hairItem(nextTurn, 'random'), lastItemSpawnTurn: nextTurn };
+  }
+  return { centerItem: null, lastItemSpawnTurn };
+}
+
 export function validateIntent(game, uid, intent, now) {
   requireThat(game.phase === 'choosing' && intent.turn === game.turn, 'Ese turno ya terminó.');
   requireThat(now < phaseDeadline(game), 'La acción llegó fuera de tiempo.', 'deadline-exceeded');
@@ -57,7 +124,9 @@ export function validateIntent(game, uid, intent, now) {
   requireThat(['air', 'hide', 'blow'].includes(intent.action), 'Acción inválida.', 'invalid-argument');
   if (intent.action === 'blow') {
     requireThat(game.players[uid].breath >= 1, 'Necesitás un Soplo.');
-    requireThat(intent.target !== uid && game.players[intent.target]?.hair > 0, 'Elegí otro jugador activo.');
+    const playerTarget = intent.target !== uid && game.players[intent.target]?.hair > 0;
+    const itemTarget = intent.target === CENTER_ITEM_TARGET && game.centerItem?.kind === HAIR_ITEM_KIND;
+    requireThat(playerTarget || itemTarget, 'Elegí otro jugador activo o el objeto del centro.');
   } else {
     requireThat(intent.target === null, 'Esta acción no tiene objetivo.', 'invalid-argument');
   }
@@ -71,12 +140,16 @@ export function newGame(roomId, members, now, rules = RULES) {
     players: Object.fromEntries(ids.map(uid => [uid, {
       name: members[uid].name, hair: rules.initialHair, breath: rules.initialBreath,
     }])),
+    centerItem: null,
+    lastItemSpawnTurn: 0,
+    itemSeed: `${roomId}:${now}:${ids.join('.')}`,
     phase: 'countdown', turn: 1, countdownEndsAt: now + rules.countdownMs, deadline: now + rules.countdownMs + rules.turnMs,
     nextTurnAt: null, lastResult: null, winnerId: null, draw: false, createdAt: now,
   };
 }
 
 // Pure function called by the host. All actions use the pre-turn snapshot.
+// Player damage resolves before the center item can heal anyone.
 export function resolveRound(game, intents) {
   const players = structuredClone(game.players);
   const actions = {};
@@ -90,24 +163,53 @@ export function resolveRound(game, intents) {
       actions[uid] = { action: intent.action, target: intent.target };
     } catch { actions[uid] = { action: 'distracted', target: null }; }
   }
+
   const hits = [];
+  const itemAttempts = [];
   for (const [uid, intent] of Object.entries(actions)) {
     if (intent.action === 'air') players[uid].breath = Math.min(game.rules.maxBreath, players[uid].breath + 1);
     if (intent.action === 'blow') {
       players[uid].breath -= 1;
+      if (intent.target === CENTER_ITEM_TARGET) {
+        itemAttempts.push(uid);
+        continue;
+      }
       const blocked = actions[intent.target]?.action === 'hide';
       hits.push({ from: uid, to: intent.target, blocked });
       if (!blocked) players[intent.target].hair = Math.max(0, players[intent.target].hair - 1);
     }
   }
+
+  const hairAfterDamage = Object.fromEntries(Object.entries(players).map(([uid, player]) => [uid, player.hair]));
+  const losses = Object.fromEntries(Object.keys(players).map(uid => [uid, game.players[uid].hair - hairAfterDamage[uid]]));
+  const heals = {};
+  let centerItem = game.centerItem ?? null;
+  let item = null;
+
+  if (centerItem) {
+    if (itemAttempts.length === 0) {
+      item = { kind: centerItem.kind, outcome: 'stayed', attempts: [], winnerId: null, healed: 0, spawnedTurn: centerItem.spawnedTurn };
+    } else if (itemAttempts.length === 1) {
+      const winnerId = itemAttempts[0];
+      const before = players[winnerId].hair;
+      if (before > 0) players[winnerId].hair = Math.min(game.rules.maxHair, before + 1);
+      const healed = before > 0 ? players[winnerId].hair - before : 0;
+      if (healed > 0) heals[winnerId] = healed;
+      item = { kind: centerItem.kind, outcome: 'claimed', attempts: itemAttempts, winnerId, healed,
+        claimantAlive: before > 0, spawnedTurn: centerItem.spawnedTurn };
+      centerItem = null;
+    } else {
+      item = { kind: centerItem.kind, outcome: 'contested', attempts: itemAttempts, winnerId: null, healed: 0, spawnedTurn: centerItem.spawnedTurn };
+      centerItem = null;
+    }
+  }
+
   const survivors = Object.keys(players).filter(uid => players[uid].hair > 0);
   return {
-    players, finished: survivors.length <= 1,
+    players, centerItem, finished: survivors.length <= 1,
     winnerId: survivors.length === 1 ? survivors[0] : null,
     draw: survivors.length === 0,
-    result: { turn: game.turn, actions, hits, losses: Object.fromEntries(
-      Object.keys(players).map(uid => [uid, game.players[uid].hair - players[uid].hair])),
-    },
+    result: { turn: game.turn, actions, hits, losses, heals, item },
   };
 }
 

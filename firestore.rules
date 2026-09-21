@@ -133,7 +133,7 @@ service cloud.firestore {
       allow create: if validGameCreate();
       allow update: if participant(resource.data) && (selfSignal() || abandonTransition()
         || (host(room(resource.data.roomId)) && room(resource.data.roomId).gameId == id
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','turn','phase','winnerId','draw','nextTurnAt','finishedAt','abandonedAt','deadline','countdownEndsAt','phaseStartedAt','lastProgressAt','ready','chosen'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players','centerItem','lastItemSpawnTurn','lastResult','resolvedTurn','turn','phase','winnerId','draw','nextTurnAt','finishedAt','abandonedAt','deadline','countdownEndsAt','phaseStartedAt','lastProgressAt','ready','chosen'])
         && validGameTransition()));
       function abandonTransition() {
         let old = resource.data;
@@ -200,12 +200,12 @@ service cloud.firestore {
         || (old.phase == 'locked' && d.turn == old.turn && d.resolvedTurn == old.turn
           && d.lastResult.turn == old.turn && d.phase in ['reveal','finished']
           && d.phaseStartedAt == request.time && d.lastProgressAt == request.time
-          && d.diff(old).affectedKeys().hasOnly(['players','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','phaseStartedAt','lastProgressAt'])
+          && d.diff(old).affectedKeys().hasOnly(['players','centerItem','lastResult','resolvedTurn','phase','winnerId','draw','nextTurnAt','finishedAt','phaseStartedAt','lastProgressAt'])
           && existsAfter(/databases/$(database)/documents/games/$(id)/rounds/$(string(old.turn))))
         || (old.phase == 'reveal' && time >= old.phaseStartedAt.toMillis() + old.rules.revealMs
           && d.phase == 'choosing' && d.turn == old.turn + 1 && d.phaseStartedAt == request.time && d.lastProgressAt == request.time
           && d.ready == {} && d.chosen == {} && d.nextTurnAt == null
-          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','turn','deadline','nextTurnAt','lastProgressAt','ready','chosen']));
+          && d.diff(old).affectedKeys().hasOnly(['phase','phaseStartedAt','turn','deadline','nextTurnAt','centerItem','lastItemSpawnTurn','lastProgressAt','ready','chosen']));
       }
       match /intents/{uid} {
         allow get: if canReadIntent(uid);
@@ -226,8 +226,9 @@ service cloud.firestore {
             && d.keys().hasOnly(['turn','action','target','requestId','revision','submittedAt'])
             && d.turn == g.turn && d.requestId is string && d.revision is int && d.submittedAt == request.time
             && ((d.action in ['air','hide'] && d.target == null)
-              || (d.action == 'blow' && d.target is string && d.target != uid && d.target in g.memberIds
-                && g.players.get(d.target, {}).get('hair', 0) > 0 && actor.get('breath', 0) > 0));
+              || (d.action == 'blow' && d.target is string && d.target != uid && actor.get('breath', 0) > 0
+                && ((d.target in g.memberIds && g.players.get(d.target, {}).get('hair', 0) > 0)
+                  || (d.target == '__center_item__' && g.get('centerItem', {}).get('kind', '') == 'hair_plus_1'))));
         }
       }
       match /rounds/{turnId} {
@@ -241,7 +242,7 @@ service cloud.firestore {
           return signed() && request.auth.uid in g.memberIds && member(r) && r.hostId == request.auth.uid
             && (synced(g) ? g.phase == 'locked' : g.phase == 'choosing' && request.time.toMillis() >= g.deadline)
             && turnId == string(g.turn)
-            && d.keys().hasOnly(['turn','actions','hits','losses','resolvedBy','resolvedAt'])
+            && d.keys().hasOnly(['turn','actions','hits','losses','heals','item','resolvedBy','resolvedAt'])
             && d.turn == g.turn && d.resolvedBy == request.auth.uid && d.resolvedAt == request.time;
         }
       }

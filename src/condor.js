@@ -52,7 +52,7 @@ function pulseClass(node, className, duration = 650) {
 
 function updateAimGuide(board) {
   const sourcePlayer = board?.querySelector('.player.self');
-  const targetPlayer = board?.querySelector('.player.selected-target');
+  const targetPlayer = board?.querySelector('.player.selected-target, .center-item.selected-target');
   const source = sourcePlayer?.querySelector('.avatar-wrap') ?? sourcePlayer;
   const target = targetPlayer?.querySelector('.avatar-wrap') ?? targetPlayer;
   let guide = board?.querySelector('.condor-aim-guide');
@@ -74,7 +74,7 @@ function updateAimGuide(board) {
     board.append(guide);
   }
   const label = guide.querySelector('b');
-  const targetName = targetPlayer?.querySelector('.player-label')?.textContent?.trim();
+  const targetName = targetPlayer?.querySelector('.player-label, .item-label')?.textContent?.trim();
   const nextLabel = targetName ? `SOPLO → ${targetName}` : 'ATAQUE';
   if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
   const stopShort = Math.min(targetRect.width, targetRect.height) * .42;
@@ -98,6 +98,8 @@ export function startCondor(root = document) {
   let lobbyState = new Map();
   let waitingInitialized = false;
   let waitingIds = new Set();
+  let itemInitialized = false;
+  let lastItemTurn = null;
 
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
@@ -137,6 +139,8 @@ export function startCondor(root = document) {
       lastTargetUid = null;
       waitingInitialized = false;
       waitingIds = new Set();
+      itemInitialized = false;
+      lastItemTurn = null;
       enhanceLobby();
       return;
     }
@@ -154,14 +158,23 @@ export function startCondor(root = document) {
     }
     lastBoard = board;
 
-    const target = board.querySelector('.player.selected-target');
-    const targetUid = target?.dataset.player ?? null;
+    const target = board.querySelector('.player.selected-target, .center-item.selected-target');
+    const targetUid = target?.dataset.player ?? target?.dataset.centerItem ?? null;
     if (targetUid && targetUid !== lastTargetUid) {
       pulseClass(target, 'condor-target-lock', 620);
       playCue('target');
     }
     lastTargetUid = targetUid;
     updateAimGuide(board);
+
+    const centerItem = board.querySelector('[data-center-item]');
+    const itemTurn = centerItem?.dataset.itemTurn ?? null;
+    if (centerItem && itemInitialized && itemTurn && itemTurn !== lastItemTurn) {
+      pulseClass(centerItem, 'condor-item-arrive', 820);
+      playCue('item');
+    }
+    lastItemTurn = itemTurn;
+    itemInitialized = true;
 
     const queue = board.querySelector('[data-waiting-ids]');
     const nextWaitingIds = new Set((queue?.dataset.waitingIds || '').split(',').filter(Boolean));

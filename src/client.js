@@ -1,5 +1,5 @@
 import { doc, FieldPath, deleteField, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
-import { RULES, LOBBY_LEASE_MS, GAME_HOST_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
+import { RULES, LOBBY_LEASE_MS, GAME_HOST_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, scheduleCenterItem, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
 import { createServerClock, clockSample } from './clock.js';
 
 export const ROOM_CODE_PATTERN = /^[A-Z2-9]{4}$/;
@@ -269,7 +269,9 @@ export function createClient(db, uid, clock = Date.now) {
         tx.update(ref, { phase: 'choosing', deadline: time + game.rules.turnMs, countdownEndsAt: null,
           lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}) });
       } else if (phase === 'reveal') {
+        const scheduledItem = scheduleCenterItem(game, game.turn + 1);
         tx.update(ref, { phase: 'choosing', turn: game.turn + 1, deadline: time + game.rules.turnMs, nextTurnAt: null,
+          centerItem: scheduledItem.centerItem, lastItemSpawnTurn: scheduledItem.lastItemSpawnTurn,
           lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp(), ready: {}, chosen: {} } : {}) });
       } else {
         if (game.resolvedTurn >= game.turn) return { advanced: false };
@@ -279,7 +281,7 @@ export function createClient(db, uid, clock = Date.now) {
         // This transaction still protects game/host/turn authority and idempotency.
         const result = resolveRound({ ...game, phase: 'choosing' }, resolvedIntents);
         tx.set(resultRef, { ...result.result, resolvedBy: uid, resolvedAt: serverTimestamp() });
-        tx.update(ref, { players: result.players, lastResult: result.result, resolvedTurn: game.turn,
+        tx.update(ref, { players: result.players, centerItem: result.centerItem, lastResult: result.result, resolvedTurn: game.turn,
           phase: result.finished ? 'finished' : 'reveal', winnerId: result.winnerId, draw: result.draw,
           nextTurnAt: result.finished ? null : time + game.rules.revealMs,
           lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}),
