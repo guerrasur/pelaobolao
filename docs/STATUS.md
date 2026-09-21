@@ -1,5 +1,13 @@
 # Estado del MVP Spark
 
+## 0.6.7 — logo limpio y navegación más segura
+
+- El logo sigue centrado, sobre papel rayado y pegado con cinta, pero se eliminó por completo el texto "MENOS PELO · MÁS PROBLEMAS".
+- Tocar el logo durante una sala o partida ya no navega accidentalmente a la raíz; indica que hay que salir de la sala para volver al inicio.
+- Guardar una jugada ya no crea un aviso global redundante que podía reducir momentáneamente el espacio disponible del tablero; el estado Elegido sigue visible en los controles.
+- Se añadieron regresiones E2E para impedir que vuelva el eslogan y para asegurar que tocar el logo no abandone la vista de partida.
+- Sin cambios en reglas de combate ni arquitectura Firebase Spark.
+
 ## 0.6.6 — logo con cinta y pulido de lobby/conexión
 
 - Vuelve el logo de las primeras versiones: papel rayado centrado, inclinado y sujeto con una cinta translúcida.
