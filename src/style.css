@@ -1672,3 +1672,127 @@ header { min-height:48px; }
   header { min-height:37px; }
   .brand { padding:3px 10px; }
 }
+
+
+/* v0.6.8 — compact combat HUD inspired by readable mobile arenas */
+.resource-label {
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  padding:1px 4px;
+  border:1px solid #20263355;
+  border-radius:999px;
+  background:#e8e3d7;
+  font-variant-numeric:tabular-nums;
+}
+.resource-label::before {
+  content:'';
+  position:absolute;
+  z-index:-1;
+  inset:0;
+  transform-origin:left center;
+  opacity:.62;
+}
+.hair-resource::before {
+  background:#63d27c;
+  transform:scaleX(var(--hair-fill,0));
+}
+.breath-resource::before {
+  background:#55b7f4;
+  transform:scaleX(var(--breath-fill,0));
+}
+.player.critical .hair-resource::before { background:#ef5674; }
+.player.eliminated .hair-resource::before { transform:scaleX(0); }
+
+.player.has-chosen:not(.eliminated)::after {
+  content:'✓';
+  position:absolute;
+  z-index:8;
+  top:30px;
+  right:5px;
+  width:16px;
+  height:16px;
+  display:grid;
+  place-items:center;
+  border:1.5px solid #202633;
+  border-radius:50%;
+  background:#5fe09a;
+  color:#173d2b;
+  box-shadow:1px 1px 0 #202633;
+  font-size:10px;
+  font-weight:1000;
+  line-height:1;
+  pointer-events:none;
+}
+.player.winner::after {
+  content:'★';
+  background:#ffdf4f;
+  color:#5b4200;
+}
+
+.play-hint {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:27px;
+  padding:4px 10px;
+  border:2px solid #8e5323;
+  border-radius:6px;
+  background:#fff4c7;
+  transform:rotate(-.6deg);
+}
+.play-hint strong {
+  flex:0 0 auto;
+  color:#9f2146;
+  font-size:13px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.2px;
+}
+.play-hint span {
+  min-width:0;
+  font-size:9px;
+  line-height:1.05;
+  font-weight:750;
+}
+.play-hint.is-targeting strong { color:#6e1830; }
+
+.result-summary span {
+  gap:4px;
+  border-width:1.5px;
+  background:#f3eee2;
+  color:#302a2c;
+  letter-spacing:.05px;
+}
+.result-summary span b {
+  font-size:.88em;
+  font-weight:1000;
+  letter-spacing:.25px;
+}
+.result-summary span[data-kind="blow"] { background:#ffd8df; border-color:#d94164; }
+.result-summary span[data-kind="air"] { background:#d9f1ff; border-color:#268bc5; }
+.result-summary span[data-kind="hide"] { background:#eadcff; border-color:#7842b5; }
+.result-summary span[data-kind="distracted"] { background:#e7e3dc; border-color:#8e877e; }
+.result-summary span[data-kind="block"] { background:#fff0ae; border-color:#a47a16; }
+.result-summary span[data-kind="damage"] { background:#ffd9e1; border-color:#bd294d; }
+.result-summary span[data-kind="safe"] { background:#dff3e5; border-color:#4f9567; }
+
+@media(max-height:700px) {
+  .resource-label { padding:0 3px; border-width:1px; }
+  .player.has-chosen:not(.eliminated)::after {
+    top:20px;
+    right:3px;
+    width:12px;
+    height:12px;
+    font-size:8px;
+    border-width:1px;
+    box-shadow:none;
+  }
+  .play-hint { min-height:20px; padding:2px 7px; gap:5px; }
+  .play-hint strong { font-size:10px; }
+  .play-hint span { font-size:7px; }
+}
+@media(max-height:520px) and (min-width:600px) {
+  .player.has-chosen:not(.eliminated)::after { top:17px; }
+}
