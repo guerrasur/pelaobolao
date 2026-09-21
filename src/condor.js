@@ -100,6 +100,7 @@ export function startCondor(root = document) {
   let waitingIds = new Set();
   let itemInitialized = false;
   let lastItemTurn = null;
+  let lastGrabSelected = false;
 
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
@@ -141,6 +142,7 @@ export function startCondor(root = document) {
       waitingIds = new Set();
       itemInitialized = false;
       lastItemTurn = null;
+      lastGrabSelected = false;
       enhanceLobby();
       return;
     }
@@ -168,11 +170,13 @@ export function startCondor(root = document) {
     updateAimGuide(board);
 
     const centerItem = board.querySelector('[data-center-item]');
-    if (centerItem?.classList.contains('selected-grab') && !centerItem.classList.contains('condor-grab-confirmed')) {
-      centerItem.classList.add('condor-grab-confirmed');
+    const grabSelected = Boolean(centerItem?.classList.contains('selected-grab'));
+    centerItem?.classList.toggle('condor-grab-confirmed', grabSelected);
+    if (grabSelected && !lastGrabSelected) {
       pulseClass(centerItem, 'condor-item-grab', 720);
       playCue('grab');
     }
+    lastGrabSelected = grabSelected;
     const itemTurn = centerItem?.dataset.itemTurn ?? null;
     if (centerItem && itemInitialized && itemTurn && itemTurn !== lastItemTurn) {
       pulseClass(centerItem, 'condor-item-arrive', 820);
