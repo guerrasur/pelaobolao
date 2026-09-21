@@ -400,7 +400,7 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   ui.render();
   const html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/center-item-slot/);
-  assert.match(html,/class="center-item hair-item targetable/);
+  assert.match(html,/class="center-item hair-item free-pickup targetable/);
   assert.match(html,/data-center-item="__center_item__"/);
   assert.match(html,/class="hair-tuft"/);
   assert.match(html,/>\+1 PELO<\/strong>/);
@@ -437,8 +437,32 @@ test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar desh
   ui.s.targeting=true;
   ui.render();
   html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/data-center-item="__center_item__"[^>]*disabled/);
-  assert.doesNotMatch(html,/center-item hair-item targetable/);
+  assert.match(html,/data-center-item="__center_item__"[^>]*tabindex="-1" disabled/);
+  assert.doesNotMatch(html,/center-item hair-item free-pickup targetable/);
+});
+
+test('Plan Condor 0.18: una partida v2 conserva el objeto como objetivo de Soplar', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:3,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other'],chosen:{},ready:{},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:3,source:'legacy'},
+    players:{me:{name:'Ana',hair:2,breath:1},other:{name:'Beto',hair:3,breath:0}},
+    rules:{version:2,maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.s.targeting=true;
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/center-item hair-item legacy-blow-item targetable/);
+  assert.doesNotMatch(html,/tabindex="-1" disabled/);
+  assert.match(html,/Tocá un rival o el \+1 Pelo del centro/);
 });
 
 test('resultado del objeto distingue curación, disputa y permanencia', async () => {
