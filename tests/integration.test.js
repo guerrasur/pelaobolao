@@ -439,3 +439,26 @@ test('Plan Aguila: el director de items fuerza +1 Pelo al detectar brecha críti
   assert.equal(g.centerItem.spawnedTurn,2);
   assert.equal(g.lastItemSpawnTurn,2);
 });
+
+
+test('Plan Condor: una partida protocol v1 puede pasar de reveal al turno siguiente después de agregar items', async () => {
+  const {a,gameId}=await started();
+  await patch(`games/${gameId}`,{
+    protocolVersion:1,
+    phase:'reveal',
+    turn:1,
+    resolvedTurn:1,
+    nextTurnAt:Date.now()-5000,
+    deadline:Date.now()-5000,
+    phaseStartedAt:Timestamp.fromMillis(Date.now()-5000),
+    centerItem:null,
+    lastItemSpawnTurn:0,
+  });
+  const result=await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
+  assert.equal(result.advanced,true);
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.phase,'choosing');
+  assert.equal(g.turn,2);
+  assert.ok(Object.prototype.hasOwnProperty.call(g,'centerItem'));
+  assert.ok(Object.prototype.hasOwnProperty.call(g,'lastItemSpawnTurn'));
+});
