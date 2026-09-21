@@ -36,8 +36,6 @@ export function playCue(kind) {
       heal: { notes:[440,659.25,880], step:.06, length:.17, type:'triangle', gain:.05 },
       swing: { notes:[150,110,440,659.25], step:.045, length:.14, type:'triangle', gain:.045 },
       ready: { notes:[440,660], step:.055, length:.11, type:'triangle', gain:.03 },
-      tap: { notes:[330], step:.03, length:.055, type:'triangle', gain:.022 },
-      door: { notes:[196,261.63,392], step:.055, length:.16, type:'triangle', gain:.04 },
       menuTap: { notes:[310,465], step:.032, length:.075, type:'triangle', gain:.022 },
       menuSoft: { notes:[420], step:.03, length:.06, type:'triangle', gain:.016 },
       menuMove: { notes:[360,480], step:.05, length:.10, type:'triangle', gain:.022 },
