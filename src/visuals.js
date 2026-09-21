@@ -20,6 +20,8 @@ function avatar(index, hair, effects = {}) {
         ? '<path d="M20 34l7 6m-7 0 7-6m11 0 7 6m-7 0 7-6" fill="none" stroke="#20232e" stroke-width="2.1" stroke-linecap="round"/>'
         : effects.action === 'hide'
           ? '<ellipse cx="24" cy="36" rx="3.2" ry="4.5" fill="#fff" stroke="#20232e" stroke-width="1.5"/><ellipse cx="42" cy="36" rx="3.2" ry="4.5" fill="#fff" stroke="#20232e" stroke-width="1.5"/><circle cx="24" cy="37" r="1.6" fill="#20232e"/><circle cx="42" cy="37" r="1.6" fill="#20232e"/>'
+          : effects.action === 'grab'
+            ? '<ellipse cx="24" cy="36" rx="3.2" ry="4.4" fill="#fff" stroke="#20232e" stroke-width="1.5"/><ellipse cx="42" cy="36" rx="3.2" ry="4.4" fill="#fff" stroke="#20232e" stroke-width="1.5"/><circle cx="26" cy="37" r="1.6" fill="#20232e"/><circle cx="40" cy="37" r="1.6" fill="#20232e"/>'
           : effects.action === 'air'
             ? '<path d="M20 36q4-3 8 0m10 0q4-3 8 0" fill="none" stroke="#20232e" stroke-width="2.4" stroke-linecap="round"/>'
             : '<ellipse cx="24" cy="36" rx="2.2" ry="3.5" fill="#20232e"/><ellipse cx="42" cy="36" rx="2.2" ry="3.5" fill="#20232e"/>'}
@@ -28,6 +30,8 @@ function avatar(index, hair, effects = {}) {
       ? '<path d="M27 49q5-3 10 0" fill="none" stroke="#9e573d" stroke-width="1.8" stroke-linecap="round"/>'
       : effects.action === 'blow'
         ? '<ellipse cx="34" cy="48" rx="4.5" ry="3" fill="#87453d" stroke="#20232e" stroke-width="1.4"/>'
+        : effects.action === 'grab'
+          ? '<path d="M28 48q5-2 10 0" fill="none" stroke="#9e573d" stroke-width="2" stroke-linecap="round"/>'
         : effects.hit
           ? '<path d="M27 49q5-5 10 0" fill="none" stroke="#9e573d" stroke-width="2" stroke-linecap="round"/>'
           : effects.action === 'air'
@@ -40,6 +44,7 @@ function effectMarkup(effects = {}) {
   if (effects.action === 'blow') bits.push('<span class="fx fx-wind"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">¡SOPLA!</b>');
   if (effects.action === 'air') bits.push('<span class="fx fx-air"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">+1 SOPLO</b>');
   if (effects.action === 'hide') bits.push('<span class="fx fx-desk"><i></i></span><b class="fx-label fx-label-action">¡ABAJO!</b>');
+  if (effects.action === 'grab') bits.push('<span class="fx fx-grab"><i></i></span><b class="fx-label fx-label-action fx-label-grab">¡AGARRA!</b>');
   if (effects.action === 'distracted') bits.push('<span class="fx fx-distracted">…</span>');
   if (effects.hit) {
     bits.push('<span class="fx fx-hair"><i></i><i></i><i></i><i></i></span>');
