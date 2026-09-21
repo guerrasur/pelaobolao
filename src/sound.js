@@ -30,6 +30,7 @@ export function playCue(kind) {
       lock: { notes:[330,220], step:.045, length:.10, type:'triangle', gain:.04 },
       target: { notes:[520,760], step:.045, length:.10, type:'triangle', gain:.032 },
       item: { notes:[392,587.33,783.99], step:.055, length:.15, type:'triangle', gain:.045 },
+      grab: { notes:[330,523.25,698.46], step:.04, length:.11, type:'triangle', gain:.04 },
       itemClaim: { notes:[493.88,659.25,987.77], step:.05, length:.15, type:'triangle', gain:.05 },
       itemClash: { notes:[220,174.61,220], step:.045, length:.12, type:'square', gain:.035 },
       heal: { notes:[440,659.25,880], step:.06, length:.17, type:'triangle', gain:.05 },
