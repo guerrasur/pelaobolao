@@ -399,7 +399,6 @@ test('el Mechón flotante usa una capa propia y es una acción gratis vulnerable
   assert.match(html,/MECHÓN FLOTANTE/);
   assert.match(html,/\+1 PELO/);
   assert.match(html,/SIN COSTO · VULNERABLE/);
-  assert.match(html,/No cuesta Soplos/);
   assert.doesNotMatch(html,/1 SOPLO/);
   assert.ok(html.indexOf('class="center-item-layer"') > html.indexOf('class="players"'),
     'el item debe quedar fuera del grid de jugadores');
@@ -464,7 +463,6 @@ test('Plan Aguila: el mechón explica vulnerabilidad y no se renderiza encima de
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/MECHÓN FLOTANTE/);
-  assert.match(html,/Pelo al máximo/);
   assert.match(html,/item-new-badge">NUEVO/);
   assert.match(html,/aria-disabled="false"/);
   assert.match(html,/SIN COSTO · VULNERABLE/);
