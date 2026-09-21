@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.16.0): Plan Cóndor reduce la contención de Firestore espaciando heartbeats pasivos, mantiene el heartbeat rápido sólo para el host activo, corrige el cooldown del +1 Pelo cuando permaneció varios turnos y muestra la jugada local sellada antes del reveal.
+Última corrección (0.17.0): Plan Águila convierte el +1 Pelo en un mechón flotante que se agarra sin gastar Soplos pero deja al jugador expuesto, vuelve los ítems mucho menos frecuentes, evita que su aparición cambie la geometría de las tarjetas y reemplaza la placa de objetivo por una retícula lateral.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
@@ -8,7 +8,7 @@ El host es la autoridad temporal. Cada jugador escribe su intención privada. Ca
 
 Desde 0.4.0, los temporizadores se calculan desde un timestamp escrito por Firestore. El reloj local usa tiempo monotónico, se calibra al entrar, al volver a la pestaña, al reconectar y cada minuto. Antes de comenzar cada ronda se espera que los celulares activos confirmen haberla recibido (hasta 15 segundos extra para no bloquear a todos por un dispositivo desconectado). Una desconexión o suspensión durante un turno ya iniciado no pausa al resto. Los eliminados no bloquean el cierre anticipado.
 
-Estética escolar mobile-first: tablero sin scroll, pupitres y retratos vectoriales, fases muy diferenciadas, sonidos/hápticos, targeting visual desde tu personaje, celebración final, espectadores en cola para la próxima partida y objetos centrales. El primer objeto es `+1 Pelo`: aparece de forma determinista/semi-random, puede adelantarse por disparidad de HP y se disputa gastando 1 Soplo.
+Estética escolar mobile-first: tablero sin scroll, pupitres y retratos vectoriales, fases muy diferenciadas, sonidos/hápticos, targeting visual desde tu personaje, celebración final, espectadores en cola para la próxima partida y objetos centrales. El primer objeto es `+1 Pelo`: en partidas nuevas no aparece antes del turno 4, tiene una probabilidad base baja y un pity más largo. Se agarra sin gastar Soplos, pero esa jugada no bloquea ataques; si dos o más intentan agarrarlo en el mismo turno, nadie se lo lleva.
 
 Las partidas nuevas snapshottean sus reglas y usan `protocolVersion: 2`; una actualización no modifica partidas ya iniciadas. `public/version.json` bloquea clientes viejos hasta que recarguen la versión publicada.
 
