@@ -1,5 +1,18 @@
 # Estado del MVP Spark
 
+## 0.6.9 — celebraciones de victoria y derrota
+
+- El final de partida ahora es personalizado para cada jugador.
+- Ganador: “¡GANASTE!”, cartel escolar dorado, confeti animado, énfasis sobre su tarjeta y cue de audio/háptica propio.
+- Perdedor: “PERDISTE”, tomatazos animados que quedan estampados, cue de derrota y una placa separada con el nombre del ganador.
+- Empate conserva un final neutro sin presentar falsamente un ganador o perdedor.
+- La celebración es una capa visual con pointer-events desactivados: no bloquea revancha ni salida.
+- Se corrigió una incompatibilidad potencial de la trayectoria CSS de los tomates para navegadores móviles.
+- E2E valida el final desde ambos celulares, cuenta partículas/tomates y captura screenshots de victoria y derrota.
+- La matriz de layout incluye los overlays finales para detectar overflow en mobile y landscape.
+- Inspiración conceptual: Fall Guys usa celebraciones dedicadas y ha corregido específicamente interacciones que bloqueaban su pantalla de celebración; Brawl Stars separa y enriquece su pantalla de fin de batalla.
+- Sin cambios en reglas de combate ni arquitectura Firebase Spark.
+
 ## 0.6.8 — HUD de combate y prompts de acción
 
 - Las tarjetas muestran barras compactas de Pelo y Soplos sin sumar altura al tablero.
