@@ -9,9 +9,9 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
     await page.goto('http://127.0.0.1:5173');
     await page.getByLabel('Nombre del jugador', { exact: true }).fill(name);
     await page.getByRole('button', { name: 'Entrar al aula' }).click();
-    await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toBeVisible();
+    await expect(page.locator('#create-room')).toBeVisible();
   }
-  await a.getByRole('button', { name: 'CREAR SALA', exact: true }).click();
+  await a.locator('#create-room').click();
   const code = await a.locator('.code').textContent();
   expect(code).toMatch(/^[A-Z2-9]{4}$/);
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
@@ -163,7 +163,7 @@ test('una versión nueva bloquea el juego hasta actualizar', async ({ page }) =>
   await page.goto('http://127.0.0.1:5173');
   await expect(page.getByRole('heading', { name: 'Hay que actualizar para seguir' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Actualizar ahora' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toHaveCount(0);
+  await expect(page.locator('#create-room')).toHaveCount(0);
 });
 
 
