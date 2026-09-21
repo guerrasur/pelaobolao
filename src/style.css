@@ -1322,3 +1322,71 @@ main#app { min-height:0; overflow:hidden; }
   .ready-progress { grid-template-columns:1fr; gap:4px; }
   .ready-progress span { text-align:center; }
 }
+
+
+/* v0.6.4 expressive round feedback */
+.phase-banner {
+  animation:pb-phase-stamp .28s cubic-bezier(.2,.8,.25,1) both;
+}
+@keyframes pb-phase-stamp {
+  0% { transform:scale(.97); filter:brightness(1.12); }
+  65% { transform:scale(1.015); }
+  100% { transform:none; filter:none; }
+}
+
+.game[data-phase="countdown"] #timer {
+  animation:pb-countdown-pulse .72s ease-in-out infinite alternate;
+}
+@keyframes pb-countdown-pulse {
+  from { transform:scale(1); }
+  to { transform:scale(1.07); }
+}
+
+.player.winner {
+  border-color:#82670c;
+  background:linear-gradient(180deg,#fffbe0,#fff3a9);
+  box-shadow:inset 0 0 0 3px #ffe359,1px 2px 0 #49352396;
+}
+.player.winner .player-name {
+  background:linear-gradient(90deg,#ffe45c,#ffc93e);
+  color:#202633;
+  text-shadow:none;
+}
+.player.winner .player-name i {
+  box-shadow:inset 0 2px 0 #ffffffb0,0 0 0 2px #fff7bd;
+}
+
+.player.critical:not(.eliminated) {
+  animation:pb-critical-card 1.05s ease-in-out infinite alternate;
+}
+@keyframes pb-critical-card {
+  from { box-shadow:inset 0 0 0 2px #ff9ab066,1px 2px 0 #49352396; }
+  to { box-shadow:inset 0 0 0 3px #ff5d7d99,1px 2px 0 #49352396,0 0 12px #ff557055; }
+}
+
+.player.attack-blocked .avatar-wrap {
+  animation:pb-recoil .46s ease-out .12s both;
+}
+@keyframes pb-recoil {
+  0% { transform:none; }
+  42% { transform:translateX(-7%) rotate(-3deg) scale(.96); }
+  100% { transform:none; }
+}
+
+.game[data-phase="reveal"] .result {
+  animation:pb-result-rise .28s ease-out both;
+}
+@keyframes pb-result-rise {
+  from { opacity:.35; transform:translateY(5px) scale(.99); }
+  to { opacity:1; transform:none; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .phase-banner,
+  .game[data-phase="countdown"] #timer,
+  .player.critical:not(.eliminated),
+  .player.attack-blocked .avatar-wrap,
+  .game[data-phase="reveal"] .result {
+    animation:none!important;
+  }
+}
