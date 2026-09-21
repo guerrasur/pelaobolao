@@ -2691,3 +2691,127 @@ header { min-height:48px; }
     animation:none!important;
   }
 }
+
+
+/* Plan Cóndor 0.15.0 — make the center-item decision readable at a glance. */
+.item-notice {
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  margin:1px auto 3px;
+  max-width:min(96%,560px);
+  padding:4px 8px;
+  border:1.5px dashed #2e6946;
+  border-radius:7px;
+  background:#e4f6df;
+  color:#214a31;
+  box-shadow:1px 2px 0 #20263355;
+  transform:rotate(-.35deg);
+  text-align:center;
+}
+.item-notice b {
+  flex:0 0 auto;
+  font-size:9px;
+  line-height:1;
+  letter-spacing:.35px;
+}
+.item-notice span {
+  min-width:0;
+  font-size:9px;
+  line-height:1.1;
+  font-weight:700;
+}
+
+.center-item .item-new-badge {
+  position:absolute;
+  z-index:4;
+  top:-13px;
+  right:-13px;
+  padding:3px 5px;
+  border:2px solid #202633;
+  border-radius:5px;
+  background:#ffdf4f;
+  color:#202633;
+  box-shadow:2px 2px 0 #202633;
+  font-size:7px;
+  line-height:1;
+  font-style:normal;
+  font-weight:1000;
+  letter-spacing:.4px;
+  transform:rotate(7deg);
+  pointer-events:none;
+}
+.center-item[aria-disabled="true"] { cursor:default; }
+.center-item[aria-disabled="false"] { cursor:pointer; }
+
+.result-summary .item-chip {
+  background:#e6f5dc;
+  border-color:#4d8a59;
+  color:#285a35;
+}
+
+.game[data-impact="swing"]::after,
+.game[data-impact="item-clash"]::after,
+.game[data-impact="item-claim"]::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:20;
+  border-radius:inherit;
+  pointer-events:none;
+  opacity:0;
+}
+.game[data-impact="swing"]::after {
+  background:linear-gradient(135deg,#ff31531d 0 49%,#46d1741d 51% 100%);
+  animation:pb-board-swing .58s ease-out;
+}
+.game[data-impact="item-clash"]::after {
+  background:#ffcf3b20;
+  animation:pb-board-item-clash .52s ease-out;
+}
+.game[data-impact="item-claim"]::after {
+  background:#6bdc8c20;
+  animation:pb-board-item-claim .52s ease-out;
+}
+@keyframes pb-board-swing {
+  0% { opacity:0; box-shadow:inset 0 0 0 0 transparent; }
+  30% { opacity:1; box-shadow:inset 0 0 0 5px #ffffff55; }
+  100% { opacity:0; box-shadow:inset 0 0 0 2px transparent; }
+}
+@keyframes pb-board-item-clash {
+  0% { opacity:0; }
+  36% { opacity:1; box-shadow:inset 0 0 0 5px #e6aa2a88; }
+  100% { opacity:0; }
+}
+@keyframes pb-board-item-claim {
+  0% { opacity:0; }
+  36% { opacity:1; box-shadow:inset 0 0 0 5px #4bbb7088; }
+  100% { opacity:0; }
+}
+
+@media(max-height:650px), (max-width:380px) {
+  .item-notice {
+    padding:3px 6px;
+    margin-block:0 2px;
+  }
+  .item-notice b,.item-notice span { font-size:7px; }
+  .center-item .item-new-badge {
+    top:-9px;
+    right:-9px;
+    padding:2px 4px;
+    font-size:6px;
+  }
+}
+@media(max-height:520px) and (min-width:600px) {
+  .item-notice span { display:none; }
+  .item-notice { width:max-content; padding-inline:7px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .game[data-impact="swing"]::after,
+  .game[data-impact="item-clash"]::after,
+  .game[data-impact="item-claim"]::after {
+    animation:none!important;
+  }
+}
