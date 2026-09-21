@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS } from '../src/game.js';
+import { playerCard as renderPlayerCard } from '../src/visuals.js';
 
 // Execute the real UI controller with a minimal DOM and controllable network.
 // No Firebase permissions or emulator behavior is simulated by these tests.
@@ -98,4 +99,38 @@ test('una partida vencida vuelve al inicio aunque falle su cierre remoto', async
   ui.tick(); await Promise.resolve();
   assert.equal(ui.s.roomId, null);
   assert.match(ui.nodes.get('#notice').textContent, /inactividad/);
+});
+
+
+test('el lobby expone progreso de listos y presencia sin revelar acciones', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = {
+    code: 'ABCD', status: 'lobby', hostId: 'me',
+    members: {
+      me: { name: 'Ana', ready: true, lastSeenAt: now },
+      other: { name: 'Beto', ready: false, lastSeenAt: now - 30000 },
+    },
+  };
+  ui.render();
+  const html = ui.nodes.get('#app').innerHTML;
+  assert.match(html, /1\/2 listos/);
+  assert.match(html, /data-presence="me"/);
+  assert.match(html, /data-presence="other"/);
+  assert.match(html, /Reconectando/);
+  assert.doesNotMatch(html, /Soplar →/);
+});
+
+test('tarjetas toleran índices heredados y distinguen crítico, desconexión y bloqueos', () => {
+  const base = { uid:'legacy', player:{ name:'Rival', hair:1, breath:0 }, index:-1, self:false, selected:false, chosen:false,
+    connected:false, rules:{ maxHair:4, maxBreath:2 } };
+  const card = renderPlayerCard({ ...base, effects:{ blockedAttack:true } });
+  assert.match(card, /critical/);
+  assert.match(card, /offline-player/);
+  assert.match(card, /--seat-color:#fa4563/);
+  assert.match(card, />1<\/i>/);
+  assert.match(card, /¡BLOQUEADO!/);
+  const defense = renderPlayerCard({ ...base, connected:true, effects:{ blockedDefense:true } });
+  assert.match(defense, /¡ATAJÓ!/);
 });
