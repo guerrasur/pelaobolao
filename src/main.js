@@ -133,7 +133,8 @@ function subscribeGame(id) {
     s.game = snap.data();
     if (oldPhase && oldPhase !== s.game.phase) {
       if (s.game.phase === 'choosing') playCue('start');
-      if (['reveal', 'finished', 'abandoned'].includes(s.game.phase)) playCue('end');
+      if (s.game.phase === 'reveal') playCue(roundImpact(s.game) === 'hit' ? 'hit' : roundImpact(s.game) === 'block' ? 'block' : 'reveal');
+      if (['finished', 'abandoned'].includes(s.game.phase)) playCue('end');
     }
     lastPhase = s.game.phase;
     if (oldTurn !== s.game?.turn || s.game?.phase !== 'choosing') {
@@ -238,29 +239,53 @@ async function flushIntent() {
 }
 
 
+function roundImpact(game) {
+  const result = game?.lastResult;
+  if (!result || !['reveal', 'finished'].includes(game.phase)) return 'none';
+  if (Object.values(result.losses || {}).some(loss => Number(loss) > 0)) return 'hit';
+  if ((result.hits || []).some(hit => hit.blocked)) return 'block';
+  return 'reveal';
+}
+
 function playerEffects(game, uid) {
   const result = game.lastResult;
   if (!result || !['reveal', 'finished'].includes(game.phase)) return {};
   const action = result.actions?.[uid]?.action;
   const incoming = (result.hits || []).filter(hit => hit.to === uid);
+  const outgoing = (result.hits || []).find(hit => hit.from === uid);
   const loss = Number(result.losses?.[uid] || 0);
   return {
     action,
     loss,
     hit: loss > 0,
-    blocked: incoming.some(hit => hit.blocked),
+    blocked: incoming.some(hit => hit.blocked) || outgoing?.blocked === true,
   };
 }
 
 function resultHtml(game) {
   const result = game.lastResult;
   if (!result) return '<p class="muted">Las acciones se revelan al terminar el turno.</p>';
-  return `<section class="result" aria-label="Resultado actual"><h2>Resultado actual</h2><ul>${Object.entries(result.actions).map(([uid, action]) => {
-    const target = action.target ? ` → ${esc(game.players[action.target]?.name)}` : '';
-    const loss = result.losses[uid] ? ` · −${result.losses[uid]} Pelo` : '';
-    const blocked = result.hits.find(hit => hit.from === uid)?.blocked ? ' (bloqueado)' : '';
-    return `<li><strong>${esc(game.players[uid].name)}</strong>: ${actionName(action.action)}${target}${blocked}${loss}</li>`;
-  }).join('')}</ul></section>`;
+  const actions = Object.values(result.actions || {});
+  const blows = actions.filter(action => action.action === 'blow').length;
+  const breaths = actions.filter(action => action.action === 'air').length;
+  const hides = actions.filter(action => action.action === 'hide').length;
+  const blockedCount = (result.hits || []).filter(hit => hit.blocked).length;
+  const hairLost = Object.values(result.losses || {}).reduce((total, loss) => total + Number(loss || 0), 0);
+  return `<section class="result" aria-label="Resultado actual">
+    <div class="result-head"><h2>Turno ${esc(result.turn)}</h2><div class="result-summary" aria-label="Resumen del turno">
+      ${blows ? `<span>💨 ${blows} soplo${blows === 1 ? '' : 's'}</span>` : ''}
+      ${breaths ? `<span>🫁 ${breaths} aire${breaths === 1 ? '' : 's'}</span>` : ''}
+      ${hides ? `<span>🪑 ${hides} escondido${hides === 1 ? '' : 's'}</span>` : ''}
+      ${blockedCount ? `<span>🛡 ${blockedCount} bloqueado${blockedCount === 1 ? '' : 's'}</span>` : ''}
+      ${hairLost ? `<span class="danger">✂ −${hairLost} Pelo</span>` : '<span>Sin daño</span>'}
+    </div></div>
+    <ul>${Object.entries(result.actions).map(([uid, action]) => {
+      const target = action.target ? ` → ${esc(game.players[action.target]?.name)}` : '';
+      const loss = result.losses[uid] ? ` · −${result.losses[uid]} Pelo` : '';
+      const blocked = result.hits.find(hit => hit.from === uid)?.blocked ? ' (bloqueado)' : '';
+      return `<li><strong>${esc(game.players[uid].name)}</strong>: ${actionName(action.action)}${target}${blocked}${loss}</li>`;
+    }).join('')}</ul>
+  </section>`;
 }
 
 function render() {
@@ -297,9 +322,9 @@ function render() {
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
     const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : game.draw ? '¡Empate! Todos pelados.' : `Ganó ${esc(game.players[game.winnerId]?.name)}` : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const order = [...(game.memberIds || Object.keys(game.players)).filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
-    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<p class="play-hint">Arrastrá SOPLAR hacia un rival</p>${actionControls(canChoose(), me.breath, s.targeting)}<p id="selection" aria-live="polite">${s.targeting ? 'Tocá otro jugador para elegir tu objetivo.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Sin acción elegida · al terminar: Distraído'}</p>` : '';
+    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<p class="play-hint">Arrastrá SOPLAR hacia un rival</p>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${s.targeting ? 'Elegí a quién soplar.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Elegí una jugada · si no: Distraído'}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
-    html = `<section class="game" data-phase="${esc(game.phase)}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${game.phase === 'choosing' ? 'Tu turno de acción' : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Un momento…' : ''}</strong></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: game.memberIds.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}"><div class="phase-banner"><span>${phaseLabel}</span><strong>${game.phase === 'choosing' ? 'Tu turno de acción' : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Un momento…' : ''}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: game.memberIds.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? s.room.hostId === api.uid && game.phase === 'finished' ? `<button id="back-lobby" ${disabled}>Volver al lobby / revancha</button>` : '<p>La sala se cerrará después de un período de inactividad.</p>' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -401,7 +426,16 @@ function tick() {
   const seconds = Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now()) / 1000)) : null;
   const timer = document.querySelector('#timer');
   if (timer) timer.textContent = seconds === null || seconds === 0 || ['syncing', 'locked'].includes(game.phase) ? '···' : `${String(seconds).padStart(2, '0')}s`;
-  if (timer) timer.classList.toggle('urgent', game.phase === 'choosing' && seconds !== null && seconds <= 3);
+  if (timer) {
+    timer.classList.toggle('warning', game.phase === 'choosing' && seconds !== null && seconds <= 5);
+    timer.classList.toggle('urgent', game.phase === 'choosing' && seconds !== null && seconds <= 3);
+  }
+  const board = document.querySelector('.game');
+  if (board && game.phase === 'choosing' && Number.isFinite(deadline)) {
+    const duration = Number(game.rules?.turnMs) || 1;
+    const remaining = Math.max(0, Math.min(duration, deadline - now()));
+    board.style.setProperty('--turn-progress', String(remaining / duration));
+  }
   if (!acknowledging && Date.now() - lastAck > 1000 && s.nameConfirmed && !document.hidden && s.online && game.protocolVersion === 2
     && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
     acknowledging = true; lastAck = Date.now();
