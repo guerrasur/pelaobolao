@@ -75,7 +75,8 @@ function updateAimGuide(board) {
   }
   const label = guide.querySelector('b');
   const targetName = targetPlayer?.querySelector('.player-label')?.textContent?.trim();
-  if (label) label.textContent = targetName ? `SOPLO → ${targetName}` : 'ATAQUE';
+  const nextLabel = targetName ? `SOPLO → ${targetName}` : 'ATAQUE';
+  if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
   const stopShort = Math.min(targetRect.width, targetRect.height) * .42;
   guide.style.left = `${geometry.left}px`;
   guide.style.top = `${geometry.top}px`;
