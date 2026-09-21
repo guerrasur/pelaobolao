@@ -2949,3 +2949,19 @@ header { min-height:48px; }
   100% { opacity:0; transform:translate(-8px,-3px) rotate(-4deg) scale(.96); }
 }
 
+/* 0.18.0: el hit-area del pickup queda inmóvil; sólo flota el dibujo interior. */
+.center-item.free-pickup,
+.center-item.free-pickup.targetable {
+  animation:none!important;
+}
+.center-item.free-pickup .hair-tuft {
+  animation:pb-tuft-float 1.25s ease-in-out infinite alternate;
+}
+@keyframes pb-tuft-float {
+  from { transform:rotate(-8deg) translateY(1px); }
+  to { transform:rotate(-4deg) translateY(-3px); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item.free-pickup .hair-tuft { animation:none!important; }
+}
+
