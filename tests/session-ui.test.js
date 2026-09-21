@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS } from '../src/game.js';
 import { playerCard as renderPlayerCard } from '../src/visuals.js';
 import { isNewerVersion } from '../src/version.js';
+import { dragGuideGeometry } from '../src/condor-core.js';
 
 // Execute the real UI controller with a minimal DOM and controllable network.
 // No Firebase permissions or emulator behavior is simulated by these tests.
@@ -29,7 +30,7 @@ async function setup(handler = async () => ({})) {
       const sub = { path, next, error, active: true }; subscriptions.push(sub);
       return () => { sub.active = false; };
     },
-    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, isNewerVersion,
+    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, isNewerVersion, dragGuideGeometry,
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');
@@ -324,4 +325,50 @@ test('countdown muestra splash de tiza sin reemplazar el tablero', async () => {
   assert.match(html,/countdown-splash/);
   assert.match(html,/data-countdown-splash/);
   assert.match(html,/¡PREPARATE!/);
+});
+
+
+test('late joiner sees next-match queue position while active players see the same compact queue', async () => {
+  const now = Date.now();
+  const baseGame = {
+    phase:'choosing',turn:2,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['host','other'],chosen:{},ready:{},
+    players:{host:{name:'Host',hair:3,breath:1},other:{name:'Beto',hair:2,breath:0}},
+    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500},
+  };
+
+  const watcher = await setup();
+  watcher.s.roomId='ABCD';
+  watcher.s.room={code:'ABCD',status:'playing',hostId:'host',members:{
+    host:{name:'Host',ready:true,joinedAt:100,lastSeenAt:now},
+    other:{name:'Beto',ready:true,joinedAt:200,lastSeenAt:now},
+    me:{name:'Ana',ready:false,joinedAt:300,lastSeenAt:now},
+    next:{name:'Cami',ready:false,joinedAt:400,lastSeenAt:now},
+  }};
+  watcher.s.gameId='g1';
+  watcher.s.game=baseGame;
+  watcher.render();
+  let html=watcher.nodes.get('#app').innerHTML;
+  assert.match(html,/ESPECTADOR · PRÓXIMA PARTIDA/);
+  assert.match(html,/Lugar 1 de 2/);
+  assert.match(html,/data-waiting-ids="me,next"/);
+  assert.match(html,/PRÓXIMA/);
+  assert.match(html,/Ana, Cami/);
+  assert.doesNotMatch(html,/class="controls"/);
+
+  const player = await setup();
+  player.s.roomId='ABCD';
+  player.s.room={...watcher.s.room,members:{...watcher.s.room.members,me:undefined}};
+  delete player.s.room.members.me;
+  player.s.room.members.host={...watcher.s.room.members.host,name:'Ana'};
+  player.s.gameId='g1';
+  player.s.game={...baseGame,memberIds:['me','other'],players:{
+    me:{name:'Ana',hair:3,breath:1},other:{name:'Beto',hair:2,breath:0},
+  }};
+  player.s.room.members.me={name:'Ana',ready:true,joinedAt:100,lastSeenAt:now};
+  delete player.s.room.members.host;
+  player.render();
+  html=player.nodes.get('#app').innerHTML;
+  assert.match(html,/data-waiting-ids="next"/);
+  assert.match(html,/Cami/);
 });
