@@ -44,7 +44,12 @@ function effectMarkup(effects = {}) {
   if (effects.hit) {
     bits.push('<span class="fx fx-hair"><i></i><i></i><i></i><i></i></span>');
     bits.push('<b class="fx-label fx-label-hit">−' + Math.max(1, Number(effects.loss || 1)) + ' PELO</b>');
-  } else if (effects.blockedDefense) {
+  }
+  if (effects.healed) {
+    bits.push('<span class="fx fx-heal"><i></i><i></i><i></i></span>');
+    bits.push('<b class="fx-label fx-label-heal">+' + Number(effects.healed) + ' PELO</b>');
+  }
+  if (!effects.hit && effects.blockedDefense) {
     bits.push('<b class="fx-label fx-label-block">¡ATAJÓ!</b>');
   } else if (effects.blockedAttack) {
     bits.push('<b class="fx-label fx-label-block fx-label-rebound">¡BLOQUEADO!</b>');
@@ -54,7 +59,7 @@ function effectMarkup(effects = {}) {
 
 export function playerCard({ uid, player: p, index, self, selected, chosen, connected = true, winner = false, targetable = false, rules, effects = {} }) {
   const seat = Number.isInteger(index) && index >= 0 ? index : 0;
-  const effectClass = [effects.action ? 'action-' + effects.action : '', effects.hit ? 'took-hit' : '', effects.blockedDefense ? 'blocked-hit' : '', effects.blockedAttack ? 'attack-blocked' : ''].filter(Boolean).join(' ');
+  const effectClass = [effects.action ? 'action-' + effects.action : '', effects.hit ? 'took-hit' : '', effects.healed ? 'healed-hair' : '', effects.blockedDefense ? 'blocked-hit' : '', effects.blockedAttack ? 'attack-blocked' : ''].filter(Boolean).join(' ');
   const hairFill = Math.max(0, Math.min(1, Number(p.hair || 0) / Math.max(1, Number(rules.maxHair || 1))));
   const breathFill = Math.max(0, Math.min(1, Number(p.breath || 0) / Math.max(1, Number(rules.maxBreath || 1))));
   return `<button class="player ${self ? 'self' : ''} ${winner ? 'winner' : ''} ${targetable ? 'targetable' : ''} ${chosen ? 'has-chosen' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${!connected ? 'offline-player' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]};--hair-fill:${hairFill};--breath-fill:${breathFill}" ${p.hair <= 0 || self || !targetable ? 'disabled' : ''}>
