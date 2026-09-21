@@ -21,16 +21,25 @@ export function playCue(kind) {
     if (!audio) return;
     if (audio.state === 'suspended') void audio.resume();
     const start = audio.currentTime;
-    const notes = kind === 'start' ? [392, 523.25, 659.25] : [659.25, 523.25, 392];
-    notes.forEach((frequency, index) => {
+    const patterns = {
+      start: { notes:[392,523.25,659.25], step:.09, length:.18, type:'triangle', gain:.07 },
+      reveal: { notes:[523.25,659.25], step:.08, length:.16, type:'triangle', gain:.06 },
+      hit: { notes:[150,105,82], step:.055, length:.13, type:'square', gain:.045 },
+      block: { notes:[260,390], step:.07, length:.14, type:'triangle', gain:.055 },
+      end: { notes:[659.25,523.25,392], step:.09, length:.18, type:'triangle', gain:.07 },
+    };
+    const pattern = patterns[kind] || patterns.reveal;
+    pattern.notes.forEach((frequency, index) => {
       const oscillator = audio.createOscillator();
       const gain = audio.createGain();
-      oscillator.type = 'triangle'; oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.0001, start + index * 0.09);
-      gain.gain.exponentialRampToValueAtTime(0.075, start + index * 0.09 + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + index * 0.09 + 0.16);
+      const at = start + index * pattern.step;
+      oscillator.type = pattern.type;
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(pattern.gain, at + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + pattern.length);
       oscillator.connect(gain).connect(audio.destination);
-      oscillator.start(start + index * 0.09); oscillator.stop(start + index * 0.09 + 0.18);
+      oscillator.start(at); oscillator.stop(at + pattern.length + .02);
     });
   } catch { /* Audio is an enhancement; it must never block a round. */ }
 }
