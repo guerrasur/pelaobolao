@@ -1,12 +1,12 @@
 /* Plan Cóndor 0.8.0: isolated game-feel layer. No layout/state authority lives here. */
 .game.condor-enter-choosing .phase-banner {
-  animation:condor-stamp-in .48s cubic-bezier(.2,.9,.25,1.25) both;
+  animation:condor-surface-in .48s ease-out both;
 }
 .game.condor-enter-locked .phase-banner {
-  animation:condor-lock-snap .5s cubic-bezier(.2,.9,.3,1.2) both;
+  animation:condor-surface-in .5s ease-out both;
 }
 .game.condor-enter-reveal .result-callout {
-  animation:condor-stamp-in .58s cubic-bezier(.2,.9,.25,1.25) both;
+  animation:condor-surface-in .58s ease-out both;
 }
 .game.condor-enter-finished .outcome-card {
   animation:condor-outcome-in .58s cubic-bezier(.2,.9,.25,1.25) both;
@@ -112,18 +112,18 @@
   font-weight:1000;
   letter-spacing:.45px;
   white-space:nowrap;
-  animation:condor-lock-snap .52s cubic-bezier(.2,.9,.3,1.2) both;
+  animation:condor-lock-badge-in .52s cubic-bezier(.2,.9,.3,1.2) both;
 }
 
-@keyframes condor-stamp-in {
-  0% { opacity:0; transform:translateY(8px) rotate(-4deg) scale(.72); }
-  62% { opacity:1; transform:translateY(-1px) rotate(1deg) scale(1.06); }
-  100% { opacity:1; transform:none; }
+@keyframes condor-surface-in {
+  0% { opacity:.25; filter:brightness(1.32) saturate(1.2); }
+  58% { opacity:1; filter:brightness(1.08) saturate(1.08); }
+  100% { opacity:1; filter:none; }
 }
-@keyframes condor-lock-snap {
-  0% { opacity:0; transform:translateY(-7px) scale(1.18); filter:blur(2px); }
-  55% { opacity:1; transform:translateY(1px) scale(.96); filter:none; }
-  100% { opacity:1; transform:none; }
+@keyframes condor-lock-badge-in {
+  0% { opacity:0; transform:translate(-50%,-50%) rotate(-2deg) scale(1.18); filter:blur(2px); }
+  55% { opacity:1; transform:translate(-50%,-50%) rotate(-2deg) scale(.96); filter:none; }
+  100% { opacity:1; transform:translate(-50%,-50%) rotate(-2deg); filter:none; }
 }
 @keyframes condor-outcome-in {
   0% { opacity:0; filter:blur(2px) brightness(1.28); }
