@@ -1390,3 +1390,88 @@ main#app { min-height:0; overflow:hidden; }
     animation:none!important;
   }
 }
+
+
+/* v0.6.5 targeting, self-seat and result readability */
+.self-tag {
+  flex:0 0 auto;
+  padding:2px 5px;
+  border:1px solid #202633;
+  border-radius:999px;
+  background:#ffdf4f;
+  color:#202633;
+  font-size:7px!important;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.35px;
+  text-shadow:none;
+  box-shadow:1px 1px 0 #ffffff55;
+}
+.play-hint.is-targeting {
+  background:#fff0a6;
+  border-color:#b61f43;
+  color:#6e1830;
+  box-shadow:2px 2px 0 #7b2f4050;
+}
+.game[data-targeting="true"] .player:not(:disabled) {
+  outline:3px dashed #ffdf4f;
+  outline-offset:2px;
+  animation:pb-target-ready .58s ease-in-out infinite alternate;
+}
+.game[data-targeting="true"] .player:not(:disabled) .player-name {
+  background:#6f2438;
+}
+.game[data-targeting="true"] .player.self {
+  filter:saturate(.72) brightness(.96);
+}
+@keyframes pb-target-ready {
+  from { box-shadow:2px 4px 0 #49352396,0 0 0 0 #ffdf4f55; }
+  to { box-shadow:2px 4px 0 #49352396,0 0 0 5px #ffdf4f33; }
+}
+
+.result ul {
+  list-style:none;
+  padding-left:0;
+  display:grid;
+  gap:4px;
+}
+.result li {
+  display:grid;
+  grid-template-columns:minmax(72px,.42fr) minmax(0,1fr);
+  align-items:center;
+  gap:7px;
+  margin:0;
+  padding:4px 6px;
+  border-left:5px solid #a6a0a0;
+  border-radius:5px;
+  background:#ffffffa8;
+}
+.result li strong {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.result li span {
+  min-width:0;
+  font-size:10px;
+  line-height:1.15;
+}
+.result li[data-result-action="blow"] { border-left-color:#e9385f; }
+.result li[data-result-action="air"] { border-left-color:#078cec; }
+.result li[data-result-action="hide"] { border-left-color:#8b37ed; }
+.result li[data-result-action="distracted"] { border-left-color:#9b9388; }
+.result li.result-damaged {
+  background:#ffe8ed;
+  box-shadow:inset 0 0 0 1px #e7617d55;
+}
+
+@media(max-height:650px) {
+  .self-tag { padding:1px 3px; font-size:6px!important; }
+  .result li { padding:2px 4px; gap:4px; }
+  .result li span { font-size:8px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .game[data-targeting="true"] .player:not(:disabled) {
+    animation:none!important;
+  }
+}
