@@ -49,3 +49,11 @@ test('0.19 se instala como app móvil y mantiene fresco el gate de versión', as
   assert.ok(icon.length > 1000);
   assert.deepEqual([...icon.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
 });
+
+
+test('0.19 no vuelve a mostrar los dos overlays retirados del targeting', async () => {
+  const visuals = await readFile('src/visuals.js', 'utf8');
+  const condorCss = await readFile('src/condor.css', 'utf8');
+  assert.doesNotMatch(visuals, /attack-target-badge/);
+  assert.match(condorCss, /\.player\.drag-target::after,[\s\S]*?content:none!important;[\s\S]*?display:none!important;/);
+});
