@@ -27,17 +27,20 @@ function effectMarkup(effects = {}) {
   if (effects.hit) {
     bits.push('<span class="fx fx-hair"><i></i><i></i><i></i><i></i></span>');
     bits.push('<b class="fx-label fx-label-hit">−' + Math.max(1, Number(effects.loss || 1)) + ' PELO</b>');
-  } else if (effects.blocked) {
-    bits.push('<b class="fx-label fx-label-block">¡BLOQUEADO!</b>');
+  } else if (effects.blockedDefense) {
+    bits.push('<b class="fx-label fx-label-block">¡ATAJÓ!</b>');
+  } else if (effects.blockedAttack) {
+    bits.push('<b class="fx-label fx-label-block fx-label-rebound">¡BLOQUEADO!</b>');
   }
   return bits.length ? '<span class="player-fx" aria-hidden="true">' + bits.join('') + '</span>' : '';
 }
 
 export function playerCard({ uid, player: p, index, self, selected, chosen, rules, effects = {} }) {
-  const effectClass = [effects.action ? 'action-' + effects.action : '', effects.hit ? 'took-hit' : '', effects.blocked ? 'blocked-hit' : ''].filter(Boolean).join(' ');
-  return `<button class="player ${self ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[index % colors.length]}" ${p.hair <= 0 || self ? 'disabled' : ''}>
-    <strong class="player-name"><i>${index + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}${self ? ' (vos)' : ''}</span></strong>
-    <div class="player-body"><div class="avatar-wrap"><div class="avatar">${avatar(index, p.hair)}</div></div>${effectMarkup(effects)}<div class="resources">
+  const seat = Number.isInteger(index) && index >= 0 ? index : 0;
+  const effectClass = [effects.action ? 'action-' + effects.action : '', effects.hit ? 'took-hit' : '', effects.blockedDefense ? 'blocked-hit' : '', effects.blockedAttack ? 'attack-blocked' : ''].filter(Boolean).join(' ');
+  return `<button class="player ${self ? 'self' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]}" ${p.hair <= 0 || self ? 'disabled' : ''}>
+    <strong class="player-name"><i>${seat + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}${self ? ' (vos)' : ''}</span></strong>
+    <div class="player-body"><div class="avatar-wrap"><div class="avatar">${avatar(seat, p.hair)}</div></div>${effectMarkup(effects)}<div class="resources">
     <span>Pelo <b>${p.hair}</b>/${rules.maxHair}</span><span class="hair-pips" aria-hidden="true">${Array.from({ length: rules.maxHair }, (_, n) => `<i class="${n < p.hair ? 'full' : ''}"></i>`).join('')}</span>
     <span>Soplos <b>${p.breath}</b>/${rules.maxBreath}</span><span class="breath-pips" aria-hidden="true">${Array.from({ length: rules.maxBreath }, (_, n) => `<i class="${n < p.breath ? 'full' : ''}">≋</i>`).join('')}</span>
     </div></div><small>${p.hair === 0 ? 'Pelado' : chosen ? '✓ Ya eligió' : self ? 'Tu posición' : 'En juego'}</small></button>`;
