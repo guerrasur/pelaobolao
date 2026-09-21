@@ -91,8 +91,23 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await choose(a, /Tomar aire/); await blow(b, 'Ana');
   await turn(4);
   await blow(a, 'Beto');
-  await expect(a.locator('.condor-aim-guide')).toBeVisible();
+  const aimGuide = a.locator('.condor-aim-guide');
+  await expect(aimGuide).toBeVisible();
+  await expect(aimGuide).toContainText('Beto');
   await expect(a.locator('[data-player]').filter({ hasText: 'Beto' })).toHaveClass(/selected-target/);
+  const aimOrigin = await a.evaluate(() => {
+    const board = document.querySelector('.game').getBoundingClientRect();
+    const avatar = document.querySelector('.player.self .avatar-wrap').getBoundingClientRect();
+    const guide = document.querySelector('.condor-aim-guide');
+    return {
+      expectedX: avatar.left + avatar.width / 2 - board.left,
+      expectedY: avatar.top + avatar.height / 2 - board.top,
+      left: parseFloat(guide.style.left),
+      top: parseFloat(guide.style.top),
+    };
+  });
+  expect(Math.abs(aimOrigin.left - aimOrigin.expectedX)).toBeLessThan(3);
+  expect(Math.abs(aimOrigin.top - aimOrigin.expectedY)).toBeLessThan(3);
   await choose(b, /Tomar aire/);
   await turn(5);
   await choose(a, /Tomar aire/); await choose(b, /Esconderse/);
@@ -126,8 +141,9 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   }
   await a.screenshot({ path: 'test-results/winner-celebration.png', fullPage: true });
   await b.screenshot({ path: 'test-results/loser-tomatoes.png', fullPage: true });
-  await a.getByRole('button', { name: 'Volver al lobby / revancha' }).click();
-  await expect(b.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
+  await expect(a.locator('[data-lobby-return]')).toBeVisible({ timeout: 5000 });
+  await expect(a.locator('[data-lobby-return]')).toContainText(/Regresando al lobby en [1-5]s|Regresando al lobby…/);
+  await expect(b.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible({ timeout: 9000 });
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
   for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
