@@ -183,8 +183,7 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(self, /--hair-fill:0\.25/);
   const selected = renderPlayerCard({ ...base, connected:true, selected:true, effects:{} });
   assert.match(selected, /selected-target/);
-  assert.match(selected, /attack-target-badge/);
-  assert.doesNotMatch(selected, /ATAQUE ELEGIDO/);
+  assert.doesNotMatch(selected, /attack-target-badge|ATAQUE ELEGIDO/);
 });
 
 
@@ -395,13 +394,14 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   ui.render();
   const html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/center-item-slot/);
-  assert.match(html,/class="center-item hair-item targetable/);
+  assert.match(html,/class="center-item hair-item floating-hair-item item-available/);
   assert.match(html,/data-center-item="__center_item__"/);
-  assert.match(html,/class="hair-tuft"/);
+  assert.match(html,/class="floating-hair-art"/);
+  assert.match(html,/MECHÓN FLOTANTE/);
   assert.match(html,/>\+1 PELO<\/strong>/);
-  assert.match(html,/AGARRAR/);
+  assert.match(html,/SIN COSTO · VULNERABLE/);
   assert.match(html,/gratis; al hacerlo quedás expuesto/);
-  assert.doesNotMatch(html,/1 SOPLO/);
+  assert.doesNotMatch(html,/1 SOPLO|class="item-notice item-notice-free"/);
 });
 
 test('resultado del objeto distingue curación, disputa y permanencia', async () => {
@@ -443,7 +443,7 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
 });
 
 
-test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima del final de partida', async () => {
+test('Plan Aguila 0.18: el mechón explica el riesgo dentro del item y no desplaza contenido con un aviso extra', async () => {
   const ui=await setup();
   const now=Date.now();
   ui.s.roomId='ABCD';
@@ -462,11 +462,13 @@ test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima
   ui.s.game={...base,phase:'choosing'};
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/MECHÓN \+1/);
-  assert.match(html,/No cuesta Soplos/);
-  assert.match(html,/quedás expuesto/);
+  assert.match(html,/MECHÓN FLOTANTE/);
+  assert.match(html,/SIN COSTO · VULNERABLE/);
+  assert.match(html,/no cuesta Soplos/i);
+  assert.match(html,/quedás expuesto/i);
   assert.match(html,/item-new-badge">NUEVO/);
   assert.match(html,/aria-disabled="false"/);
+  assert.doesNotMatch(html,/item-notice-free/);
 
   ui.s.game={...base,phase:'finished',winnerId:'me',draw:false,finishedAt:now,lastResult:{
     turn:3,actions:{me:{action:'hide',target:null},other:{action:'distracted',target:null}},
