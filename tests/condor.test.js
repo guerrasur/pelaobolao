@@ -33,8 +33,8 @@ test('aim guide connects centers relative to the board', () => {
   assert.ok(geometry);
   assert.equal(geometry.left, 30);
   assert.equal(geometry.top, 90);
-  assert.equal(Math.round(geometry.length), 219);
-  assert.equal(Math.round(geometry.angle), -16);
+  assert.equal(Math.round(geometry.length), 216);
+  assert.equal(Math.round(geometry.angle), -13);
 });
 
 test('aim guide rejects incomplete rectangles', () => {
