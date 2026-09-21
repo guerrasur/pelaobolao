@@ -34,7 +34,7 @@ async function setup(handler = async () => ({})) {
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');
-  const ui = await vm.runInContext(`(async () => { ${source}\nreturn { s, leaveRoom, resetRoomSession, roomCommand, subscribeRoom, subscribeGame, operation, tick, render }; })()`, context);
+  const ui = await vm.runInContext(`(async () => { ${source}\nreturn { s, leaveRoom, resetRoomSession, roomCommand, subscribeRoom, subscribeGame, operation, heartbeat, tick, render }; })()`, context);
   Object.assign(ui.s, { ready: true, nameConfirmed: true, profile: { name: 'Ana' } });
   ui.render();
   return { ...ui, nodes, calls, subscriptions, events };
@@ -508,4 +508,43 @@ test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el i
   assert.match(html,/data-kind="item"><b>OBJETO<\/b> 1/);
   assert.match(html,/data-kind="damage"/);
   assert.match(html,/data-kind="heal"/);
+});
+
+
+test('Plan Condor: locked muestra la jugada local sellada sin reabrir controles', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = { code:'ABCD', status:'playing', hostId:'me', members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now}, other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId = 'g1';
+  ui.s.game = {
+    phase:'locked', turn:2, protocolVersion:2, phaseStartedAt:now, memberIds:['me','other'],
+    chosen:{me:true,other:true}, ready:{}, centerItem:null,
+    players:{me:{name:'Ana',hair:3,breath:0},other:{name:'Beto',hair:3,breath:0}},
+    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.s.intent = { turn:2, action:'blow', target:'other', revision:1 };
+  ui.render();
+  const html = ui.nodes.get('#app').innerHTML;
+  assert.match(html,/JUGADA SELLADA/);
+  assert.match(html,/Soplar → Beto/);
+  assert.doesNotMatch(html,/class="controls"/);
+});
+
+test('Plan Condor: heartbeat pasivo se limita y el heartbeat forzado evita esperar al failover', async () => {
+  const ui = await setup(async (name, data) => name === 'roomCommand' && data.command === 'touch' ? { roomId:'ABCD' } : {});
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = { code:'ABCD', status:'playing', hostId:'other', members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now}, other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  await ui.heartbeat(true);
+  await ui.heartbeat();
+  let touches = ui.calls.filter(call => call.name === 'roomCommand' && call.data.command === 'touch');
+  assert.equal(touches.length, 1);
+  await ui.heartbeat(true);
+  touches = ui.calls.filter(call => call.name === 'roomCommand' && call.data.command === 'touch');
+  assert.equal(touches.length, 2);
 });
