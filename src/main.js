@@ -789,6 +789,12 @@ function tick() {
     const status = document.querySelector('#turn-status');
     if (status) status.textContent = 'Resolviendo el turno…';
     document.querySelectorAll('.controls button').forEach(button => { button.disabled = true; });
+    const itemButton = document.querySelector('[data-center-item]');
+    if (itemButton) {
+      itemButton.disabled = true;
+      itemButton.setAttribute('aria-disabled', 'true');
+      itemButton.classList.remove('item-available', 'targetable');
+    }
   }
   // Only the current host attempts resolution. Firestore rechecks authority atomically.
   const staleAt = millis(game.lastProgressAt || game.phaseStartedAt || game.finishedAt);
