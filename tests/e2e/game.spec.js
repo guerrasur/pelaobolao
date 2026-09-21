@@ -7,25 +7,25 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   for (const page of [a, b]) page.on('pageerror', error => errors.push(error.message));
   for (const [page, name] of [[a, 'Ana'], [b, 'Beto']]) {
     await page.goto('http://127.0.0.1:5173');
-    await page.getByLabel('Nombre', { exact: true }).fill(name);
-    await page.getByRole('button', { name: 'Continuar' }).click();
-    await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+    await page.getByLabel('Nombre del jugador', { exact: true }).fill(name);
+    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toBeVisible();
   }
-  await a.getByRole('button', { name: 'Crear sala' }).click();
+  await a.getByRole('button', { name: 'CREAR SALA', exact: true }).click();
   const code = await a.locator('.code').textContent();
   expect(code).toMatch(/^[A-Z2-9]{4}$/);
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
   await b.goto(`http://127.0.0.1:5173/?s=${code}`);
-  await expect(b.getByLabel('Nombre', { exact: true })).toHaveValue('Beto');
-  await b.getByRole('button', { name: 'Continuar' }).click();
+  await expect(b.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Beto');
+  await b.getByRole('button', { name: 'Entrar al aula' }).click();
   await expect(b.getByLabel('Código de sala')).toHaveValue(code);
-  await b.getByRole('button', { name: 'Unirse a sala' }).click();
+  await b.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   await expect(a.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
   await a.reload();
-  await expect(a.getByLabel('Nombre', { exact: true })).toHaveValue('Ana');
-  await a.getByRole('button', { name: 'Continuar' }).click();
+  await expect(a.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Ana');
+  await a.getByRole('button', { name: 'Entrar al aula' }).click();
   await a.getByLabel('Código de sala').fill(code);
-  await a.getByRole('button', { name: 'Unirse a sala' }).click();
+  await a.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   const selfLobby = a.locator('.lobby-list li:has(.lobby-self-tag)');
   await expect(selfLobby.locator('.lobby-player-name')).toHaveText('Ana');
   await expect(selfLobby.locator('.lobby-self-tag')).toHaveText('VOS');
@@ -115,10 +115,10 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await expect(b.locator('#connection')).toContainText('Sin conexión');
   await contextB.setOffline(false);
   await b.reload();
-  await expect(b.getByLabel('Nombre', { exact: true })).toHaveValue('Beto');
-  await b.getByRole('button', { name: 'Continuar' }).click();
+  await expect(b.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Beto');
+  await b.getByRole('button', { name: 'Entrar al aula' }).click();
   await b.getByLabel('Código de sala').fill(code);
-  await b.getByRole('button', { name: 'Unirse a sala' }).click();
+  await b.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   await expect(b.locator('[data-player].self .player-label')).toHaveText('Beto');
   await expect(b.locator('[data-player].self .self-tag')).toHaveText('VOS');
   await turn(6);
@@ -163,7 +163,7 @@ test('una versión nueva bloquea el juego hasta actualizar', async ({ page }) =>
   await page.goto('http://127.0.0.1:5173');
   await expect(page.getByRole('heading', { name: 'Hay que actualizar para seguir' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Actualizar ahora' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Crear sala' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'CREAR SALA', exact: true })).toHaveCount(0);
 });
 
 
@@ -175,5 +175,5 @@ test('una versión pública anterior no bloquea un cliente más nuevo', async ({
   }));
   await page.goto('http://127.0.0.1:5173');
   await expect(page.getByRole('heading', { name: 'Hay que actualizar para seguir' })).toHaveCount(0);
-  await expect(page.getByLabel('Nombre', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Nombre del jugador', { exact: true })).toBeVisible();
 });
