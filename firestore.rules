@@ -8,7 +8,8 @@ service cloud.firestore {
     function member(r) { return signed() && request.auth.uid in r.members && !r.members[request.auth.uid].left; }
     function host(r) { return member(r) && r.hostId == request.auth.uid; }
     function game(id) { return get(/databases/$(database)/documents/games/$(id)).data; }
-    function participant(g) { return signed() && request.auth.uid in g.memberIds && member(room(g.roomId)); }
+    function observer(g) { return signed() && member(room(g.roomId)); }
+    function participant(g) { return observer(g) && request.auth.uid in g.memberIds; }
     function gameHost(g) { return host(room(g.roomId)) && room(g.roomId).gameId != null; }
     function synced(g) { return g.get('protocolVersion', 1) == 2; }
     function marked(g, field, index) {
@@ -52,8 +53,8 @@ service cloud.firestore {
     }
     match /rooms/{id} {
       // Exact-code lobby lookup is required to join. No enumeration is allowed.
-      allow get: if signed() && (!exists(/databases/$(database)/documents/rooms/$(id)) || resource.data.status == 'lobby'
-        || request.auth.uid in resource.data.members);
+      allow get: if signed() && (!exists(/databases/$(database)/documents/rooms/$(id))
+        || resource.data.status in ['lobby','playing','finished'] || request.auth.uid in resource.data.members);
       allow list: if false;
       allow create: if signed() && id.matches('^[A-Z2-9]{4}$') && validRoom()
         && request.resource.data.hostId == request.auth.uid && request.resource.data.status == 'lobby'
@@ -77,8 +78,11 @@ service cloud.firestore {
         return d.members.diff(resource.data.members).affectedKeys().hasOnly([uid])
           && ((uid in d.members && validMember(d.members[uid]) && d.members[uid].lastSeenAt == request.time
             && ((uid in resource.data.members && d.members[uid].joinedAt == resource.data.members[uid].joinedAt)
-              || (resource.data.status == 'lobby' && !d.members[uid].left)))
-          || (!(uid in d.members) && uid in resource.data.members && resource.data.status == 'lobby'));
+              || (resource.data.status in ['lobby','playing','finished'] && !d.members[uid].left)))
+          || (!(uid in d.members) && uid in resource.data.members
+            && (resource.data.status == 'lobby'
+              || (resource.data.status in ['playing','finished'] && resource.data.gameId != null
+                && !(uid in game(resource.data.gameId).memberIds)))));
       }
       function selfChange() {
         return resource.data.status != 'closed' && ownMemberChange()
@@ -87,6 +91,7 @@ service cloud.firestore {
       function takeover() {
         let old = resource.data;
         return member(old) && request.resource.data.hostId == request.auth.uid
+          && (old.status != 'playing' || request.auth.uid in game(old.gameId).memberIds)
           && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(old.status in ['playing','finished'] ? 5 : 45,'s'))
           && ownMemberChange()
           && request.resource.data.diff(old).affectedKeys().hasOnly(['hostId','members','updatedAt']);
@@ -124,7 +129,7 @@ service cloud.firestore {
       }
     }
     match /games/{id} {
-      allow read: if participant(resource.data);
+      allow read: if observer(resource.data);
       allow create: if validGameCreate();
       allow update: if participant(resource.data) && (selfSignal() || abandonTransition()
         || (host(room(resource.data.roomId)) && room(resource.data.roomId).gameId == id
@@ -208,8 +213,9 @@ service cloud.firestore {
         allow create, update: if own(uid) && participant(game(id)) && validIntent();
         function canReadIntent(intentUid) {
           let g = game(id);
-          return participant(g) && (own(intentUid)
-            || (host(room(g.roomId)) && (synced(g) ? g.phase in ['locked','reveal','finished'] : request.time.toMillis() >= g.deadline)));
+          return observer(g) && (own(intentUid)
+            || (participant(g) && host(room(g.roomId))
+              && (synced(g) ? g.phase in ['locked','reveal','finished'] : request.time.toMillis() >= g.deadline)));
         }
         function validIntent() {
           let g = game(id); let d = request.resource.data;
@@ -225,7 +231,7 @@ service cloud.firestore {
         }
       }
       match /rounds/{turnId} {
-        allow read: if participant(game(id));
+        allow read: if observer(game(id));
         allow create: if validRoundCreate();
         allow update, delete: if false;
         function validRoundCreate() {
