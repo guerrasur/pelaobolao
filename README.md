@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.6.4): evita iniciar con jugadores Listos pero desconectados, añade reacciones expresivas de los avatares, feedback háptico opcional, estados de ganador/Pelo crítico y transiciones de fase más claras.
+Última corrección (0.6.5): cada revancha vuelve a exigir Listo de todos, el modo Soplar tiene targeting más claro, el asiento propio usa badge VOS y el resumen de ronda separa mejor acciones y daño.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 

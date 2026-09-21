@@ -51,7 +51,8 @@ test('reingresar con un turno vencido no rompe la pantalla del nombre', async ({
     await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
     await page.getByLabel('Código de sala').fill(code);
     await page.getByRole('button', { name: 'Unirse a sala' }).click();
-    await expect(page.locator('.players')).toContainText('Ana (vos)');
+    await expect(page.locator('[data-player].self .player-label')).toHaveText('Ana');
+    await expect(page.locator('[data-player].self .self-tag')).toHaveText('VOS');
     expect(errors).toEqual([]);
   } finally { await guestContext.close(); }
 });

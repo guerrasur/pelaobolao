@@ -87,7 +87,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.getByRole('button', { name: 'Continuar' }).click();
   await b.getByLabel('Código de sala').fill(code);
   await b.getByRole('button', { name: 'Unirse a sala' }).click();
-  await expect(b.locator('.players')).toContainText('Beto (vos)');
+  await expect(b.locator('[data-player].self .player-label')).toHaveText('Beto');
+  await expect(b.locator('[data-player].self .self-tag')).toHaveText('VOS');
   await turn(6);
   await blow(a, 'Beto');
   await turn(7);
@@ -100,6 +101,9 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   }
   await a.getByRole('button', { name: 'Volver al lobby / revancha' }).click();
   await expect(b.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
+  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
+  for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
+  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
   await a.getByRole('button', { name: 'Iniciar partida' }).click();
   await turn(1);
   await expect(a.locator('[data-player]').filter({ hasText: 'Ana' })).toContainText('Pelo 3/4');
