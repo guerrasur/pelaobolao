@@ -2676,7 +2676,6 @@ header { min-height:48px; }
   .item-result b,.item-result span { font-size:7px; }
 }
 @media(max-height:520px) and (min-width:600px) {
-  .center-item-slot { width:52px; height:52px; }
   .center-item { width:52px; height:52px; }
   .center-item .item-label { font-size:11px!important; }
   .center-item > span { display:none; }
@@ -2819,19 +2818,10 @@ header { min-height:48px; }
 
 /* Plan Águila 0.17.0 — mechón flotante, geometría estable y targeting sin bloque. */
 .center-item-slot {
-  position:absolute;
-  z-index:8;
-  left:50%;
-  top:50%;
-  width:clamp(66px,18vw,86px);
-  height:clamp(66px,18vw,86px);
-  transform:translate(-50%,-50%);
-  pointer-events:none;
+  display:contents;
 }
 .center-item-slot .center-item {
   z-index:9;
-  left:50%;
-  top:50%;
   pointer-events:auto;
 }
 
@@ -2906,7 +2896,6 @@ header { min-height:48px; }
 }
 
 @media(max-width:380px), (max-height:600px) {
-  .center-item-slot { width:58px; height:58px; }
   .hair-tuft { width:31px; height:19px; transform:rotate(-7deg) scale(.88); }
   .attack-target-badge { right:-13px!important; width:32px; height:32px; min-width:32px!important; font-size:23px!important; }
 }
