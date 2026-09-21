@@ -2817,14 +2817,6 @@ header { min-height:48px; }
 }
 
 /* Plan Águila 0.17.0 — mechón flotante, geometría estable y targeting sin bloque. */
-.center-item-slot {
-  display:contents;
-}
-.center-item-slot .center-item {
-  z-index:9;
-  pointer-events:auto;
-}
-
 .hair-tuft {
   position:relative;
   display:block;
