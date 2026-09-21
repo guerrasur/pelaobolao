@@ -26,7 +26,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await a.getByRole('button', { name: 'Continuar' }).click();
   await a.getByLabel('Código de sala').fill(code);
   await a.getByRole('button', { name: 'Unirse a sala' }).click();
-  await expect(a.locator('.lobby-list')).toContainText('Ana (vos)');
+  await expect(a.locator('.lobby-list .lobby-player-name')).toContainText('Ana');
+  await expect(a.locator('.lobby-list .lobby-self-tag')).toHaveText('VOS');
   for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
   await a.getByRole('button', { name: 'Iniciar partida' }).click();
