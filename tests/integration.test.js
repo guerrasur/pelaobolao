@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, getDoc, getDocs, collection, updateDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { createClient } from '../src/client.js';
+import { LOBBY_LEASE_MS } from '../src/game.js';
 let env, seq = 0;
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-pelaobolao', firestore: { rules: await readFile('firestore.rules','utf8') } });
@@ -63,6 +64,20 @@ test('inicio único ante concurrencia y solo host inicia',async()=>{
   assert.ok(starts.some(result=>result.status==='fulfilled'));
   await seed(async db => assert.equal((await getDocs(collection(db,'games'))).docs.filter(d=>d.data().roomId===roomId).length,1));
 });
+test('un jugador listo pero vencido no entra a la partida nueva',async()=>{
+  const {a,players,roomId}=await pair(3);
+  for(const player of players) await player.client.call('roomCommand',{command:'ready',roomId,ready:true});
+  const stale=players[2];
+  await patch(`rooms/${roomId}`,{[`members.${stale.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-LOBBY_LEASE_MS-5000)});
+  await a.client.syncClock();
+  await a.client.call('roomCommand',{command:'start',roomId});
+  const room=await read(a.db,`rooms/${roomId}`);
+  const game=await read(a.db,`games/${room.gameId}`);
+  assert.equal(room.members[stale.uid],undefined);
+  assert.equal(game.memberIds.includes(stale.uid),false);
+  assert.equal(game.memberIds.length,2);
+});
+
 test('cambio secreto, replay, revisión obsoleta y cierre de intenciones',async()=>{
   const {a,b,gameId}=await started();
   const requestId=crypto.randomUUID();
