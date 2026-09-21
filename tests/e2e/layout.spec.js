@@ -78,3 +78,40 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
     }
   }
 });
+
+
+test('el Mechón flotante aparece como overlay sin mover las tarjetas', async ({page}) => {
+  await page.goto('/');
+  await page.getByLabel('Nombre', {exact:true}).fill('Ana');
+  await page.getByRole('button',{name:'Continuar'}).click();
+  await page.getByRole('button',{name:'Crear sala'}).click();
+  const code=await page.locator('.code').textContent();
+  await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
+  let room;
+  await env.withSecurityRulesDisabled(async ctx=>{room=(await getDoc(doc(ctx.firestore(),'rooms',code))).data();});
+  const members={...room.members,'layout-item-rival':{name:'Beto',joinedAt:Date.now()+1,lastSeenAt:Timestamp.now(),left:false,ready:true}};
+  const game=newGame(code,members,Date.now());
+  game.phase='choosing'; game.turn=4; game.phaseStartedAt=Timestamp.now(); game.lastProgressAt=Timestamp.now();
+  const gameId=`layout-item-${code}`;
+  await env.withSecurityRulesDisabled(async ctx=>{
+    await setDoc(doc(ctx.firestore(),'games',gameId),game);
+    await updateDoc(doc(ctx.firestore(),'rooms',code),{status:'playing',gameId,members});
+  });
+  await page.setViewportSize({width:390,height:664});
+  await expect(page.locator('[data-player]')).toHaveCount(2);
+  const before=await page.locator('[data-player]').evaluateAll(els=>els.map(el=>{
+    const r=el.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)];
+  }));
+  await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{
+    centerItem:{kind:'hair_plus_1',spawnedTurn:4,source:'test'}
+  }));
+  await expect(page.locator('[data-center-item]')).toBeVisible();
+  await expect(page.locator('.floating-hair-art')).toBeVisible();
+  const after=await page.locator('[data-player]').evaluateAll(els=>els.map(el=>{
+    const r=el.getBoundingClientRect(); return [Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)];
+  }));
+  expect(after).toEqual(before);
+  await expect(page.locator('.center-item-layer [data-center-item]')).toHaveCount(1);
+  await expect(page.locator('.players [data-center-item]')).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1)).toBe(true);
+});
