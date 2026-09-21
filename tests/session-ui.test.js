@@ -183,7 +183,7 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(self, /--hair-fill:0\.25/);
   const selected = renderPlayerCard({ ...base, connected:true, selected:true, effects:{} });
   assert.match(selected, /selected-target/);
-  assert.match(selected, /ATAQUE ELEGIDO/);
+  assert.match(selected, /attack-target-badge/);\n  assert.doesNotMatch(selected, /ATAQUE ELEGIDO/);
 });
 
 
@@ -374,7 +374,7 @@ test('late joiner sees next-match queue position while active players see the sa
 });
 
 
-test('+1 Pelo aparece en el centro y es un objetivo de Soplar sin convertirse en jugador', async () => {
+test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjetas', async () => {
   const ui = await setup();
   const now = Date.now();
   ui.s.roomId='ABCD';
@@ -384,20 +384,23 @@ test('+1 Pelo aparece en el centro y es un objetivo de Soplar sin convertirse en
   }};
   ui.s.gameId='g1';
   ui.s.game={
-    phase:'choosing',turn:3,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    phase:'choosing',turn:4,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
     memberIds:['me','other'],chosen:{},ready:{},
-    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:3,source:'random'},
-    players:{me:{name:'Ana',hair:2,breath:1},other:{name:'Beto',hair:3,breath:0}},
-    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'random'},
+    players:{me:{name:'Ana',hair:2,breath:0},other:{name:'Beto',hair:3,breath:0}},
+    rules:{version:3,maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
-  ui.s.targeting=true;
+  ui.s.targeting=false;
   ui.render();
   const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/center-item-slot/);
   assert.match(html,/class="center-item hair-item targetable/);
   assert.match(html,/data-center-item="__center_item__"/);
-  assert.match(html,/>\+1 PELO<\/strong>/);
-  assert.match(html,/1 SOPLO/);
-  assert.match(html,/Tocá un rival o el \+1 Pelo del centro/);
+  assert.match(html,/class="hair-tuft"/);
+  assert.match(html,/>+1 PELO</strong>/);
+  assert.match(html,/AGARRAR/);
+  assert.match(html,/gratis; al hacerlo quedás expuesto/);
+  assert.doesNotMatch(html,/1 SOPLO/);
 });
 
 test('resultado del objeto distingue curación, disputa y permanencia', async () => {
@@ -413,10 +416,10 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
     phase:'reveal',turn:3,protocolVersion:2,phaseStartedAt:now,
     memberIds:['me','other'],chosen:{me:true,other:true},ready:{},centerItem:null,
     players:{me:{name:'Ana',hair:3,breath:0},other:{name:'Beto',hair:3,breath:0}},
-    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+    rules:{version:3,maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
   ui.s.game={...base,lastResult:{
-    turn:3,actions:{me:{action:'blow',target:CENTER_ITEM_TARGET},other:{action:'hide',target:null}},
+    turn:3,actions:{me:{action:'grab',target:CENTER_ITEM_TARGET},other:{action:'hide',target:null}},
     hits:[],losses:{me:0,other:0},heals:{me:1},
     item:{kind:HAIR_ITEM_KIND,outcome:'claimed',attempts:['me'],winnerId:'me',healed:1,claimantAlive:true,spawnedTurn:3},
   }};
@@ -425,10 +428,10 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
   assert.match(html,/PELO RECUPERADO/);
   assert.match(html,/Ana recuperó 1 Pelo/);
   assert.match(html,/data-kind="heal"/);
-  assert.match(html,/Soplar → \+1 Pelo/);
+  assert.match(html,/Agarrar \+1 Pelo/);
 
   ui.s.game={...base,lastResult:{
-    turn:3,actions:{me:{action:'blow',target:CENTER_ITEM_TARGET},other:{action:'blow',target:CENTER_ITEM_TARGET}},
+    turn:3,actions:{me:{action:'grab',target:CENTER_ITEM_TARGET},other:{action:'grab',target:CENTER_ITEM_TARGET}},
     hits:[],losses:{me:0,other:0},heals:{},
     item:{kind:HAIR_ITEM_KIND,outcome:'contested',attempts:['me','other'],winnerId:null,healed:0,spawnedTurn:3},
   }};
@@ -439,7 +442,7 @@ test('resultado del objeto distingue curación, disputa y permanencia', async ()
 });
 
 
-test('Plan Condor: el item explica su costo y no se renderiza encima del final de partida', async () => {
+test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima del final de partida', async () => {
   const ui=await setup();
   const now=Date.now();
   ui.s.roomId='ABCD';
@@ -453,15 +456,15 @@ test('Plan Condor: el item explica su costo y no se renderiza encima del final d
     memberIds:['me','other'],chosen:{},ready:{},
     centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:3,source:'random'},
     players:{me:{name:'Ana',hair:4,breath:1},other:{name:'Beto',hair:2,breath:0}},
-    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+    rules:{version:3,maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
   ui.s.game={...base,phase:'choosing'};
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/\+1 PELO EN JUEGO/);
+  assert.match(html,/MECHÓN \+1/);
   assert.match(html,/Tenés Pelo al máximo/);
   assert.match(html,/item-new-badge">NUEVO/);
-  assert.match(html,/aria-disabled="true"/);
+  assert.match(html,/aria-disabled="false"/);
 
   ui.s.game={...base,phase:'finished',winnerId:'me',draw:false,finishedAt:now,lastResult:{
     turn:3,actions:{me:{action:'hide',target:null},other:{action:'distracted',target:null}},
@@ -473,7 +476,7 @@ test('Plan Condor: el item explica su costo y no se renderiza encima del final d
   assert.match(html,/¡GANASTE!/);
 });
 
-test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el intercambio de Pelo', async () => {
+test('Plan Aguila 0.17: el resumen separa ataques de intentos de agarrar y comunica el intercambio de Pelo', async () => {
   const ui=await setup();
   const now=Date.now();
   ui.s.roomId='ABCD';
@@ -487,11 +490,11 @@ test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el i
     phase:'reveal',turn:4,protocolVersion:2,phaseStartedAt:now,
     memberIds:['me','other','third'],chosen:{me:true,other:true,third:true},ready:{},centerItem:null,
     players:{me:{name:'Ana',hair:2,breath:0},other:{name:'Beto',hair:3,breath:0},third:{name:'Cami',hair:3,breath:0}},
-    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+    rules:{version:3,maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
     lastResult:{
       turn:4,
       actions:{
-        me:{action:'blow',target:CENTER_ITEM_TARGET},
+        me:{action:'grab',target:CENTER_ITEM_TARGET},
         other:{action:'blow',target:'me'},
         third:{action:'hide',target:null},
       },
@@ -505,7 +508,7 @@ test('Plan Condor: el resumen separa ataques de soplos al objeto y comunica el i
   const html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/PELO VA, PELO VIENE/);
   assert.match(html,/data-kind="blow"><b>ATAQUE<\/b> 1/);
-  assert.match(html,/data-kind="item"><b>OBJETO<\/b> 1/);
+  assert.match(html,/data-kind="item"><b>MECHÓN<\/b> 1/);
   assert.match(html,/data-kind="damage"/);
   assert.match(html,/data-kind="heal"/);
 });
@@ -523,7 +526,7 @@ test('Plan Condor: locked muestra la jugada local sellada sin reabrir controles'
     phase:'locked', turn:2, protocolVersion:2, phaseStartedAt:now, memberIds:['me','other'],
     chosen:{me:true,other:true}, ready:{}, centerItem:null,
     players:{me:{name:'Ana',hair:3,breath:0},other:{name:'Beto',hair:3,breath:0}},
-    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+    rules:{version:3,maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
   };
   ui.s.intent = { turn:2, action:'blow', target:'other', revision:1 };
   ui.render();
