@@ -14,3 +14,22 @@ export function phaseEntranceClass(phase) {
     ? `condor-enter-${phase}`
     : null;
 }
+
+
+export function aimGuideGeometry(sourceRect, targetRect, boardRect) {
+  const rects = [sourceRect, targetRect, boardRect];
+  if (rects.some(rect => !rect || ![rect.left, rect.top, rect.width, rect.height].every(Number.isFinite))) return null;
+  const sourceX = sourceRect.left + sourceRect.width / 2 - boardRect.left;
+  const sourceY = sourceRect.top + sourceRect.height / 2 - boardRect.top;
+  const targetX = targetRect.left + targetRect.width / 2 - boardRect.left;
+  const targetY = targetRect.top + targetRect.height / 2 - boardRect.top;
+  const dx = targetX - sourceX, dy = targetY - sourceY;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length < 1) return null;
+  return {
+    left: sourceX,
+    top: sourceY,
+    length,
+    angle: Math.atan2(dy, dx) * 180 / Math.PI,
+  };
+}
