@@ -1,5 +1,19 @@
 # Estado del MVP Spark
 
+## 0.17.0 — Plan Águila: mechón flotante, pickup gratis y tablero estable
+
+- El objeto `+1 Pelo` pasa a representarse como un mechón flotante y usa una acción propia, `grab`, en partidas nuevas.
+- Agarrar el mechón no consume Soplos. La contrapartida es táctica: elegir `grab` significa no elegir `hide`, por lo que cualquier Soplo entrante impacta normalmente ese turno.
+- La resolución simultánea se conserva: primero se aplica el daño y después la curación. Llegar a 0 Pelo no revive; si sobrevive, el jugador puede recuperar 1 Pelo hasta el máximo de 4.
+- Si dos o más jugadores intentan agarrarlo, el objeto se pierde y nadie recibe Pelo. Si nadie lo intenta, permanece en el centro.
+- Los ítems pasan a ser eventos menos frecuentes: primer turno elegible 4, cooldown normal 4 turnos, cooldown crítico 4, probabilidad base 24% y pity de 9 turnos.
+- Las partidas ya iniciadas con reglas v2 conservan la interacción anterior de Soplar al objeto, evitando romper sesiones heredadas.
+- El objeto queda dentro de una capa absoluta propia. Ya no cuenta como otro botón hermano del grid, por lo que su aparición no altera selectores de asiento ni mueve las tarjetas.
+- El bloque superior de “ATAQUE ELEGIDO” se reemplaza por una retícula roja lateral más compacta, manteniendo el resaltado rojo de la tarjeta y la guía entre personajes.
+- Firestore Rules admite `grab` sólo para reglas v3 y sólo mientras el mechón existe; no abre escrituras sobre Pelo/Soplos ni autoridad del host.
+- Se actualizaron pruebas unitarias, de UI, integración y reglas para pickup gratuito, vulnerabilidad, concurrencia, compatibilidad heredada y frecuencia de aparición.
+- Se mantiene Firebase Spark: Authentication anónima, Firestore y Hosting, sin servicios pagos.
+
 ## 0.11.0 — Plan Águila: salida automática y trayectoria entre personajes
 
 - Al finalizar una partida se preservan 3 segundos completos para ver la celebración de victoria/derrota. Después aparece “Regresando al lobby en 5s” y baja 4, 3, 2, 1 antes de volver automáticamente.
