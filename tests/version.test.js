@@ -71,18 +71,18 @@ test('0.23 mantiene el targeting limpio y recalibra la guía en viewport móvil'
   assert.match(condor20Js, /dispatchEvent\(new Event\('resize'\)\)/);
 });
 
-
 test('0.23 viste la entrada como una experiencia de juego y respeta movimiento reducido', async () => {
-  const [condor, entryCss, sound] = await Promise.all([
-    readFile('src/condor.js', 'utf8'),
-    readFile('src/entry.css', 'utf8'),
+  const [html, entrance, entranceCss, sound] = await Promise.all([
+    readFile('index.html', 'utf8'),
+    readFile('src/entrance.js', 'utf8'),
+    readFile('src/entrance.css', 'utf8'),
     readFile('src/sound.js', 'utf8'),
   ]);
-  assert.match(condor, /import '\.\/entry\.css'/);
-  assert.match(condor, /dataset\.entryMode/);
-  assert.match(condor, /playCue\('door'\)/);
-  assert.match(entryCss, /\.home-mascot/);
-  assert.match(entryCss, /@media \(prefers-reduced-motion:reduce\)/);
-  assert.match(sound, /door: \{ notes:/);
-  assert.match(sound, /tap: \{ notes:/);
+  assert.match(html, /src="\/src\/entrance\.js"/);
+  assert.match(entrance, /dataset\.uiScreen/);
+  assert.match(entrance, /playCue\('menuEnter'\)/);
+  assert.match(entranceCss, /\.home-mascot/);
+  assert.match(entranceCss, /@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(sound, /menuTap: \{ notes:/);
+  assert.match(sound, /menuEnter: \{ notes:/);
 });
