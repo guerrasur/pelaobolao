@@ -29,7 +29,12 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   const selfLobby = a.locator('.lobby-list li:has(.lobby-self-tag)');
   await expect(selfLobby.locator('.lobby-player-name')).toHaveText('Ana');
   await expect(selfLobby.locator('.lobby-self-tag')).toHaveText('VOS');
-  for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
+  const lobbyOrder = async page => page.locator('.lobby-player-name').allTextContents();
+  const orderBeforeReady = await lobbyOrder(a);
+  await a.getByRole('button', { name: 'Estoy listo' }).click();
+  await expect.poll(() => lobbyOrder(a)).toEqual(orderBeforeReady);
+  await b.getByRole('button', { name: 'Estoy listo' }).click();
+  await expect.poll(() => lobbyOrder(a)).toEqual(orderBeforeReady);
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
   await a.getByRole('button', { name: 'Iniciar partida' }).click();
   const turn = async n => {
@@ -85,7 +90,10 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await turn(3);
   await choose(a, /Tomar aire/); await blow(b, 'Ana');
   await turn(4);
-  await blow(a, 'Beto'); await choose(b, /Tomar aire/);
+  await blow(a, 'Beto');
+  await expect(a.locator('.condor-aim-guide')).toBeVisible();
+  await expect(a.locator('[data-player]').filter({ hasText: 'Beto' })).toHaveClass(/selected-target/);
+  await choose(b, /Tomar aire/);
   await turn(5);
   await choose(a, /Tomar aire/); await choose(b, /Esconderse/);
   await contextB.setOffline(true);

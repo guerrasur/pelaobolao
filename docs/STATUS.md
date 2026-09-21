@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.10.0 — Plan Cóndor: intención de ataque y lobby reactivo
+
+- Sobre la base 0.9.0 se mantuvo intacto el orden fijo por `joinedAt` y se añadieron regresiones E2E que verifican que marcar Listo no cambia ninguna posición.
+- Cuando Soplar queda dirigido a un rival, una guía roja animada conecta el botón con la tarjeta objetivo mientras la elección sigue vigente. La guía no intercepta punteros ni participa del estado del juego.
+- Confirmar un objetivo produce un pulso corto alrededor de la tarjeta, rebote de la etiqueta ATAQUE ELEGIDO y un cue sonoro sutil; el feedback desaparece automáticamente al cambiar de acción o fase.
+- El lobby ahora responde visualmente a ingreso, Listo y No listo mediante animaciones breves superpuestas que no alteran medidas, orden ni datos.
+- Se agregaron cues separados para objetivo y Listo, manteniendo Web Audio como mejora opcional: un bloqueo de audio nunca afecta la partida.
+- La geometría de la trayectoria vive en una función pura con pruebas unitarias y se recalcula al cambiar el DOM o el viewport.
+- Todos los efectos nuevos respetan `prefers-reduced-motion` y mantienen `pointer-events:none` en overlays de combate.
+- Referencia de interacción: la guía de Apple WWDC26 sobre controles táctiles destaca combinar mantener/arrastrar/soltar con feedback claro y continuo para apuntado mobile; esta pasada aplica ese principio sin cambiar la mecánica de Soplar.
+- Sin cambios en daño, Pelo, Soplos, deadlines, host authority, Firestore Rules ni arquitectura Firebase Spark.
+
 ## 0.9.0 — Plan Águila: lobby estable y Soplar con objetivo visible
 
 - El lobby se ordena explícitamente por `joinedAt`: cambiar Listo, recibir heartbeats o cambiar de host ya no mueve las filas.

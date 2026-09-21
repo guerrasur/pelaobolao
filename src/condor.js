@@ -1,6 +1,6 @@
 import './condor.css';
 import { playCue } from './sound.js';
-import { timerSeconds, shouldCountdownTick, phaseEntranceClass } from './condor-core.js';
+import { aimGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from './condor-core.js';
 
 const ENTER_CLASSES = ['condor-enter-choosing', 'condor-enter-locked', 'condor-enter-reveal', 'condor-enter-finished'];
 
@@ -24,7 +24,6 @@ function pulseEntrance(board, phase) {
   board.classList.remove(...ENTER_CLASSES);
   const className = phaseEntranceClass(phase);
   if (!className) return;
-  // Restart the short phase stamp even when the browser batches the replacement.
   void board.offsetWidth;
   board.classList.add(className);
   window.setTimeout(() => board.classList.remove(className), 760);
@@ -43,6 +42,42 @@ function addPressRipple(event) {
   window.setTimeout(() => ripple.remove(), 520);
 }
 
+function pulseClass(node, className, duration = 650) {
+  if (!node) return;
+  node.classList.remove(className);
+  void node.offsetWidth;
+  node.classList.add(className);
+  window.setTimeout(() => node.classList.remove(className), duration);
+}
+
+function updateAimGuide(board) {
+  const source = board?.querySelector('#blow');
+  const target = board?.querySelector('.player.selected-target');
+  let guide = board?.querySelector('.condor-aim-guide');
+  if (!board || board.dataset.phase !== 'choosing' || !source || !target) {
+    guide?.remove();
+    return;
+  }
+  const targetRect = target.getBoundingClientRect();
+  const geometry = aimGuideGeometry(source.getBoundingClientRect(), targetRect, board.getBoundingClientRect());
+  if (!geometry) {
+    guide?.remove();
+    return;
+  }
+  if (!guide) {
+    guide = document.createElement('span');
+    guide.className = 'condor-aim-guide';
+    guide.setAttribute('aria-hidden', 'true');
+    guide.innerHTML = '<i></i><i></i><i></i><b>ATAQUE</b>';
+    board.append(guide);
+  }
+  const stopShort = Math.min(targetRect.width, targetRect.height) * .26;
+  guide.style.left = `${geometry.left}px`;
+  guide.style.top = `${geometry.top}px`;
+  guide.style.width = `${Math.max(20, geometry.length - stopShort)}px`;
+  guide.style.transform = `rotate(${geometry.angle}deg)`;
+}
+
 export function startCondor(root = document) {
   const app = root.querySelector('#app');
   if (!app || typeof MutationObserver === 'undefined') return () => {};
@@ -50,17 +85,53 @@ export function startCondor(root = document) {
   let lastPhase = null;
   let lastTickKey = null;
   let lastBoard = null;
+  let lastTargetUid = null;
   let tickCleanup = 0;
+  let lobbyInitialized = false;
+  let lobbyState = new Map();
+
+  const enhanceLobby = () => {
+    const list = app.querySelector('.lobby-list');
+    if (!list) {
+      lobbyInitialized = false;
+      lobbyState = new Map();
+      return;
+    }
+    const nextState = new Map();
+    let readyCue = false;
+    for (const row of list.querySelectorAll('[data-member]')) {
+      const uid = row.dataset.member;
+      const ready = row.dataset.ready === 'true';
+      nextState.set(uid, ready);
+      if (!lobbyInitialized) continue;
+      if (!lobbyState.has(uid)) {
+        pulseClass(row, 'condor-lobby-join', 720);
+      } else if (!lobbyState.get(uid) && ready) {
+        pulseClass(row, 'condor-lobby-ready', 680);
+        readyCue = true;
+      } else if (lobbyState.get(uid) && !ready) {
+        pulseClass(row, 'condor-lobby-unready', 460);
+      }
+    }
+    if (readyCue) playCue('ready');
+    lobbyState = nextState;
+    lobbyInitialized = true;
+  };
 
   const enhance = () => {
     const board = app.querySelector('.game');
     if (!board) {
+      lastBoard?.querySelector('.condor-aim-guide')?.remove();
       lastBoard = null;
       lastPhase = null;
       lastTickKey = null;
+      lastTargetUid = null;
+      enhanceLobby();
       return;
     }
 
+    lobbyInitialized = false;
+    lobbyState = new Map();
     const phase = board.dataset.phase || '';
     const phaseChanged = phase !== lastPhase;
     if (phaseChanged) {
@@ -71,6 +142,15 @@ export function startCondor(root = document) {
       if (phase === 'reveal') chalkBurst(board);
     }
     lastBoard = board;
+
+    const target = board.querySelector('.player.selected-target');
+    const targetUid = target?.dataset.player ?? null;
+    if (targetUid && targetUid !== lastTargetUid) {
+      pulseClass(target, 'condor-target-lock', 620);
+      playCue('target');
+    }
+    lastTargetUid = targetUid;
+    updateAimGuide(board);
 
     const seconds = timerSeconds(board.querySelector('#timer')?.textContent);
     const tickKey = `${phase}:${seconds}`;
@@ -88,12 +168,15 @@ export function startCondor(root = document) {
   const observer = new MutationObserver(enhance);
   observer.observe(app, { subtree: true, childList: true, characterData: true });
   root.addEventListener('pointerdown', addPressRipple, { passive: true });
+  window.addEventListener('resize', enhance, { passive: true });
   enhance();
 
   return () => {
     observer.disconnect();
     root.removeEventListener('pointerdown', addPressRipple);
+    window.removeEventListener('resize', enhance);
     window.clearTimeout(tickCleanup);
+    lastBoard?.querySelector('.condor-aim-guide')?.remove();
   };
 }
 

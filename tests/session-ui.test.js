@@ -119,6 +119,8 @@ test('el lobby expone progreso de listos y presencia sin revelar acciones', asyn
   assert.match(html, /1\/2 listos/);
   assert.match(html, /data-presence="me"/);
   assert.match(html, /data-presence="other"/);
+  assert.match(html, /data-member="me" data-ready="true"/);
+  assert.match(html, /data-member="other" data-ready="false"/);
   assert.match(html, /Reconectando/);
   assert.match(html, /lobby-self-tag">VOS/);
   assert.doesNotMatch(html, /Ana \(vos\)/);
