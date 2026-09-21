@@ -442,8 +442,12 @@ function bind() {
 }
 
 function tick() {
-  connection.textContent = !s.online ? 'Sin conexión · reconectando al volver la señal' : lastContact && Date.now() - lastContact > 30000 && s.roomId ? 'Comprobando conexión con el servidor…' : api ? 'Conectado' : 'Conectando…';
+  const checkingConnection = s.online && Boolean(lastContact && Date.now() - lastContact > 30000 && s.roomId);
+  const connecting = s.online && !api;
+  connection.textContent = !s.online ? 'Sin conexión · reconectando al volver la señal' : checkingConnection ? 'Comprobando conexión con el servidor…' : api ? 'Conectado' : 'Conectando…';
   connection.classList.toggle('offline', !s.online);
+  connection.classList.toggle('checking', checkingConnection);
+  connection.classList.toggle('connecting', connecting);
   if (s.updateRequired) return;
   document.querySelectorAll('[data-presence]').forEach(el => {
     const online = memberOnline(el.dataset.presence);
