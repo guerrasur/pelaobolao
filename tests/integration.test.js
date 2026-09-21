@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, getDoc, getDocs, collection, updateDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { createClient } from '../src/client.js';
-import { LOBBY_LEASE_MS } from '../src/game.js';
+import { LOBBY_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND } from '../src/game.js';
 let env, seq = 0;
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-pelaobolao', firestore: { rules: await readFile('firestore.rules','utf8') } });
@@ -390,4 +390,52 @@ test('Plan Condor: el host limpia espectadores tardíos vencidos sin tocar parti
   assert.equal(room.status,'playing');
   assert.equal(room.gameId,gameId);
   assert.notEqual(game.phase,'abandoned');
+});
+
+
+test('Plan Aguila: +1 Pelo se disputa como objetivo real y se resuelve en Firestore', async () => {
+  const {a,b,gameId}=await started();
+  await patch(`games/${gameId}`,{
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:1,source:'test'},
+    [`players.${a.uid}.hair`]:2,
+    [`players.${a.uid}.breath`]:1,
+  });
+  await choose(a,gameId,1,'blow',CENTER_ITEM_TARGET);
+  await choose(b,gameId,1,'hide');
+  await expire(gameId);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
+
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.phase,'reveal');
+  assert.equal(g.players[a.uid].hair,3);
+  assert.equal(g.players[a.uid].breath,0);
+  assert.equal(g.centerItem,null);
+  assert.equal(g.lastResult.item.outcome,'claimed');
+  assert.equal(g.lastResult.item.winnerId,a.uid);
+  assert.equal(g.lastResult.heals[a.uid],1);
+  const round=await read(a.db,`games/${gameId}/rounds/1`);
+  assert.equal(round.item.outcome,'claimed');
+  assert.equal(round.heals[a.uid],1);
+});
+
+test('Plan Aguila: el director de items fuerza +1 Pelo al detectar brecha crítica de HP', async () => {
+  const {a,b,gameId}=await started();
+  await patch(`games/${gameId}`,{
+    [`players.${a.uid}.hair`]:1,
+    [`players.${b.uid}.hair`]:3,
+  });
+  await choose(a,gameId,1,'hide');
+  await choose(b,gameId,1,'hide');
+  await expire(gameId);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
+  await expire(gameId,2500);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'reveal'});
+
+  const g=await read(a.db,`games/${gameId}`);
+  assert.equal(g.turn,2);
+  assert.equal(g.phase,'choosing');
+  assert.equal(g.centerItem.kind,HAIR_ITEM_KIND);
+  assert.equal(g.centerItem.source,'critical');
+  assert.equal(g.centerItem.spawnedTurn,2);
+  assert.equal(g.lastItemSpawnTurn,2);
 });
