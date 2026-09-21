@@ -52,7 +52,11 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
     await savedOrRevealed(page);
   };
   await turn(1);
+  await a.locator('.brand').click();
+  await expect(a.locator('.game')).toBeVisible();
+  await expect(a.locator('#notice')).toContainText('Salí de la sala para volver al inicio.');
   await choose(a, /Tomar aire/);
+  await expect(a.locator('#notice')).toBeEmpty();
   // Choices of the other player never appear before resolution.
   await expect(a.locator('.result')).toHaveCount(0);
   await choose(b, /Tomar aire/);
