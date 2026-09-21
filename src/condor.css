@@ -573,3 +573,23 @@
 @media(prefers-reduced-motion:reduce) {
   .game[data-phase="locked"] .sealed-choice { animation:none!important; }
 }
+
+
+/* Plan Águila 0.16.0 — target confirmation without floating labels. */
+.player.condor-target-lock::before {
+  border-color:#ff3155!important;
+  box-shadow:0 0 0 3px #fff7f8,0 0 14px #ff31558f;
+}
+.player.condor-target-lock .attack-target-badge,
+.player.drag-target::after {
+  display:none!important;
+}
+.game[data-targeting="true"] .player.targetable {
+  outline-color:#ff6a85!important;
+}
+.game[data-targeting="true"] .player.targetable:not(.selected-target) {
+  box-shadow:1px 2px 0 #49352396,0 0 0 3px #ff6a8528;
+}
+@media(prefers-reduced-motion:reduce) {
+  .player.condor-target-lock::before { animation:none!important; }
+}
