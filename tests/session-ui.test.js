@@ -138,9 +138,13 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   const winner = renderPlayerCard({ ...base, player:{ ...base.player, hair:2 }, connected:true, winner:true, effects:{ action:'air' } });
   assert.match(winner, /player [^"]*winner/);
   assert.match(winner, /rx="3\.7"/);
-  const self = renderPlayerCard({ ...base, self:true, connected:true, effects:{} });
+  const self = renderPlayerCard({ ...base, self:true, connected:true, chosen:true, effects:{} });
   assert.match(self, /self-tag">VOS/);
   assert.match(self, /player-label" title="Rival \(vos\)">Rival<\/span>/);
+  assert.match(self, /has-chosen/);
+  assert.match(self, /hair-resource/);
+  assert.match(self, /breath-resource/);
+  assert.match(self, /--hair-fill:0\.25/);
 });
 
 
@@ -165,4 +169,34 @@ test('modo objetivo expone una guía clara sin revelar elecciones ajenas', async
   assert.match(html, /data-targeting="true"/);
   assert.match(html, /Modo objetivo activo/);
   assert.doesNotMatch(html, /Beto.*Tomar aire/);
+});
+
+
+test('resultado usa chips del juego y prompts cortos sin emojis decorativos', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = { code:'ABCD', status:'playing', hostId:'me', members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId = 'g1';
+  ui.s.game = {
+    phase:'reveal', turn:2, protocolVersion:2, phaseStartedAt:now,
+    memberIds:['me','other'], chosen:{ me:true, other:true }, ready:{},
+    players:{ me:{name:'Ana',hair:3,breath:1}, other:{name:'Beto',hair:2,breath:0} },
+    rules:{ maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500 },
+    lastResult:{
+      turn:2,
+      actions:{ me:{action:'blow',target:'other'}, other:{action:'distracted'} },
+      hits:[{from:'me',to:'other',blocked:false}],
+      losses:{other:1},
+    },
+  };
+  ui.render();
+  const html = ui.nodes.get('#app').innerHTML;
+  assert.match(html, /data-kind="blow"/);
+  assert.match(html, /data-kind="distracted"/);
+  assert.match(html, /data-kind="damage"/);
+  assert.doesNotMatch(html, /💨|🫁|🪑|🛡|✂/);
 });
