@@ -321,3 +321,50 @@ test('listos y latidos concurrentes conservan a los seis jugadores sin denegar p
   assert.equal(Object.keys(room.members).length, 6);
   assert.ok(Object.values(room.members).every(m => m.ready && !m.left));
 });
+
+
+test('Plan Aguila: late joiners spectate safely and enter the next lobby', async () => {
+  const {a,b,gameId,roomId}=await started();
+  const makeSpectator=async label => {
+    const uid=`${label}${++seq}`, db=env.authenticatedContext(uid).firestore(), client=createClient(db,uid);
+    await client.call('saveProfile',{name:uid});
+    await client.call('roomCommand',{command:'join',code:roomId});
+    return {uid,db,client};
+  };
+  const watcher=await makeSpectator('watcher');
+  const leavingWatcher=await makeSpectator('leaver');
+
+  const activeRoom=await read(watcher.db,`rooms/${roomId}`);
+  const activeGame=await read(watcher.db,`games/${gameId}`);
+  assert.equal(activeRoom.status,'playing');
+  assert.equal(activeGame.memberIds.includes(watcher.uid),false);
+  assert.equal(activeGame.memberIds.includes(leavingWatcher.uid),false);
+  await assert.rejects(choose(watcher,gameId,1,'air'));
+
+  await leavingWatcher.client.call('roomCommand',{command:'leave',roomId});
+  const afterSpectatorLeave=await read(b.db,`rooms/${roomId}`);
+  assert.equal(afterSpectatorLeave.status,'playing');
+  assert.equal(afterSpectatorLeave.gameId,gameId);
+  assert.equal(afterSpectatorLeave.members[leavingWatcher.uid],undefined);
+  assert.notEqual((await read(b.db,`games/${gameId}`)).phase,'abandoned');
+
+  await patch(`rooms/${roomId}`,{[`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000)});
+  await watcher.client.call('roomCommand',{command:'touch',roomId});
+  assert.equal((await read(watcher.db,`rooms/${roomId}`)).hostId,a.uid);
+  await b.client.call('roomCommand',{command:'touch',roomId});
+  assert.equal((await read(watcher.db,`rooms/${roomId}`)).hostId,b.uid);
+
+  await patch(`games/${gameId}`,{
+    phase:'finished',winnerId:b.uid,draw:false,finishedAt:Date.now(),
+    lastProgressAt:Timestamp.fromMillis(Date.now()),
+  });
+  await patch(`rooms/${roomId}`,{status:'finished'});
+  await b.client.call('roomCommand',{command:'lobby',roomId});
+
+  const lobby=await read(watcher.db,`rooms/${roomId}`);
+  assert.equal(lobby.status,'lobby');
+  assert.equal(lobby.gameId,null);
+  assert.ok(lobby.members[watcher.uid]);
+  assert.equal(lobby.members[watcher.uid].ready,false);
+  assert.equal(lobby.members[leavingWatcher.uid],undefined);
+});
