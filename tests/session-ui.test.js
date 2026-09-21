@@ -133,4 +133,7 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(card, /¡BLOQUEADO!/);
   const defense = renderPlayerCard({ ...base, connected:true, effects:{ blockedDefense:true } });
   assert.match(defense, /¡ATAJÓ!/);
+  const winner = renderPlayerCard({ ...base, player:{ ...base.player, hair:2 }, connected:true, winner:true, effects:{ action:'air' } });
+  assert.match(winner, /player [^"]*winner/);
+  assert.match(winner, /rx="3\.7"/);
 });
