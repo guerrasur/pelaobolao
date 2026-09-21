@@ -1,5 +1,15 @@
 # Estado del MVP Spark
 
+## 0.6.6 — logo con cinta y pulido de lobby/conexión
+
+- Vuelve el logo de las primeras versiones: papel rayado centrado, inclinado y sujeto con una cinta translúcida.
+- En horizontal el mismo logo se compacta para preservar el tablero fullscreen.
+- El lobby usa el mismo badge VOS que las tarjetas de partida, sin repetir "(vos)" dentro del nombre.
+- Conectado, comprobando conexión y sin conexión tienen indicadores visuales distintos.
+- Compartir una sala captura código y enlace antes de abrir la hoja nativa, evitando errores si la sala cambia o se abandona mientras el diálogo está abierto.
+- Se añadieron regresiones E2E para centrado del logo en todos los viewports y para compartir/salir simultáneamente.
+- Sin cambios en reglas de combate ni arquitectura Firebase Spark.
+
 ## 0.6.5 — revancha segura y targeting más claro
 
 - Volver al lobby después de una partida reinicia el estado Listo de todos; ninguna revancha puede arrancar sin una nueva confirmación.
