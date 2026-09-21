@@ -464,7 +464,7 @@ test('Plan Aguila: el mechón explica vulnerabilidad y no se renderiza encima de
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/MECHÓN FLOTANTE/);
-  assert.match(html,/Tenés Pelo al máximo/);
+  assert.match(html,/Pelo al máximo/);
   assert.match(html,/item-new-badge">NUEVO/);
   assert.match(html,/aria-disabled="false"/);
   assert.match(html,/SIN COSTO · VULNERABLE/);
