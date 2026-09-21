@@ -2138,6 +2138,12 @@ header { min-height:48px; }
   font-size:9px;
   font-weight:800;
 }
+.spectator-strip.is-waiting {
+  background:repeating-linear-gradient(0deg,#e8f1df 0 13px,#c8d8bd 14px 15px);
+  border-style:dashed;
+}
+.spectator-strip.is-waiting strong { color:#24563f; }
+.spectator-strip.is-waiting span { color:#31483c; }
 
 .result-callout {
   width:max-content;
@@ -2414,3 +2420,12 @@ header { min-height:48px; }
 @media(prefers-reduced-motion:reduce) {
   .lobby-return-countdown { animation:none!important; }
 }
+
+
+/* v0.12.0 — late-join spectator state */
+.end-spectator .outcome-card {
+  background:#eef3df;
+  border-color:#26362e;
+  color:#26362e;
+}
+.end-spectator .outcome-card strong { font-size:clamp(25px,7vw,42px); }
