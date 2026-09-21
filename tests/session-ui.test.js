@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS } from '../src/game.js';
 import { playerCard as renderPlayerCard } from '../src/visuals.js';
+import { isNewerVersion } from '../src/version.js';
 
 // Execute the real UI controller with a minimal DOM and controllable network.
 // No Firebase permissions or emulator behavior is simulated by these tests.
@@ -28,7 +29,7 @@ async function setup(handler = async () => ({})) {
       const sub = { path, next, error, active: true }; subscriptions.push(sub);
       return () => { sub.active = false; };
     },
-    connect: async () => api, millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS,
+    connect: async () => api, millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS, isNewerVersion,
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');
@@ -128,6 +129,10 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   const base = { uid:'legacy', player:{ name:'Rival', hair:1, breath:0 }, index:-1, self:false, selected:false, chosen:false,
     connected:false, rules:{ maxHair:4, maxBreath:2 } };
   const card = renderPlayerCard({ ...base, effects:{ blockedAttack:true } });
+  assert.match(card, / disabled>/);
+  const targetable = renderPlayerCard({ ...base, targetable:true, effects:{} });
+  assert.match(targetable, /targetable/);
+  assert.doesNotMatch(targetable, / disabled>/);
   assert.match(card, /critical/);
   assert.match(card, /offline-player/);
   assert.match(card, /--seat-color:#fa4563/);
@@ -199,6 +204,7 @@ test('resultado usa chips del juego y prompts cortos sin emojis decorativos', as
   assert.match(html, /data-kind="blow"/);
   assert.match(html, /data-kind="distracted"/);
   assert.match(html, /data-kind="damage"/);
+  assert.match(html, /VOLÓ PELO/);
   assert.doesNotMatch(html, /💨|🫁|🪑|🛡|✂/);
 });
 
@@ -234,4 +240,32 @@ test('final de partida diferencia victoria, derrota y muestra ganador aparte', a
   assert.match(html, /PERDISTE/);
   assert.match(html, /outcome-winner">Ganó <b>Beto<\/b>/);
   assert.match(html, /class="tomato"/);
+});
+
+
+test('jugador pelado entra en modo espectador sin controles de acción', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'other',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+    third:{name:'Cami',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:3,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other','third'],chosen:{},ready:{},
+    players:{
+      me:{name:'Ana',hair:0,breath:0},
+      other:{name:'Beto',hair:2,breath:1},
+      third:{name:'Cami',hair:1,breath:0},
+    },
+    rules:{maxHair:4,maxBreath:2,turnMs:8000,countdownMs:3000,revealMs:2500},
+  };
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/PELADO · MIRANDO/);
+  assert.match(html,/2 siguen con Pelo/);
+  assert.doesNotMatch(html,/class="controls"/);
 });
