@@ -504,11 +504,11 @@ function resultHtml(game) {
   const hairHealed = Object.values(result.heals || {}).reduce((total, heal) => total + Number(heal || 0), 0);
   const itemResult = result.item;
   const itemSummary = itemResult?.outcome === 'claimed'
-    ? `<div class="item-result claimed"><b>+1 PELO</b><span>${esc(game.players[itemResult.winnerId]?.name ?? 'Jugador')}${itemResult.healed > 0 ? ' recuperó 1 Pelo' : itemResult.claimantAlive === false ? ' quedó Pelado antes de curarse' : ' ya estaba al máximo'}</span></div>`
+    ? `<div class="item-result claimed"><b>MECHÓN +1</b><span>${esc(game.players[itemResult.winnerId]?.name ?? 'Jugador')}${itemResult.healed > 0 ? ' recuperó 1 Pelo' : itemResult.claimantAlive === false ? ' quedó Pelado antes de curarse' : ' ya estaba al máximo'}</span></div>`
     : itemResult?.outcome === 'contested'
-      ? `<div class="item-result contested"><b>OBJETO DISPUTADO</b><span>${itemResult.attempts.length} fueron por él · nadie se lo llevó</span></div>`
+      ? `<div class="item-result contested"><b>MECHÓN DISPUTADO</b><span>${itemResult.attempts.length} fueron por él · nadie se lo llevó</span></div>`
       : itemResult?.outcome === 'stayed'
-        ? '<div class="item-result stayed"><b>+1 PELO SIGUE AHÍ</b><span>Nadie intentó llevárselo</span></div>'
+        ? '<div class="item-result stayed"><b>EL MECHÓN SIGUE AHÍ</b><span>Nadie intentó agarrarlo</span></div>'
         : '';
   return `<section class="result" aria-label="Resultado actual">
     <div class="result-callout">${roundCallout(game)}</div>
