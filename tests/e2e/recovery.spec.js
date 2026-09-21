@@ -98,6 +98,45 @@ test('actualización cancela arrastre, bloquea acciones y permite reingresar con
   } finally { await guestContext.close(); }
 });
 
+test('Plan Condor 0.18: Agarrar no se mezcla con apuntar Soplar y tiene feedback propio', async ({ browser, page }) => {
+  const { guestContext, guest, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, {
+      centerItem:{ kind:'hair_plus_1', spawnedTurn:1, source:'test' },
+      'rules.turnMs':60000,
+      [`players.${room.hostId}.breath`]:1,
+    });
+    const item = page.locator('[data-center-item]');
+    await expect(item).toBeVisible();
+    await expect(item).toBeEnabled();
+
+    await page.locator('#blow').click();
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting','true');
+    await expect(item).toBeDisabled();
+    await expect(item).not.toHaveClass(/targetable/);
+    await expect(page.locator('.condor-aim-guide')).toHaveCount(0);
+
+    await page.locator('#blow').click();
+    await expect(item).toBeEnabled();
+    await item.click();
+    await expect(page.locator('#selection')).toContainText(/MECHÓN ELEGIDO|Agarrando el mechón/);
+    await expect(item).toHaveClass(/selected-grab/);
+    await expect(item).not.toHaveClass(/selected-target/);
+    await expect(page.locator('.condor-aim-guide')).toHaveCount(0);
+    await expect(item).toHaveClass(/condor-grab-confirmed/);
+
+    const intent = await read(`games/${gameId}/intents/${room.hostId}`);
+    expect(intent.action).toBe('grab');
+    expect(intent.target).toBe('__center_item__');
+    expect((await read(`games/${gameId}`)).players[room.hostId].breath).toBe(1);
+
+    await guest.getByRole('button',{name:'Esconderse',exact:true}).click();
+    await expect(page.locator('.result')).toBeVisible({timeout:5000});
+    await expect(page.locator('[data-player].self .fx-grab')).toHaveCount(1);
+    await expect(page.locator('[data-player].self .fx-label-grab')).toContainText('AGARRA');
+  } finally { await guestContext.close(); }
+});
+
 test('dos relojes distintos y cierre anticipado mantienen el siguiente turno sincronizado', async ({browser,page}) => {
   // Simulate a device with a clock one hour ahead before calibration.
   await page.addInitScript(() => {
