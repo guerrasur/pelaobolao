@@ -5,7 +5,7 @@ import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, GAME_HOST_LEASE_M
 import { playerCard, actionControls } from './visuals.js';
 import { playCue } from './sound.js';
 import { isNewerVersion } from './version.js';
-import { dragGuideGeometry } from './condor-core.js';
+import { dragGuideGeometry, shouldHoldRenderForDrag } from './condor-core.js';
 import packageInfo from '../package.json';
 
 const app = document.querySelector('#app');
@@ -604,6 +604,13 @@ function render() {
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
+  // Keep pointer capture stable while a live blow drag is in progress. Room
+  // heartbeats/presence snapshots may request a render, but the timer and
+  // connection HUD continue updating through tick().
+  if (shouldHoldRenderForDrag(Boolean(drag), s.game?.phase, Boolean(s.updateRequired))) { tick(); return; }
+  // Critical state changes (phase/update gate) must tear down transient drag
+  // overlays before replacing the captured button.
+  if (drag) cancelDrag();
   app.innerHTML = html; renderedHtml = html;
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -799,7 +806,11 @@ document.querySelector('.brand')?.addEventListener('click', event => {
 window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
 const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
 window.addEventListener('online', () => { s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { resyncClock(); void heartbeat(true); tick(); void checkVersion(); } });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { cancelDrag(); return; }
+  resyncClock(); void heartbeat(true); tick(); void checkVersion();
+});
+window.addEventListener('pagehide', cancelDrag);
 setInterval(tick, 200);
 setInterval(heartbeat, 2000);
 setInterval(checkVersion, 60000);

@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.19.0): Plan Águila limpia el targeting de Soplar quitando el cartel “SOLTÁ ACÁ” y la retícula circular sobre el rival, e incorpora identidad instalable: favicon propio, manifest y modo standalone para anclar Pelao Bolao como app desde Safari o Chrome.
+Última corrección (0.21.0): Plan Cóndor estabiliza el arrastre de Soplar frente a heartbeats/snapshots que antes podían reemplazar el DOM en medio del gesto, limpia el arrastre al ocultar o abandonar la página y vuelve a alinear `package-lock.json` con la versión publicada.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 

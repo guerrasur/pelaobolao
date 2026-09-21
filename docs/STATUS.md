@@ -1,5 +1,21 @@
 # Estado del MVP Spark
 
+## 0.21.0 — Plan Cóndor: drag estable + build alineado
+
+- Durante un arrastre activo de Soplar, los heartbeats, presencia y snapshots que sólo piden re-render ya no reemplazan el botón capturado mientras la fase siga en `choosing`; el gesto conserva pointer capture y la guía bajo el dedo.
+- El HUD dinámico sigue actualizándose mediante `tick()` durante ese breve hold, por lo que reloj y conexión no se congelan.
+- Un cambio crítico de estado (fin de elección, bloqueo de versión, etc.) sí cancela el drag y limpia ghost/vector antes de reemplazar el DOM.
+- Al ocultar la pestaña/app o abandonar la página se cancela explícitamente cualquier drag transitorio, evitando overlays o captura residual al volver.
+- Se añade una función pura y regresión unitaria para cubrir qué renders pueden mantenerse durante un drag y cuáles deben pasar inmediatamente.
+- Se corrige la deriva de metadatos: `package-lock.json` había quedado en 0.19.0 mientras la app ya estaba en 0.20.0; toda la publicación queda alineada en 0.21.0.
+- Sin cambios en daño, Pelo, Soplos, objetos, resolución simultánea, Firestore Rules ni autoridad del host.
+
+## 0.20.0 — Plan Cóndor: targeting estable en viewport móvil
+
+- Se mantuvieron retirados los overlays redundantes de targeting eliminados en 0.19.0.
+- La geometría de apuntado se vuelve a calcular ante cambios de `visualViewport`, orientación y regreso a primer plano, cubriendo Safari/Chrome móvil cuando cambia la barra del navegador.
+- Sin cambios en reglas de combate o sincronización.
+
 ## 0.19.0 — Plan Águila: targeting limpio + instalación como app
 
 - Se elimina el rectángulo amarillo “SOLTÁ ACÁ” durante el arrastre. La tarjeta rival sigue resaltándose y la trayectoria roja continúa marcando con claridad dónde va el Soplo.

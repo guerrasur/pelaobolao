@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aimGuideGeometry, dragGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from '../src/condor-core.js';
+import { aimGuideGeometry, dragGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass, shouldHoldRenderForDrag } from '../src/condor-core.js';
 
 test('timerSeconds only accepts rendered second labels', () => {
   assert.equal(timerSeconds('03s'), 3);
@@ -70,4 +70,12 @@ test('drag guide snaps to the center of a hovered target', () => {
   assert.equal(geometry.top, 70);
   assert.equal(Math.round(geometry.length), 192);
   assert.equal(Math.round(geometry.angle), 9);
+});
+
+
+test('active blow drag holds non-critical choosing renders only', () => {
+  assert.equal(shouldHoldRenderForDrag(true, 'choosing', false), true);
+  assert.equal(shouldHoldRenderForDrag(false, 'choosing', false), false);
+  assert.equal(shouldHoldRenderForDrag(true, 'locked', false), false);
+  assert.equal(shouldHoldRenderForDrag(true, 'choosing', true), false);
 });

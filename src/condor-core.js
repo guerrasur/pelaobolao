@@ -48,3 +48,8 @@ export function dragGuideGeometry(sourceRect, pointerX, pointerY, targetRect = n
   if (!Number.isFinite(length) || length < 1) return null;
   return { left: sourceX, top: sourceY, length, angle: Math.atan2(dy, dx) * 180 / Math.PI };
 }
+
+
+export function shouldHoldRenderForDrag(dragActive, phase, updateRequired = false) {
+  return Boolean(dragActive && phase === 'choosing' && !updateRequired);
+}
