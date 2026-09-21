@@ -334,13 +334,15 @@ button:not(:disabled):active { transform:translateY(2px); }
 .game[data-phase="reveal"] #timer { color:#6338a2; }
 .game .turn-header + #turn-status { font-size:11px; text-align:center; margin:8px 0; min-height:16px; color:#2d2830; font-weight:650; }
 .players { flex:1; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:space-between; gap:48px 15px; padding:5px 0; min-height:230px; }
+.players { pointer-events:none; }
+.players .player,.players .center-item { pointer-events:auto; }
 .players::before { display:none; }
 .player { align-self:start; padding:0; background:var(--paper); color:var(--ink); border:2px solid var(--ink); border-radius:12px; overflow:visible; box-shadow:2px 4px 0 #49352396; text-align:left; min-height:0; }
-.player:nth-child(even) { transform:rotate(2deg); }
-.player:nth-child(odd) { transform:rotate(-2deg); }
+.player:nth-of-type(even) { transform:rotate(2deg); }
+.player:nth-of-type(odd) { transform:rotate(-2deg); }
 .player:disabled { opacity:1; }
 .player.self { border-color:var(--ink); box-shadow:0 0 0 3px #ffdb55,2px 5px 0 #49352396; }
-.player.self:last-of-type { grid-column:2; }
+.player.self { grid-column:2; }
 .players[data-count="2"] .player.self { grid-row:2; }
 .players[data-count="3"] .player.self { grid-column:1/-1; width:55%; justify-self:center; }
 .player-name { display:flex; align-items:center; gap:7px; background:var(--ink); color:white; border-radius:8px 8px 0 0; padding:4px 6px; font-size:13px!important; overflow-wrap:anywhere; }
@@ -433,7 +435,7 @@ header { padding:0; min-height:32px; justify-content:space-between; }
   width:100%; height:100%; max-height:180px; align-self:center;
   transform:none!important; border-radius:8px; box-shadow:1px 2px 0 #49352396;
 }
-.player.self:last-of-type { grid-column:2; }
+.player.self { grid-column:2; }
 .players[data-count="3"] .player.self,.players[data-count="5"] .player.self { grid-column:1/-1; width:50%; justify-self:center; }
 .player-name { min-width:0; min-height:20px; line-height:1.1; font-size:12px!important; padding:3px 5px; border-radius:5px 5px 0 0; }
 .player-name i { width:19px; height:20px; flex-basis:19px; margin:0; font-size:15px; border-radius:5px; }
@@ -466,7 +468,7 @@ header { padding:0; min-height:32px; justify-content:space-between; }
 @media(min-width:900px) and (min-height:521px) {
   .players { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .players[data-count="5"],.players[data-count="6"] { grid-template-rows:repeat(2,minmax(0,1fr)); }
-  .players .player.self:last-of-type { grid-column:auto; grid-row:auto; width:100%; }
+  .players .player.self { grid-column:auto; grid-row:auto; width:100%; }
   .players[data-count="2"] .player.self { grid-column:3; grid-row:2; }
   .player { max-height:230px; }
 }
@@ -493,7 +495,7 @@ header { padding:0; min-height:32px; justify-content:space-between; }
   .game .turn-header { grid-column:1; grid-row:2; }
   #turn-status { grid-column:1; grid-row:3; }
   .players { grid-column:1; grid-row:4/8; height:100%; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); }
-  .players .player.self:last-of-type { grid-column:auto; grid-row:auto; width:100%; }
+  .players .player.self { grid-column:auto; grid-row:auto; width:100%; }
   .controls { grid-column:2; grid-row:2/5; display:flex; flex-direction:column; height:100%; min-height:0; gap:5px; }
   .controls button,#blow { flex:1; min-height:44px; height:auto; flex-direction:row; gap:8px; border-radius:12px; }
   #selection { grid-column:2; grid-row:5; }
@@ -2444,13 +2446,13 @@ header { min-height:48px; }
 .center-item {
   position:absolute!important;
   z-index:8;
-  left:50%;
-  top:50%;
+  inset:0;
+  margin:auto;
   width:clamp(66px,18vw,86px);
   height:clamp(66px,18vw,86px);
   min-width:0!important;
   min-height:0!important;
-  transform:translate(-50%,-50%) rotate(-3deg);
+  transform:rotate(-3deg);
   display:flex!important;
   flex-direction:column;
   align-items:center;
@@ -2531,7 +2533,7 @@ header { min-height:48px; }
   z-index:18!important;
   outline:5px solid #ff244d!important;
   outline-offset:4px!important;
-  transform:translate(-50%,-50%) rotate(-3deg) scale(1.08)!important;
+  transform:rotate(-3deg) scale(1.08)!important;
   box-shadow:0 0 0 4px #fff8ea,0 0 0 9px #bc1738,3px 5px 0 #202633!important;
 }
 .center-item.drag-target::after {
@@ -2634,16 +2636,16 @@ header { min-height:48px; }
 }
 
 @keyframes pb-item-float {
-  from { transform:translate(-50%,-50%) rotate(-3deg) translateY(1px); }
-  to { transform:translate(-50%,-50%) rotate(-1deg) translateY(-3px); }
+  from { transform:rotate(-3deg) translateY(1px); }
+  to { transform:rotate(-1deg) translateY(-3px); }
 }
 @keyframes pb-item-target {
-  from { transform:translate(-50%,-50%) rotate(-3deg) scale(1); }
-  to { transform:translate(-50%,-50%) rotate(-1deg) scale(1.045); }
+  from { transform:rotate(-3deg) scale(1); }
+  to { transform:rotate(-1deg) scale(1.045); }
 }
 @keyframes pb-item-selected {
-  from { transform:translate(-50%,-50%) rotate(-3deg) scale(1.02); }
-  to { transform:translate(-50%,-50%) rotate(1deg) scale(1.07); }
+  from { transform:rotate(-3deg) scale(1.02); }
+  to { transform:rotate(1deg) scale(1.07); }
 }
 @keyframes pb-heal-ring {
   0% { opacity:0; transform:translate(-50%,-50%) scale(.2); }
@@ -2817,14 +2819,6 @@ header { min-height:48px; }
 }
 
 /* Plan Águila 0.17.0 — mechón flotante, geometría estable y targeting sin bloque. */
-.center-item-slot {
-  position:absolute;
-  z-index:8;
-  inset:0;
-  pointer-events:none;
-}
-.center-item-slot .center-item { pointer-events:auto; }
-
 .hair-tuft {
   position:relative;
   display:block;
@@ -2901,5 +2895,67 @@ header { min-height:48px; }
 }
 @media(prefers-reduced-motion:reduce) {
   .hair-tuft { filter:none; }
+}
+
+/* Plan Cóndor 0.18.0 — feedback de la acción Agarrar en reveal. */
+.fx-grab {
+  left:34%;
+  top:33%;
+  width:52%;
+  height:48%;
+  opacity:0;
+  transform:translate(28px,14px) rotate(14deg) scale(.72);
+  animation:pb-grab-reach .72s cubic-bezier(.18,.82,.24,1.16) .08s both;
+}
+.fx-grab i {
+  position:absolute;
+  left:10%;
+  top:35%;
+  width:34px;
+  height:14px;
+  border:2px solid #20232e;
+  border-radius:11px 45% 45% 11px;
+  background:#ffd0a5;
+  box-shadow:inset 0 2px 0 #fff6,1px 2px 0 #20232e55;
+}
+.fx-grab i::before,
+.fx-grab i::after {
+  content:'';
+  position:absolute;
+  right:-3px;
+  width:13px;
+  height:5px;
+  border:2px solid #20232e;
+  border-left:0;
+  border-radius:0 8px 8px 0;
+  background:#ffd0a5;
+}
+.fx-grab i::before { top:-5px; transform:rotate(-18deg); }
+.fx-grab i::after { bottom:-5px; transform:rotate(18deg); }
+.fx-label-grab {
+  background:#dff5d8;
+  color:#245f38;
+  border-color:#2f7249;
+}
+@keyframes pb-grab-reach {
+  0% { opacity:0; transform:translate(30px,16px) rotate(18deg) scale(.66); }
+  45% { opacity:1; transform:translate(4px,2px) rotate(2deg) scale(1.06); }
+  100% { opacity:0; transform:translate(-8px,-3px) rotate(-4deg) scale(.96); }
+}
+
+/* 0.18.0: el hit-area del pickup queda inmóvil; sólo flota el dibujo interior. */
+.center-item.free-pickup,
+.center-item.free-pickup.targetable {
+  animation:none!important;
+}
+.center-item.free-pickup .hair-tuft {
+  animation:pb-tuft-float 1.25s ease-in-out infinite alternate;
+}
+@keyframes pb-tuft-float {
+  from { transform:rotate(-8deg) translateY(1px); }
+  to { transform:rotate(-4deg) translateY(-3px); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item.free-pickup .hair-tuft { animation:none!important; }
 }
 
