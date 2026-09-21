@@ -183,7 +183,7 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(self, /--hair-fill:0\.25/);
   const selected = renderPlayerCard({ ...base, connected:true, selected:true, effects:{} });
   assert.match(selected, /selected-target/);
-  assert.match(selected, /attack-target-badge/);
+  assert.doesNotMatch(selected, /attack-target-badge/);
   assert.doesNotMatch(selected, /ATAQUE ELEGIDO/);
   const grabbing = renderPlayerCard({ ...base, connected:true, effects:{ action:'grab' } });
   assert.match(grabbing, /action-grab/);

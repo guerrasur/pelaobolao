@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#192d27" />
     <meta name="description" content="Pelao Bolao: un juego de soplos, bancos y decisiones secretas. De 2 a 6 jugadores." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Pelao Bolao" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <title>Pelao Bolao</title>
   </head>
   <body>
@@ -12,6 +19,11 @@
     <p id="connection" role="status">Conectando…</p>
     <main id="app"><p>Preparando tu jugador…</p></main>
     <p id="notice" role="status" aria-live="polite"></p>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once: true });
+      }
+    </script>
     <script type="module" src="/src/main.js"></script>
     <script type="module" src="/src/condor.js"></script>
   </body>

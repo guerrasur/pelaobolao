@@ -1,0 +1,26 @@
+{
+  "name": "Pelao Bolao",
+  "short_name": "Pelao Bolao",
+  "description": "Juego multijugador de Soplos, Pelo y decisiones secretas.",
+  "lang": "es-AR",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#192d27",
+  "theme_color": "#192d27",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
