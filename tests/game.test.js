@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RULES, SYNC_WAIT_MS, AUTO_LOBBY_MS, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked, lobbyReturnSeconds } from '../src/game.js';
+import { RULES, SYNC_WAIT_MS, AUTO_LOBBY_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND, newGame, resolveRound, scheduleCenterItem, validateIntent, pruneLobby, phaseDeadline, allMarked, lobbyReturnSeconds } from '../src/game.js';
 import { createServerClock, clockSample } from '../src/clock.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
@@ -189,4 +189,136 @@ test('recalibración inválida conserva la última hora válida y permite recupe
   assert.equal(clock.calibrate(epoch,NaN,100),false);
   assert.equal(clock.calibrate(epoch+2000,1050,1100),true);
   assert.equal(clock.now(),epoch+2025);
+});
+
+
+test('partidas nuevas habilitan objetos centrales sin alterar recursos iniciales', () => {
+  const state = newGame('room', members(2), 1000);
+  assert.equal(state.rules.centerItems, true);
+  assert.equal(state.centerItem, null);
+  assert.equal(state.lastItemSpawnTurn, 0);
+  assert.equal(typeof state.itemSeed, 'string');
+});
+
+test('Soplar al +1 Pelo requiere objeto presente y 1 Soplo', () => {
+  const state = game();
+  state.players['0'].breath = 1;
+  assert.throws(() => validateIntent(state, '0', choice('blow', CENTER_ITEM_TARGET), 1001));
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  assert.doesNotThrow(() => validateIntent(state, '0', choice('blow', CENTER_ITEM_TARGET), 1001));
+  state.players['0'].breath = 0;
+  assert.throws(() => validateIntent(state, '0', choice('blow', CENTER_ITEM_TARGET), 1001));
+});
+
+test('un solo intento consume Soplo, entrega +1 Pelo y retira el objeto', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  state.players['0'].hair = 2;
+  state.players['0'].breath = 1;
+  const result = resolveRound(state, { 0: choice('blow', CENTER_ITEM_TARGET), 1: choice('hide') });
+  assert.equal(result.players['0'].hair, 3);
+  assert.equal(result.players['0'].breath, 0);
+  assert.equal(result.centerItem, null);
+  assert.equal(result.result.item.outcome, 'claimed');
+  assert.equal(result.result.item.winnerId, '0');
+  assert.equal(result.result.item.healed, 1);
+  assert.equal(result.result.heals['0'], 1);
+});
+
+test('dos o más intentos consumen Soplo, destruyen el objeto y nadie cura', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  state.players['0'].hair = 2;
+  state.players['1'].hair = 2;
+  state.players['0'].breath = state.players['1'].breath = 1;
+  const result = resolveRound(state, {
+    0: choice('blow', CENTER_ITEM_TARGET),
+    1: choice('blow', CENTER_ITEM_TARGET),
+  });
+  assert.equal(result.centerItem, null);
+  assert.equal(result.result.item.outcome, 'contested');
+  assert.equal(result.result.item.attempts.length, 2);
+  assert.deepEqual(result.result.heals, {});
+  assert.equal(result.players['0'].hair, 2);
+  assert.equal(result.players['1'].hair, 2);
+  assert.equal(result.players['0'].breath, 0);
+  assert.equal(result.players['1'].breath, 0);
+});
+
+test('si nadie intenta obtenerlo, el +1 Pelo permanece para el turno siguiente', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  const result = resolveRound(state, { 0: choice('air'), 1: choice('hide') });
+  assert.deepEqual(result.centerItem, state.centerItem);
+  assert.equal(result.result.item.outcome, 'stayed');
+});
+
+test('el daño ocurre antes de la curación y llegar a 0 Pelo no revive', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'critical' };
+  state.players['0'].hair = 1;
+  state.players['0'].breath = 1;
+  state.players['1'].breath = 1;
+  const result = resolveRound(state, {
+    0: choice('blow', CENTER_ITEM_TARGET),
+    1: choice('blow', '0'),
+  });
+  assert.equal(result.players['0'].hair, 0);
+  assert.equal(result.result.losses['0'], 1);
+  assert.equal(result.result.heals['0'], undefined);
+  assert.equal(result.result.item.outcome, 'claimed');
+  assert.equal(result.result.item.claimantAlive, false);
+  assert.equal(result.centerItem, null);
+});
+
+test('si sobrevive al daño, el objeto cura después y conserva ambos eventos', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'critical' };
+  state.players['0'].hair = 2;
+  state.players['0'].breath = 1;
+  state.players['1'].breath = 1;
+  const result = resolveRound(state, {
+    0: choice('blow', CENTER_ITEM_TARGET),
+    1: choice('blow', '0'),
+  });
+  assert.equal(result.result.losses['0'], 1);
+  assert.equal(result.result.heals['0'], 1);
+  assert.equal(result.players['0'].hair, 2);
+});
+
+test('aparición adaptativa lee HP y respeta cooldown', () => {
+  const state = game();
+  state.players['0'].hair = 1;
+  state.players['1'].hair = 3;
+  let scheduled = scheduleCenterItem(state, 2);
+  assert.equal(scheduled.centerItem.kind, HAIR_ITEM_KIND);
+  assert.equal(scheduled.centerItem.source, 'critical');
+  assert.equal(scheduled.lastItemSpawnTurn, 2);
+
+  state.lastItemSpawnTurn = 2;
+  scheduled = scheduleCenterItem(state, 3);
+  assert.equal(scheduled.centerItem, null);
+  scheduled = scheduleCenterItem(state, 4);
+  assert.equal(scheduled.centerItem.source, 'critical');
+});
+
+test('aparición normal es determinista y el pity garantiza objeto antes de tardar indefinidamente', () => {
+  const state = game();
+  state.players['0'].hair = state.players['1'].hair = 3;
+  const a = scheduleCenterItem(state, 3);
+  const b = scheduleCenterItem(structuredClone(state), 3);
+  assert.deepEqual(a, b);
+  const pity = scheduleCenterItem(state, 5);
+  assert.equal(pity.centerItem.kind, HAIR_ITEM_KIND);
+  assert.equal(pity.centerItem.source, 'pity');
+  assert.equal(pity.lastItemSpawnTurn, 5);
+});
+
+test('un objeto existente bloquea nuevos spawns', () => {
+  const state = game();
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 3, source: 'random' };
+  state.lastItemSpawnTurn = 3;
+  const scheduled = scheduleCenterItem(state, 8);
+  assert.deepEqual(scheduled.centerItem, state.centerItem);
+  assert.equal(scheduled.lastItemSpawnTurn, 3);
 });
