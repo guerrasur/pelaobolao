@@ -600,7 +600,7 @@
   white-space:nowrap;
   pointer-events:none;
 }
-.center-item.condor-item-grab {
+.center-item.condor-item-grab .hair-tuft {
   animation:condor-item-grab .68s cubic-bezier(.16,.85,.28,1.24) both!important;
 }
 .game[data-targeting="true"] .center-item.free-pickup {
@@ -624,12 +624,12 @@
   white-space:nowrap;
 }
 @keyframes condor-item-grab {
-  0% { transform:translate(-50%,-50%) rotate(-3deg) scale(1); }
-  38% { transform:translate(-50%,-50%) rotate(5deg) scale(1.16); }
-  72% { transform:translate(-50%,-50%) rotate(-5deg) scale(.97); }
-  100% { transform:translate(-50%,-50%) rotate(-3deg) scale(1.04); }
+  0% { transform:rotate(-8deg) translateY(1px) scale(1); }
+  38% { transform:rotate(7deg) translateY(-4px) scale(1.28); }
+  72% { transform:rotate(-6deg) translateY(0) scale(.96); }
+  100% { transform:rotate(-4deg) translateY(-3px) scale(1.04); }
 }
 @media(prefers-reduced-motion:reduce) {
-  .center-item.condor-item-grab { animation:none!important; }
+  .center-item.condor-item-grab .hair-tuft { animation:none!important; }
 }
 
