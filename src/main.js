@@ -26,6 +26,10 @@ const message = text => { notice.textContent = text; };
 const actionName = action => ({ air: 'Tomar aire', hide: 'Esconderse', blow: 'Soplar', distracted: 'Distraído' }[action] ?? 'Sin elegir');
 const choiceName = choice => `${actionName(choice.action)}${choice.target ? ` → ${s.game?.players[choice.target]?.name ?? 'jugador'}` : ''}`;
 const memberOnline = uid => { const member = s.room?.members?.[uid]; return Boolean(member && now() - member.lastSeenAt < 25000); };
+const orderedLobbyMembers = members => Object.entries(members ?? {}).sort(([uidA, a], [uidB, b]) => {
+  const joinedA = millis(a?.joinedAt), joinedB = millis(b?.joinedAt);
+  return joinedA - joinedB || uidA.localeCompare(uidB);
+});
 const vibrate = pattern => { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
 appMeta.textContent = `MVP · v${APP_VERSION}`;
 
@@ -81,9 +85,33 @@ function showError(error) {
   };
   message(friendly[code] || error.message || 'No pudimos completar la operación.');
 }
+function clearDragFeedback() {
+  document.getElementById('blow-drag-ghost')?.remove();
+  document.querySelector('.game')?.classList.remove('is-dragging-blow');
+  document.querySelectorAll('[data-player]').forEach(player => {
+    player.classList.remove('valid-target', 'drag-target');
+  });
+}
+function updateDragGhost(x, y, targetName = null) {
+  let ghost = document.getElementById('blow-drag-ghost');
+  if (!ghost) {
+    ghost = document.createElement('div');
+    ghost.id = 'blow-drag-ghost';
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.innerHTML = '<span class="blow-drag-wind"><i></i><i></i><i></i></span><b>SOPLO</b>';
+    document.body.append(ghost);
+  }
+  ghost.style.left = `${x}px`;
+  ghost.style.top = `${y}px`;
+  ghost.classList.toggle('is-over-target', Boolean(targetName));
+  const label = ghost.querySelector('b');
+  if (label) label.textContent = targetName ? `→ ${targetName}` : 'SOPLO';
+  document.querySelector('.game')?.classList.add('is-dragging-blow');
+}
 function cancelDrag() {
   const previous = drag;
   drag = null;
+  clearDragFeedback();
   const button = document.querySelector('#blow');
   if (previous && button?.hasPointerCapture(previous.pointerId)) button.releasePointerCapture(previous.pointerId);
 }
@@ -278,6 +306,16 @@ function playerEffects(game, uid) {
   };
 }
 
+function selectionText(choice) {
+  if (s.targeting) return 'Tocá SOPLAR de nuevo para cancelar.';
+  if (!choice) return 'Si no elegís a tiempo: Distraído';
+  if (choice.action === 'blow' && choice.target) {
+    const targetName = esc(s.game?.players?.[choice.target]?.name ?? 'jugador');
+    return s.choice ? `Fijando objetivo: ${targetName}…` : `OBJETIVO FIJADO: ${targetName} · SOPLO preparado`;
+  }
+  return `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}`;
+}
+
 function outcomeKind(game, uid) {
   if (game?.phase !== 'finished') return null;
   if (game.draw || !game.winnerId) return 'draw';
@@ -377,14 +415,14 @@ function render() {
   } else if (!s.room) {
     html = '<section class="state"><div class="spinner" aria-hidden="true"></div><h1>Entrando a la sala…</h1><button id="reset-session" class="quiet">Volver al inicio</button></section>';
   } else if (s.room.status === 'lobby') {
-    const members = Object.entries(s.room.members);
+    const members = orderedLobbyMembers(s.room.members);
     const host = s.room.hostId === api.uid;
     const readyCount = members.filter(([, member]) => member.ready).length;
     const onlineCount = members.filter(([uid]) => memberOnline(uid)).length;
     const missingReady = Math.max(0, members.length - readyCount);
     const offlineCount = Math.max(0, members.length - onlineCount);
     const readyRatio = members.length ? readyCount / members.length : 0;
-    html = `<section class="lobby-screen"><div class="lobby-heading"><div><p class="eyebrow">Sala de espera</p><h1>Código <span class="code">${esc(s.room.code)}</span></h1></div><button id="share-room" class="secondary compact-button">Compartir</button></div><div class="ready-progress" style="--ready:${readyRatio}"><div aria-hidden="true"><i></i></div><span>${readyCount}/${members.length} listos · ${onlineCount} conectados</span></div><h2>Jugadores · ${members.length}/6</h2><ul class="lobby-list">${members.map(([uid, m]) => `<li class="${m.ready ? 'is-ready' : ''}"><div class="lobby-player"><strong><span class="lobby-player-name">${esc(m.name)}</span>${uid === api.uid ? '<span class="lobby-self-tag">VOS</span>' : ''}</strong><span class="presence-text ${memberOnline(uid) ? 'is-online' : ''}" data-presence="${esc(uid)}">${memberOnline(uid) ? 'Conectado' : 'Reconectando…'}</span></div><span class="lobby-state">${uid === s.room.hostId ? '<em>HOST</em>' : ''}<b>${m.ready ? 'LISTO' : 'NO LISTO'}</b></span></li>`).join('')}</ul><button id="ready-toggle" class="${s.room.members[api.uid].ready ? 'secondary ready-toggle-on' : ''}" ${disabled}>${s.room.members[api.uid].ready ? '✓ Estoy listo' : 'Estoy listo'}</button>${host ? `<button id="start-game" ${disabled || (members.length < 2) || missingReady > 0 || offlineCount > 0 ? 'disabled' : ''}>Iniciar partida</button><p class="muted lobby-help">${members.length < 2 ? 'Esperando al menos a otro jugador.' : offlineCount ? `Esperando que vuelva${offlineCount === 1 ? '' : 'n'} ${offlineCount} jugador${offlineCount === 1 ? '' : 'es'}.` : missingReady ? `Falta${missingReady === 1 ? '' : 'n'} ${missingReady} por marcarse listo.` : 'Todos listos y conectados. Ya podés iniciar.'}</p>` : `<p class="muted lobby-help">${missingReady ? `Esperando a ${missingReady} jugador${missingReady === 1 ? '' : 'es'}.` : 'Todos listos. El host puede iniciar.'}</p>`}<button id="leave-room" class="quiet">Salir de la sala</button></section>`;
+    html = `<section class="lobby-screen"><div class="lobby-heading"><div><p class="eyebrow">Sala de espera</p><h1>Código <span class="code">${esc(s.room.code)}</span></h1></div><button id="share-room" class="secondary compact-button">Compartir</button></div><div class="ready-progress" style="--ready:${readyRatio}"><div aria-hidden="true"><i></i></div><span>${readyCount}/${members.length} listos · ${onlineCount} conectados</span></div><h2>Jugadores · ${members.length}/6</h2><ul class="lobby-list">${members.map(([uid, m], index) => `<li class="${[m.ready ? 'is-ready' : '', memberOnline(uid) ? '' : 'is-offline'].filter(Boolean).join(' ')}"><div class="lobby-player"><strong><span class="lobby-slot" aria-hidden="true">${index + 1}</span><span class="lobby-player-name">${esc(m.name)}</span>${uid === api.uid ? '<span class="lobby-self-tag">VOS</span>' : ''}</strong><span class="presence-text ${memberOnline(uid) ? 'is-online' : ''}" data-presence="${esc(uid)}">${memberOnline(uid) ? 'Conectado' : 'Reconectando…'}</span></div><span class="lobby-state">${uid === s.room.hostId ? '<em>HOST</em>' : ''}<b>${m.ready ? 'LISTO' : 'NO LISTO'}</b></span></li>`).join('')}</ul><button id="ready-toggle" class="${s.room.members[api.uid].ready ? 'secondary ready-toggle-on' : ''}" ${disabled}>${s.room.members[api.uid].ready ? '✓ Estoy listo' : 'Estoy listo'}</button>${host ? `<button id="start-game" ${disabled || (members.length < 2) || missingReady > 0 || offlineCount > 0 ? 'disabled' : ''}>Iniciar partida</button><p class="muted lobby-help">${members.length < 2 ? 'Esperando al menos a otro jugador.' : offlineCount ? `Esperando que vuelva${offlineCount === 1 ? '' : 'n'} ${offlineCount} jugador${offlineCount === 1 ? '' : 'es'}.` : missingReady ? `Falta${missingReady === 1 ? '' : 'n'} ${missingReady} por marcarse listo.` : 'Todos listos y conectados. Ya podés iniciar.'}</p>` : `<p class="muted lobby-help">${missingReady ? `Esperando a ${missingReady} jugador${missingReady === 1 ? '' : 'es'}.` : 'Todos listos. El host puede iniciar.'}</p>`}<button id="leave-room" class="quiet">Salir de la sala</button></section>`;
   } else if (!s.game) {
     html = `<section class="state"><div class="spinner" aria-hidden="true"></div><h1>${s.gameError ? esc(s.gameError) : 'Cargando la partida…'}</h1><button id="leave-room" class="quiet">Salir de la sala</button><button id="reset-session" class="quiet">Volver al inicio</button></section>`;
   } else {
@@ -406,7 +444,7 @@ function render() {
       : me?.breath < 1
         ? 'No tenés Soplos para atacar.'
         : 'Soplá, tomá aire o escondete.';
-    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${s.targeting ? 'Tocá SOPLAR de nuevo para cancelar.' : choice ? `${s.choice ? 'Guardando' : 'Elegido'}: ${esc(choiceName(choice))}` : 'Si no elegís a tiempo: Distraído'}</p>` : '';
+    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     const countdownSplash = game.phase === 'countdown' ? '<div class="countdown-splash" aria-hidden="true"><strong data-countdown-splash>3</strong><span>¡PREPARATE!</span></div>' : '';
@@ -480,7 +518,10 @@ function bind() {
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-player]');
     const targetUid = target?.dataset.player;
     const validUid = uid => Boolean(uid && uid !== api.uid && s.game?.players?.[uid]?.hair > 0);
+    const previousTarget = drag.target;
     drag.target = validUid(targetUid) ? targetUid : null;
+    if (drag.target && drag.target !== previousTarget) vibrate(8);
+    updateDragGhost(event.clientX, event.clientY, drag.target ? s.game.players[drag.target].name : null);
     document.querySelectorAll('[data-player]').forEach(player => {
       const valid = validUid(player.dataset.player);
       player.classList.toggle('valid-target', valid);
@@ -490,7 +531,7 @@ function bind() {
   });
   const finish = event => {
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const previous = drag; drag = null;
+    const previous = drag; drag = null; clearDragFeedback();
     if (previous.moved) {
       suppressClick = true;
       if (event.type === 'pointerup' && previous.target && previous.gameId === s.gameId && previous.turn === s.game?.turn && canChoose()) choose('blow', previous.target);
