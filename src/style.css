@@ -1811,3 +1811,286 @@ header { min-height:48px; }
 @media(prefers-reduced-motion:reduce) {
   .player.winner .avatar-wrap { animation:none!important; }
 }
+
+
+/* v0.6.9 — dedicated end-of-match celebrations */
+.game {
+  position:relative;
+}
+.end-celebration {
+  position:absolute;
+  z-index:40;
+  inset:0;
+  overflow:hidden;
+  border-radius:inherit;
+  pointer-events:none;
+}
+.end-celebration::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,#11182710,#11182700 38%,#11182710);
+}
+.outcome-card {
+  position:absolute;
+  z-index:4;
+  top:11%;
+  left:50%;
+  min-width:min(78%,330px);
+  max-width:88%;
+  padding:9px 16px 10px;
+  transform:translateX(-50%) rotate(-1.5deg);
+  border:3px solid var(--ink);
+  border-radius:7px;
+  background:repeating-linear-gradient(0deg,#fff9e9 0 17px,#cad8e2 18px 19px);
+  box-shadow:4px 5px 0 #202633;
+  text-align:center;
+}
+.outcome-card::before {
+  content:'';
+  position:absolute;
+  width:54px;
+  height:15px;
+  top:-10px;
+  left:50%;
+  transform:translateX(-50%) rotate(5deg);
+  background:#e1c172c4;
+  border-inline:1px solid #8b753c66;
+  box-shadow:0 1px 1px #0002;
+}
+.outcome-card small {
+  display:block;
+  margin-bottom:2px;
+  color:#51472c;
+  font-size:8px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.9px;
+}
+.outcome-card strong {
+  display:block;
+  font-size:clamp(28px,8vw,52px);
+  line-height:.9;
+  font-weight:1000;
+  letter-spacing:-1.5px;
+  -webkit-text-stroke:1.5px var(--ink);
+  text-shadow:2px 3px 0 #202633;
+}
+.end-win .outcome-card {
+  background:repeating-linear-gradient(0deg,#fff8c9 0 17px,#efd96a 18px 19px);
+  box-shadow:5px 6px 0 #806014,0 0 0 4px #ffe36a55;
+}
+.end-win .outcome-card strong {
+  color:#ffe13f;
+}
+.end-win .outcome-card span {
+  display:block;
+  margin-top:6px;
+  color:#423615;
+  font-size:11px;
+  font-weight:900;
+}
+.end-lose .outcome-card {
+  background:repeating-linear-gradient(0deg,#ffe7e7 0 17px,#f3aaaa 18px 19px);
+  box-shadow:5px 6px 0 #781f2c,0 0 0 4px #e9415c35;
+  transform:translateX(-50%) rotate(1.5deg);
+}
+.end-lose .outcome-card strong {
+  color:#ff536c;
+}
+.outcome-winner {
+  position:absolute;
+  z-index:5;
+  top:29%;
+  left:50%;
+  transform:translateX(-50%) rotate(-2deg);
+  max-width:82%;
+  padding:5px 11px;
+  border:2px solid var(--ink);
+  border-radius:999px;
+  background:#fff9e9;
+  color:#34292d;
+  box-shadow:2px 3px 0 #202633;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.outcome-winner b {
+  color:#b91f43;
+  font-weight:1000;
+}
+.end-draw .outcome-card strong {
+  color:#b17aef;
+}
+.end-draw .outcome-card span {
+  display:block;
+  margin-top:5px;
+  font-size:10px;
+  font-weight:850;
+}
+
+/* Confetti is deterministic so screenshots/tests stay stable. */
+.confetti {
+  position:absolute;
+  inset:0;
+  z-index:2;
+  overflow:hidden;
+}
+.confetti i {
+  position:absolute;
+  left:var(--x);
+  top:-8%;
+  width:8px;
+  height:14px;
+  border:1px solid #20263399;
+  border-radius:1px;
+  opacity:0;
+  animation:pb-confetti-fall var(--duration) cubic-bezier(.18,.72,.28,1) var(--delay) both;
+}
+.confetti i:nth-child(5n+1) { background:#ffdf4f; }
+.confetti i:nth-child(5n+2) { background:#f24869; }
+.confetti i:nth-child(5n+3) { background:#36b8f5; }
+.confetti i:nth-child(5n+4) { background:#45cc8b; }
+.confetti i:nth-child(5n) { background:#a975ea; }
+@keyframes pb-confetti-fall {
+  0% {
+    opacity:0;
+    transform:translate3d(0,-12%,0) rotate(0deg) scale(.8);
+  }
+  8% { opacity:1; }
+  85% { opacity:1; }
+  100% {
+    opacity:0;
+    transform:translate3d(var(--drift),115vh,0) rotate(var(--rotation)) scale(1.05);
+  }
+}
+
+/* Tomatoes fly in as whole fruit and squash into comic-book splats. */
+.tomato-volley {
+  position:absolute;
+  inset:0;
+  z-index:3;
+}
+.tomato {
+  position:absolute;
+  left:var(--x);
+  top:var(--y);
+  width:34px;
+  height:34px;
+  margin:-17px;
+  border:2px solid #6c1421;
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 35% 28%,#ff9c8a 0 11%,transparent 12%),
+    radial-gradient(circle at 50% 55%,#f13b48 0 42%,#c81d31 72%);
+  box-shadow:
+    inset -4px -5px 0 #8d1828aa,
+    2px 3px 0 #202633;
+  opacity:0;
+  transform-origin:center;
+  animation:pb-tomato-hit 1.05s cubic-bezier(.18,.8,.26,1.08) var(--delay) both;
+}
+.tomato::before {
+  content:'';
+  position:absolute;
+  width:16px;
+  height:8px;
+  left:7px;
+  top:-5px;
+  background:#3c8c46;
+  border:1px solid #245b2c;
+  clip-path:polygon(50% 0,62% 36%,100% 18%,73% 55%,95% 84%,58% 68%,50% 100%,42% 68%,5% 84%,27% 55%,0 18%,38% 36%);
+}
+.tomato::after {
+  content:'';
+  position:absolute;
+  inset:-7px;
+  z-index:-1;
+  border-radius:47% 53% 40% 60%;
+  background:
+    radial-gradient(circle at 12% 55%,#da1f36 0 9%,transparent 10%),
+    radial-gradient(circle at 86% 48%,#da1f36 0 8%,transparent 9%),
+    radial-gradient(circle at 48% 8%,#b7152b 0 7%,transparent 8%),
+    radial-gradient(circle at 50% 55%,#ef3b49 0 43%,transparent 45%);
+  opacity:0;
+}
+@keyframes pb-tomato-hit {
+  0% {
+    opacity:0;
+    transform:translate3d(var(--sx),-220px,0) rotate(calc(var(--rot) * -2)) scale(.55);
+  }
+  18% { opacity:1; }
+  72% {
+    opacity:1;
+    transform:translate3d(0,0,0) rotate(var(--rot)) scale(1);
+    border-radius:50%;
+  }
+  80% {
+    opacity:1;
+    transform:translate3d(0,0,0) rotate(var(--rot)) scaleX(1.35) scaleY(.7);
+    border-radius:44% 56% 38% 62%;
+  }
+  100% {
+    opacity:.88;
+    transform:translate3d(0,0,0) rotate(var(--rot)) scaleX(1.45) scaleY(.68);
+    border-radius:44% 56% 38% 62%;
+    box-shadow:inset -3px -3px 0 #8d182866,1px 2px 0 #20263388;
+  }
+}
+.tomato:nth-child(n)::after {
+  animation:pb-tomato-splat 1.05s ease var(--delay) both;
+}
+@keyframes pb-tomato-splat {
+  0%,75% { opacity:0; transform:scale(.4); }
+  86%,100% { opacity:.7; transform:scale(1); }
+}
+
+.game.outcome-win .player.self {
+  box-shadow:0 0 0 4px #ffe55c,2px 5px 0 #49352396,0 0 24px #ffe55c88;
+}
+.game.outcome-lose .player.self {
+  filter:saturate(.55) contrast(.92);
+}
+
+@media(max-height:700px) {
+  .outcome-card {
+    top:6%;
+    padding:6px 12px 7px;
+  }
+  .outcome-card strong { font-size:clamp(24px,7vw,36px); }
+  .outcome-card small { font-size:6px; }
+  .outcome-card span { margin-top:3px; font-size:8px; }
+  .outcome-winner {
+    top:23%;
+    padding:3px 8px;
+    font-size:8px;
+  }
+  .tomato {
+    width:27px;
+    height:27px;
+    margin:-13.5px;
+  }
+}
+@media(max-height:520px) and (min-width:600px) {
+  .outcome-card {
+    top:3%;
+    min-width:200px;
+    padding-block:4px;
+  }
+  .outcome-card strong { font-size:26px; }
+  .outcome-card::before { width:42px; height:10px; top:-7px; }
+  .outcome-winner { top:22%; }
+  .tomato { width:22px; height:22px; margin:-11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .confetti i,
+  .tomato,
+  .tomato::after {
+    animation:none!important;
+  }
+  .confetti i { display:none; }
+  .tomato { opacity:.82; transform:scaleX(1.35) scaleY(.72) rotate(var(--rot)); }
+  .tomato::after { opacity:.55; transform:scale(1); }
+}
