@@ -1,5 +1,15 @@
 # Estado del MVP Spark
 
+## 0.6.3 — presencia, claridad de combate y robustez visual
+
+- El lobby muestra progreso de Listos, conectividad por jugador y cuántos participantes siguen pendientes antes de iniciar.
+- La mesa muestra presencia, estado crítico con 1 Pelo y eliminación con señal visual más fuerte.
+- Los bloqueos distinguen mejor al defensor que atajó del atacante cuyo Soplo fue bloqueado.
+- El render de asientos tolera índices heredados o incompletos sin producir colores/posiciones inválidos.
+- Los resultados describen la pérdida de Pelo como daño recibido, evitando asociarla visualmente con la acción ejecutada.
+- Se añadió cobertura unitaria para presencia, progreso del lobby, estados críticos y tarjetas heredadas.
+- Mantiene las reglas, protocolo multijugador y arquitectura Firebase Spark de 0.6.2.
+
 ## 0.5.2 — salida local y entrada explícita
 
 Base: `main` de GitHub, commit `9b20e68bceebbf7c7b221d69153d8b4313b93d95`.
