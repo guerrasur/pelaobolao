@@ -5,9 +5,11 @@
 .game.condor-enter-locked .phase-banner {
   animation:condor-lock-snap .5s cubic-bezier(.2,.9,.3,1.2) both;
 }
-.game.condor-enter-reveal .result-callout,
-.game.condor-enter-finished .outcome-card {
+.game.condor-enter-reveal .result-callout {
   animation:condor-stamp-in .58s cubic-bezier(.2,.9,.25,1.25) both;
+}
+.game.condor-enter-finished .outcome-card {
+  animation:condor-outcome-in .58s cubic-bezier(.2,.9,.25,1.25) both;
 }
 
 .game[data-condor-tick] #timer {
@@ -122,6 +124,11 @@
   0% { opacity:0; transform:translateY(-7px) scale(1.18); filter:blur(2px); }
   55% { opacity:1; transform:translateY(1px) scale(.96); filter:none; }
   100% { opacity:1; transform:none; }
+}
+@keyframes condor-outcome-in {
+  0% { opacity:0; filter:blur(2px) brightness(1.28); }
+  58% { opacity:1; filter:blur(0) brightness(1.08); }
+  100% { opacity:1; filter:none; }
 }
 @keyframes condor-tick {
   0% { transform:scale(1); }
