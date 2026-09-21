@@ -78,8 +78,13 @@ function hairItem(turn, source) {
 export function scheduleCenterItem(game, nextTurn) {
   const current = game?.centerItem ?? null;
   const lastItemSpawnTurn = Number.isInteger(game?.lastItemSpawnTurn) ? game.lastItemSpawnTurn : 0;
+  const itemOutcome = game?.lastResult?.item?.outcome;
+  const consumedTurn = ['claimed', 'contested'].includes(itemOutcome) && Number.isInteger(game?.turn) ? game.turn : 0;
+  // If an item lingered for several rounds, its cooldown starts when it leaves the desk.
+  // Otherwise the old spawn turn can immediately trigger pity/random replacement next round.
+  const cooldownTurn = Math.max(lastItemSpawnTurn, consumedTurn);
   if (!game?.rules?.centerItems || current || !Number.isInteger(nextTurn) || nextTurn < 2) {
-    return { centerItem: current, lastItemSpawnTurn };
+    return { centerItem: current, lastItemSpawnTurn: current ? lastItemSpawnTurn : cooldownTurn };
   }
 
   const active = Object.values(game.players || {}).filter(player => player.hair > 0);
@@ -89,10 +94,10 @@ export function scheduleCenterItem(game, nextTurn) {
   const criticalGap = Number(game.rules.itemCriticalGap ?? 2);
   const pityGap = Number(game.rules.itemPityGap ?? 5);
   const chance = Number(game.rules.itemSpawnChance ?? 0.55);
-  const sinceLast = lastItemSpawnTurn > 0 ? nextTurn - lastItemSpawnTurn : nextTurn;
+  const sinceLast = cooldownTurn > 0 ? nextTurn - cooldownTurn : nextTurn;
 
-  if (lastItemSpawnTurn > 0 && sinceLast < criticalGap) {
-    return { centerItem: null, lastItemSpawnTurn };
+  if (cooldownTurn > 0 && sinceLast < criticalGap) {
+    return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
   }
 
   const hairs = active.map(player => Number(player.hair || 0));
@@ -102,8 +107,8 @@ export function scheduleCenterItem(game, nextTurn) {
     return { centerItem: hairItem(nextTurn, 'critical'), lastItemSpawnTurn: nextTurn };
   }
 
-  if (nextTurn < 3 || (lastItemSpawnTurn > 0 && sinceLast < minGap)) {
-    return { centerItem: null, lastItemSpawnTurn };
+  if (nextTurn < 3 || (cooldownTurn > 0 && sinceLast < minGap)) {
+    return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
   }
 
   if (sinceLast >= pityGap) {
@@ -114,7 +119,7 @@ export function scheduleCenterItem(game, nextTurn) {
   if (stableUnit(`${seed}:${nextTurn}:${HAIR_ITEM_KIND}`) < chance) {
     return { centerItem: hairItem(nextTurn, 'random'), lastItemSpawnTurn: nextTurn };
   }
-  return { centerItem: null, lastItemSpawnTurn };
+  return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
 }
 
 export function validateIntent(game, uid, intent, now) {
