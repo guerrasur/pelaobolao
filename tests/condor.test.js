@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { timerSeconds, shouldCountdownTick, phaseEntranceClass } from '../src/condor-core.js';
+import { aimGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from '../src/condor-core.js';
 
 test('timerSeconds only accepts rendered second labels', () => {
   assert.equal(timerSeconds('03s'), 3);
@@ -21,4 +21,27 @@ test('only visible phase transitions receive an entrance class', () => {
   assert.equal(phaseEntranceClass('reveal'), 'condor-enter-reveal');
   assert.equal(phaseEntranceClass('finished'), 'condor-enter-finished');
   assert.equal(phaseEntranceClass('syncing'), null);
+});
+
+
+test('aim guide connects centers relative to the board', () => {
+  const geometry = aimGuideGeometry(
+    { left:10, top:80, width:40, height:20 },
+    { left:210, top:20, width:60, height:40 },
+    { left:0, top:0, width:320, height:200 },
+  );
+  assert.ok(geometry);
+  assert.equal(geometry.left, 30);
+  assert.equal(geometry.top, 90);
+  assert.equal(Math.round(geometry.length), 219);
+  assert.equal(Math.round(geometry.angle), -16);
+});
+
+test('aim guide rejects incomplete rectangles', () => {
+  assert.equal(aimGuideGeometry(null, {}, {}), null);
+  assert.equal(aimGuideGeometry(
+    { left:0, top:0, width:0, height:0 },
+    { left:0, top:0, width:0, height:0 },
+    { left:0, top:0, width:100, height:100 },
+  ), null);
 });
