@@ -138,7 +138,7 @@ test('tarjetas toleran índices heredados y distinguen crítico, desconexión y 
   assert.match(winner, /rx="3\.7"/);
   const self = renderPlayerCard({ ...base, self:true, connected:true, effects:{} });
   assert.match(self, /self-tag">VOS/);
-  assert.doesNotMatch(self, /\(vos\)/);
+  assert.match(self, /player-label" title="Rival \(vos\)">Rival<\/span>/);
 });
 
 
