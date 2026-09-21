@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.17.0): Plan Águila convierte el +1 Pelo en un mechón flotante que se agarra sin gastar Soplos pero deja al jugador expuesto, vuelve los ítems mucho menos frecuentes, evita que su aparición cambie la geometría de las tarjetas y reemplaza la placa de objetivo por una retícula lateral.
+Última corrección (0.18.0): Plan Cóndor separa por completo Agarrar de Soplar en la interfaz: el mechón se deshabilita mientras apuntás un ataque, la selección usa feedback verde propio, no dibuja una falsa guía de Soplo y el reveal muestra animación/expresión específica de pickup.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
