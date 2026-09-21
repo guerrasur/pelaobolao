@@ -7,7 +7,10 @@ import { compareVersions, isNewerVersion } from '../src/version.js';
 test('la versión pública coincide con package.json', async () => {
   const packageInfo = JSON.parse(await readFile('package.json', 'utf8'));
   const publicVersion = JSON.parse(await readFile('public/version.json', 'utf8'));
+  const lockInfo = JSON.parse(await readFile('package-lock.json', 'utf8'));
   assert.equal(publicVersion.version, packageInfo.version);
+  assert.equal(lockInfo.version, packageInfo.version);
+  assert.equal(lockInfo.packages[''].version, packageInfo.version);
 });
 
 test('los códigos compartibles tienen exactamente 4 caracteres válidos', () => {
@@ -28,7 +31,7 @@ test('el bloqueo de actualización sólo acepta versiones realmente más nuevas'
 });
 
 
-test('0.23 se instala como app móvil y mantiene fresco el gate de versión', async () => {
+test('0.24 se instala como app móvil y mantiene fresco el gate de versión', async () => {
   const html = await readFile('index.html', 'utf8');
   const manifest = JSON.parse(await readFile('public/manifest.webmanifest', 'utf8'));
   const worker = await readFile('public/sw.js', 'utf8');
@@ -43,7 +46,7 @@ test('0.23 se instala como app móvil y mantiene fresco el gate de versión', as
   assert.equal(manifest.scope, '/');
   assert.ok(manifest.icons.some(icon => icon.sizes === '192x192' && icon.src === '/icon-192.png'));
   assert.ok(manifest.icons.some(icon => icon.sizes === 'any' && icon.src === '/icon.svg'));
-  assert.match(worker, /pelaobolao-shell-0\.23\.0/);
+  assert.match(worker, /pelaobolao-shell-0\.24\.0/);
   assert.match(worker, /skipWaiting/);
   assert.match(worker, /url\.pathname === '\/version\.json'/);
   const icon = Buffer.from(encodedIcon, 'base64');
@@ -52,7 +55,7 @@ test('0.23 se instala como app móvil y mantiene fresco el gate de versión', as
 });
 
 
-test('0.23 mantiene el targeting limpio y recalibra la guía en viewport móvil', async () => {
+test('0.24 mantiene el targeting limpio y recalibra la guía en viewport móvil', async () => {
   const [html, visuals, legacyCss, condor20Css, condor20Js] = await Promise.all([
     readFile('index.html', 'utf8'),
     readFile('src/visuals.js', 'utf8'),
@@ -71,7 +74,7 @@ test('0.23 mantiene el targeting limpio y recalibra la guía en viewport móvil'
   assert.match(condor20Js, /dispatchEvent\(new Event\('resize'\)\)/);
 });
 
-test('0.23 viste la entrada como una experiencia de juego y respeta movimiento reducido', async () => {
+test('0.24 viste la entrada como una experiencia de juego y respeta movimiento reducido', async () => {
   const [html, entrance, entranceCss, sound] = await Promise.all([
     readFile('index.html', 'utf8'),
     readFile('src/entrance.js', 'utf8'),

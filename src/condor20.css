@@ -1,5 +1,22 @@
-/* Plan Cóndor 0.20.0 — targeting limpio y estable.
-   Esta capa final evita que reglas heredadas vuelvan a dibujar overlays retirados. */
+/* Plan Cóndor 0.24.0 — targeting limpio, viewport móvil real y transiciones compactas. */
+:root {
+  --pb-viewport-width:100vw;
+  --pb-viewport-height:100dvh;
+}
+
+body {
+  height:var(--pb-viewport-height,100dvh);
+  max-height:var(--pb-viewport-height,100dvh);
+}
+
+@media(max-width:519px) {
+  body {
+    inset:0 0 auto 0;
+    height:var(--pb-viewport-height,100dvh);
+    max-height:var(--pb-viewport-height,100dvh);
+  }
+}
+
 .player.drag-target::after,
 .center-item.drag-target::after,
 .attack-target-badge,
@@ -7,4 +24,40 @@
 #blow-drag-vector::before {
   content:none!important;
   display:none!important;
+}
+
+.game.condor-enter-choosing .phase-banner,
+.game.condor-enter-locked .phase-banner,
+.game.condor-enter-reveal .phase-banner,
+.game.condor-enter-finished .phase-banner {
+  animation:condor24-phase-pop .34s cubic-bezier(.2,.86,.28,1.18) both;
+}
+
+.game.condor-enter-reveal .result {
+  animation:condor24-result-rise .38s ease-out both;
+}
+
+.game[data-phase="choosing"] .turn-meter {
+  box-shadow:1px 1px 0 #20263366,0 0 8px #ffdf4f52;
+}
+
+@keyframes condor24-phase-pop {
+  0% { opacity:.35; transform:translateY(-5px) scale(.98); }
+  65% { opacity:1; transform:translateY(1px) scale(1.01); }
+  100% { opacity:1; transform:none; }
+}
+
+@keyframes condor24-result-rise {
+  from { opacity:.2; transform:translateY(7px); }
+  to { opacity:1; transform:none; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .game.condor-enter-choosing .phase-banner,
+  .game.condor-enter-locked .phase-banner,
+  .game.condor-enter-reveal .phase-banner,
+  .game.condor-enter-finished .phase-banner,
+  .game.condor-enter-reveal .result {
+    animation:none!important;
+  }
 }

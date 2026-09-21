@@ -3,6 +3,10 @@ import { playCue } from './sound.js';
 import { aimGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from './condor-core.js';
 
 const ENTER_CLASSES = ['condor-enter-choosing', 'condor-enter-locked', 'condor-enter-reveal', 'condor-enter-finished'];
+const requestFrame = window.requestAnimationFrame?.bind(window)
+  ?? (callback => window.setTimeout(callback, 16));
+const cancelFrame = window.cancelAnimationFrame?.bind(window)
+  ?? (handle => window.clearTimeout(handle));
 
 function chalkBurst(board) {
   board.querySelector('.condor-chalk-burst')?.remove();
@@ -101,6 +105,7 @@ export function startCondor(root = document) {
   let itemInitialized = false;
   let lastItemTurn = null;
   let lastGrabSelected = false;
+  let enhanceFrame = null;
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
     if (!list) {
@@ -206,17 +211,26 @@ export function startCondor(root = document) {
     }
   };
 
-  const observer = new MutationObserver(enhance);
+  const scheduleEnhance = () => {
+    if (enhanceFrame !== null) return;
+    enhanceFrame = requestFrame(() => {
+      enhanceFrame = null;
+      enhance();
+    });
+  };
+
+  const observer = new MutationObserver(scheduleEnhance);
   observer.observe(app, { subtree: true, childList: true, characterData: true });
   root.addEventListener('pointerdown', addPressRipple, { passive: true });
-  window.addEventListener('resize', enhance, { passive: true });
+  window.addEventListener('resize', scheduleEnhance, { passive: true });
   enhance();
 
   return () => {
     observer.disconnect();
     root.removeEventListener('pointerdown', addPressRipple);
-    window.removeEventListener('resize', enhance);
+    window.removeEventListener('resize', scheduleEnhance);
     window.clearTimeout(tickCleanup);
+    if (enhanceFrame !== null) cancelFrame(enhanceFrame);
     lastBoard?.querySelector('.condor-aim-guide')?.remove();
   };
 }
