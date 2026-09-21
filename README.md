@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.6.6): vuelve el logo escolar centrado y pegado con cinta, unifica el badge VOS en lobby/partida, mejora el estado visual de conexión y corrige una carrera al compartir una sala mientras se abandona.
+Última corrección (0.6.7): mantiene el logo escolar centrado y pegado con cinta pero elimina el eslogan, evita salir de una partida al tocar el logo y elimina el aviso global redundante al guardar una jugada.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
