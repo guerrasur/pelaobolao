@@ -8,10 +8,11 @@ export const RULES = Object.freeze({
   countdownMs: 3000,
   centerItems: true,
   itemFirstTurn: 4,
-  itemMinGap: 4,
-  itemCriticalGap: 4,
+  itemMinGap: 5,
+  itemCriticalForceGap: 7,
   itemPityGap: 9,
-  itemSpawnChance: 0.24,
+  itemSpawnChance: 0.18,
+  itemCriticalChance: 0.45,
 });
 export const LOBBY_LEASE_MS = 45000;
 export const GAME_HOST_LEASE_MS = 5000;
@@ -82,43 +83,46 @@ export function scheduleCenterItem(game, nextTurn) {
   const itemOutcome = game?.lastResult?.item?.outcome;
   const consumedTurn = ['claimed', 'contested'].includes(itemOutcome) && Number.isInteger(game?.turn) ? game.turn : 0;
   // If an item lingered for several rounds, its cooldown starts when it leaves the desk.
-  // Otherwise the old spawn turn can immediately trigger pity/random replacement next round.
   const cooldownTurn = Math.max(lastItemSpawnTurn, consumedTurn);
-  const firstTurn = Number(game?.rules?.itemFirstTurn ?? 2);
+  const firstTurn = Number(game?.rules?.itemFirstTurn ?? 4);
   if (!game?.rules?.centerItems || current || !Number.isInteger(nextTurn) || nextTurn < firstTurn) {
     return { centerItem: current, lastItemSpawnTurn: current ? lastItemSpawnTurn : cooldownTurn };
   }
 
   const active = Object.values(game.players || {}).filter(player => player.hair > 0);
-  if (active.length <= 1) return { centerItem: null, lastItemSpawnTurn };
+  if (active.length <= 1) return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
 
-  const minGap = Number(game.rules.itemMinGap ?? 3);
-  const criticalGap = Number(game.rules.itemCriticalGap ?? 2);
-  const pityGap = Number(game.rules.itemPityGap ?? 5);
-  const chance = Number(game.rules.itemSpawnChance ?? 0.55);
+  const minGap = Number(game.rules.itemMinGap ?? 5);
+  const criticalForceGap = Number(game.rules.itemCriticalForceGap ?? 7);
+  const pityGap = Number(game.rules.itemPityGap ?? 9);
+  const chance = Number(game.rules.itemSpawnChance ?? 0.18);
+  const criticalChance = Number(game.rules.itemCriticalChance ?? 0.45);
   const sinceLast = cooldownTurn > 0 ? nextTurn - cooldownTurn : nextTurn;
 
-  if (cooldownTurn > 0 && sinceLast < criticalGap) {
+  if (cooldownTurn > 0 && sinceLast < minGap) {
     return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
   }
 
   const hairs = active.map(player => Number(player.hair || 0));
   const minHair = Math.min(...hairs);
   const maxHair = Math.max(...hairs);
-  if (minHair === 1 && maxHair - minHair >= 2) {
-    return { centerItem: hairItem(nextTurn, 'critical'), lastItemSpawnTurn: nextTurn };
-  }
+  const critical = minHair === 1 && maxHair - minHair >= 2;
+  const seed = game.itemSeed ?? `${game.roomId ?? 'room'}:${millis(game.createdAt)}`;
 
-  if (nextTurn < 3 || (cooldownTurn > 0 && sinceLast < minGap)) {
-    return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
-  }
-
+  // Long matches eventually get an event, but short matches can legitimately see none.
   if (sinceLast >= pityGap) {
     return { centerItem: hairItem(nextTurn, 'pity'), lastItemSpawnTurn: nextTurn };
   }
 
-  const seed = game.itemSeed ?? `${game.roomId ?? 'room'}:${millis(game.createdAt)}`;
-  if (stableUnit(`${seed}:${nextTurn}:${HAIR_ITEM_KIND}`) < chance) {
+  // Critical HP disparity raises the odds. It becomes intentional/forced only after a long drought.
+  if (critical && sinceLast >= criticalForceGap) {
+    return { centerItem: hairItem(nextTurn, 'critical'), lastItemSpawnTurn: nextTurn };
+  }
+  if (critical && stableUnit(`${seed}:${nextTurn}:${HAIR_ITEM_KIND}:critical`) < criticalChance) {
+    return { centerItem: hairItem(nextTurn, 'critical'), lastItemSpawnTurn: nextTurn };
+  }
+
+  if (stableUnit(`${seed}:${nextTurn}:${HAIR_ITEM_KIND}:normal`) < chance) {
     return { centerItem: hairItem(nextTurn, 'random'), lastItemSpawnTurn: nextTurn };
   }
   return { centerItem: null, lastItemSpawnTurn: cooldownTurn };
