@@ -41,6 +41,20 @@ async function setup(handler = async () => ({})) {
 }
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a;reject=b; }); return { promise, resolve, reject }; };
 
+test('Plan Cóndor 0.22: render no conserva el guard global que anulaba cambios críticos durante un drag', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  assert.doesNotMatch(source, /function render\(\) \{\s*if \(drag\) return/);
+  assert.match(source, /shouldHoldRenderForDrag\(Boolean\(drag\), s\.game\?\.phase, Boolean\(s\.updateRequired\)\)/);
+});
+
+test('Plan Cóndor 0.22: el HUD evita reescribir texto idéntico en cada tick', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  assert.match(source, /const setText = \(node, value\) =>/);
+  assert.match(source, /if \(node\.textContent === next\) return false/);
+  assert.match(source, /setText\(timer,/);
+  assert.match(source, /setText\(document\.querySelector\('#selection'\),/);
+});
+
 test('abrir la web no recupera automáticamente la sesión remota', async () => {
   const ui = await setup();
   assert.equal(ui.subscriptions.some(sub => sub.path.startsWith('sessions/')), false);

@@ -1,5 +1,14 @@
 # Estado del MVP Spark
 
+## 0.22.0 — Plan Cóndor: render crítico + HUD más liviano
+
+- Se elimina el guard heredado `if (drag) return` al inicio de `render()`. La protección del gesto queda centralizada en `shouldHoldRenderForDrag`: snapshots inocuos conservan pointer capture, pero cambios críticos pueden renderizar y limpiar el estado transitorio.
+- El HUD usa escrituras de texto idempotentes: timer, conexión, presencia, countdown, retorno al lobby y estado de resolución sólo tocan el DOM cuando el valor realmente cambia.
+- El texto de feedback durante el arrastre también deja de reescribirse en cada `pointermove` si el objetivo no cambió. Esto reduce mutaciones observadas por la capa Cóndor y trabajo de layout/repaint durante el gesto.
+- Se agregan regresiones para impedir que vuelva el guard global y para exigir la ruta de actualización idempotente.
+- Sin cambios en daño, Pelo, Soplos, frecuencia de ítems, resolución simultánea, Firestore Rules ni autoridad del host.
+
+
 ## 0.21.0 — Plan Cóndor: drag estable + build alineado
 
 - Durante un arrastre activo de Soplar, los heartbeats, presencia y snapshots que sólo piden re-render ya no reemplazan el botón capturado mientras la fase siga en `choosing`; el gesto conserva pointer capture y la guía bajo el dedo.
