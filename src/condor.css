@@ -347,3 +347,167 @@
   }
   .condor-aim-guide i { display:none!important; }
 }
+
+
+/* Plan Cóndor 0.13.0: cola social compacta + apuntado continuo del Soplo. */
+.turn-tools {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  justify-content:center;
+  gap:4px;
+  min-width:58px;
+}
+.next-match-queue {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  max-width:min(44vw,180px);
+  padding:3px 6px;
+  border:1.5px dashed #315a45;
+  border-radius:5px;
+  background:#e8f1df;
+  color:#294737;
+  box-shadow:1px 2px 0 #20263355;
+  transform:rotate(.6deg);
+  white-space:nowrap;
+  overflow:hidden;
+  pointer-events:none;
+}
+.next-match-queue b {
+  flex:0 0 auto;
+  font-size:7px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.45px;
+}
+.next-match-queue span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:8px;
+  line-height:1;
+  font-weight:850;
+}
+.next-match-queue.condor-queue-join {
+  animation:condor-queue-join .68s cubic-bezier(.16,.85,.28,1.22) both;
+}
+
+.player.drag-target {
+  z-index:14!important;
+  border-color:#7b0a23!important;
+  background:linear-gradient(145deg,#fff0f3,#ffb7c7)!important;
+  outline:5px solid #ff244d!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 4px #fff7f8,0 0 0 8px #bc1738,2px 5px 0 #49352396!important;
+  filter:saturate(1.2) brightness(1.04)!important;
+  transform:scale(1.02);
+  animation:condor-drag-target .46s ease-in-out infinite alternate;
+}
+.player.drag-target::after {
+  content:'SOLTÁ ACÁ';
+  position:absolute;
+  z-index:20;
+  left:50%;
+  bottom:-10px;
+  transform:translateX(-50%) rotate(-2deg);
+  padding:3px 6px;
+  border:2px solid #4d0716;
+  border-radius:5px;
+  background:#ffdf4f;
+  color:#4d0716;
+  box-shadow:2px 2px 0 #4d0716;
+  font-size:8px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.4px;
+  white-space:nowrap;
+  pointer-events:none;
+}
+
+#blow-drag-vector {
+  position:fixed;
+  z-index:9997;
+  height:0;
+  transform-origin:0 50%;
+  border-top:4px dashed #ef294f;
+  filter:drop-shadow(0 1px 0 #fff8e9) drop-shadow(0 0 6px #ff244d88);
+  opacity:.82;
+  pointer-events:none;
+}
+#blow-drag-vector::before {
+  content:'';
+  position:absolute;
+  left:-5px;
+  top:-7px;
+  width:10px;
+  height:10px;
+  border:2px solid #ef294f;
+  border-radius:50%;
+  background:#fff8e9;
+  box-shadow:0 0 0 3px #ef294f30;
+}
+#blow-drag-vector::after {
+  content:'';
+  position:absolute;
+  right:-5px;
+  top:-10px;
+  width:0;
+  height:0;
+  border-top:9px solid transparent;
+  border-bottom:9px solid transparent;
+  border-left:15px solid #ef294f;
+  filter:drop-shadow(1px 1px 0 #fff8e9);
+}
+#blow-drag-vector.is-snapped {
+  border-top-style:solid;
+  opacity:1;
+  filter:drop-shadow(0 1px 0 #fff8e9) drop-shadow(0 0 9px #ff244dcc);
+}
+#blow-drag-vector i {
+  position:absolute;
+  top:-6px;
+  left:12%;
+  width:16px;
+  height:3px;
+  border-radius:999px;
+  background:#fff8e9;
+  border:1px solid #8e102b;
+  opacity:0;
+  animation:condor-drag-gust .72s linear infinite;
+}
+#blow-drag-vector i:nth-child(2) { animation-delay:.24s; }
+#blow-drag-vector i:nth-child(3) { animation-delay:.48s; }
+
+@keyframes condor-queue-join {
+  0% { opacity:.4; transform:translateY(-5px) rotate(-2deg) scale(.94); }
+  48% { opacity:1; transform:translateY(1px) rotate(1deg) scale(1.05); }
+  100% { opacity:1; transform:rotate(.6deg) scale(1); }
+}
+@keyframes condor-drag-target {
+  from { transform:scale(1.01); }
+  to { transform:scale(1.035); }
+}
+@keyframes condor-drag-gust {
+  0% { left:8%; opacity:0; transform:scaleX(.65); }
+  18% { opacity:.95; }
+  78% { opacity:.72; }
+  100% { left:82%; opacity:0; transform:scaleX(1.2); }
+}
+
+@media(max-height:560px) {
+  .turn-tools { gap:2px; }
+  .next-match-queue { max-width:150px; padding:2px 4px; }
+  .next-match-queue b { font-size:6px; }
+  .next-match-queue span { font-size:7px; }
+  .player.drag-target::after { font-size:7px; padding:2px 4px; bottom:-7px; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .next-match-queue.condor-queue-join,
+  .player.drag-target,
+  #blow-drag-vector i {
+    animation:none!important;
+  }
+  #blow-drag-vector i { display:none!important; }
+}

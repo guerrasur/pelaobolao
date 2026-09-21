@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aimGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from '../src/condor-core.js';
+import { aimGuideGeometry, dragGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass } from '../src/condor-core.js';
 
 test('timerSeconds only accepts rendered second labels', () => {
   assert.equal(timerSeconds('03s'), 3);
@@ -44,4 +44,30 @@ test('aim guide rejects incomplete rectangles', () => {
     { left:0, top:0, width:0, height:0 },
     { left:0, top:0, width:100, height:100 },
   ), null);
+});
+
+
+test('drag guide follows the pointer from the center of the local avatar', () => {
+  const geometry = dragGuideGeometry(
+    { left:20, top:40, width:40, height:60 },
+    180, 130,
+  );
+  assert.ok(geometry);
+  assert.equal(geometry.left, 40);
+  assert.equal(geometry.top, 70);
+  assert.equal(Math.round(geometry.length), 152);
+  assert.equal(Math.round(geometry.angle), 23);
+});
+
+test('drag guide snaps to the center of a hovered target', () => {
+  const geometry = dragGuideGeometry(
+    { left:20, top:40, width:40, height:60 },
+    500, 500,
+    { left:200, top:80, width:60, height:40 },
+  );
+  assert.ok(geometry);
+  assert.equal(geometry.left, 40);
+  assert.equal(geometry.top, 70);
+  assert.equal(Math.round(geometry.length), 192);
+  assert.equal(Math.round(geometry.angle), 9);
 });

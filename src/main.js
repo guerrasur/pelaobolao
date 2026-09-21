@@ -5,6 +5,7 @@ import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, GAME_HOST_LEASE_M
 import { playerCard, actionControls } from './visuals.js';
 import { playCue } from './sound.js';
 import { isNewerVersion } from './version.js';
+import { dragGuideGeometry } from './condor-core.js';
 import packageInfo from '../package.json';
 
 const app = document.querySelector('#app');
@@ -87,6 +88,7 @@ function showError(error) {
 }
 function clearDragFeedback() {
   document.getElementById('blow-drag-ghost')?.remove();
+  document.getElementById('blow-drag-vector')?.remove();
   document.querySelector('.game')?.classList.remove('is-dragging-blow');
   document.querySelectorAll('[data-player]').forEach(player => {
     player.classList.remove('valid-target', 'drag-target');
@@ -107,6 +109,29 @@ function updateDragGhost(x, y, targetName = null) {
   const label = ghost.querySelector('b');
   if (label) label.textContent = targetName ? `→ ${targetName}` : 'SOPLO';
   document.querySelector('.game')?.classList.add('is-dragging-blow');
+}
+function updateDragVector(x, y, targetNode = null) {
+  const source = document.querySelector('.player.self .avatar-wrap') ?? document.querySelector('.player.self');
+  const targetRect = targetNode?.getBoundingClientRect?.() ?? null;
+  const geometry = dragGuideGeometry(source?.getBoundingClientRect?.(), x, y, targetRect);
+  let vector = document.getElementById('blow-drag-vector');
+  if (!geometry) {
+    vector?.remove();
+    return;
+  }
+  if (!vector) {
+    vector = document.createElement('div');
+    vector.id = 'blow-drag-vector';
+    vector.setAttribute('aria-hidden', 'true');
+    vector.innerHTML = '<i></i><i></i><i></i>';
+    document.body.append(vector);
+  }
+  const stopShort = targetRect ? Math.min(targetRect.width, targetRect.height) * .38 : 10;
+  vector.style.left = `${geometry.left}px`;
+  vector.style.top = `${geometry.top}px`;
+  vector.style.width = `${Math.max(18, geometry.length - stopShort)}px`;
+  vector.style.transform = `rotate(${geometry.angle}deg)`;
+  vector.classList.toggle('is-snapped', Boolean(targetRect));
 }
 function cancelDrag() {
   const previous = drag;
@@ -345,7 +370,7 @@ function endCelebrationHtml(game, uid) {
       const rotation = 160 + (index % 8) * 55;
       return `<i style="--x:${x}%;--drift:${drift}px;--delay:${delay}s;--duration:${duration}s;--rotation:${rotation}deg"></i>`;
     }).join('');
-    return `<div class="end-celebration end-win" data-outcome="win" role="status" aria-live="assertive"><div class="confetti" aria-hidden="true">${confetti}</div><div class="outcome-card"><small>ÚLTIMO CON PELO</small><strong>¡GANASTE!</strong><span>La clase es tuya.</span></div></div>`;
+    return `<div class="end-celebration end-win" data-outcome="win" role="status" aria-live="assertive"><div class="confetti" aria-hidden="true">${confetti}</div><div class="outcome-card"><small>ÚLTIMO CON PELO</small><strong>¡GANASTE!</strong></div></div>`;
   }
   const tomatoes = [
     ['18%','38%','-130px','0s','-22deg'],
@@ -444,9 +469,18 @@ function render() {
     const order = [...seats.filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
     const activeCount = Object.values(game.players).filter(player => player.hair > 0).length;
     const chosenCount = Object.keys(game.chosen || {}).filter(uid => game.players[uid]?.hair > 0 && game.chosen[uid]).length;
+    const waitingMembers = orderedLobbyMembers(s.room.members).filter(([uid, member]) => !member.left && !seats.includes(uid));
+    const waitingIds = waitingMembers.map(([uid]) => uid);
+    const waitingPosition = waitingIds.indexOf(api.uid);
+    const waitingNames = waitingMembers.slice(0, 2).map(([, member]) => member.name);
+    const waitingSummary = waitingNames.join(', ') + (waitingMembers.length > 2 ? ` +${waitingMembers.length - 2}` : '');
+    const waitingTitle = waitingMembers.map(([, member]) => member.name).join(', ');
+    const nextMatchQueue = waitingMembers.length
+      ? `<div class="next-match-queue" data-waiting-ids="${esc(waitingIds.join(','))}" title="Esperan la próxima: ${esc(waitingTitle)}"><b>PRÓXIMA</b><span>${esc(waitingSummary)}</span></div>`
+      : '';
     const spectating = !terminal && (lateSpectator || me?.hair <= 0);
     const spectatorStrip = lateSpectator && !terminal
-      ? `<div class="spectator-strip is-waiting"><strong>ESPECTADOR · PRÓXIMA PARTIDA</strong><span>Entrás cuando vuelvan al lobby</span></div>`
+      ? `<div class="spectator-strip is-waiting"><strong>ESPECTADOR · PRÓXIMA PARTIDA</strong><span>${waitingPosition >= 0 ? `Lugar ${waitingPosition + 1} de ${waitingMembers.length} · ` : ''}Entrás cuando vuelvan al lobby</span></div>`
       : spectating ? `<div class="spectator-strip"><strong>PELADO · MIRANDO</strong><span>${activeCount} siguen con Pelo</span></div>` : '';
     const actionPrompt = s.targeting ? '¡APUNTÁ!' : me?.breath < 1 ? '¡TOMÁ AIRE!' : '¡ELEGÍ!';
     const actionHint = s.targeting
@@ -459,7 +493,7 @@ function render() {
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     const countdownSplash = game.phase === 'countdown' ? '<div class="countdown-splash" aria-hidden="true"><strong data-countdown-splash>3</strong><span>¡PREPARATE!</span></div>' : '';
     const lobbyReturn = game.phase === 'finished' ? '<div class="lobby-return-countdown" data-lobby-return hidden aria-live="polite"></div>' : '';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div>${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p><div class="players" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -538,6 +572,7 @@ function bind() {
       player.classList.toggle('valid-target', valid);
       player.classList.toggle('drag-target', player.dataset.player === drag.target);
     });
+    updateDragVector(event.clientX, event.clientY, drag.target ? target : null);
     document.querySelector('#selection').textContent = drag.target ? `Soltá para soplar a ${s.game.players[drag.target].name}` : 'Arrastrá sobre otro jugador.';
   });
   const finish = event => {
