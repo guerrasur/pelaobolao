@@ -334,6 +334,8 @@ button:not(:disabled):active { transform:translateY(2px); }
 .game[data-phase="reveal"] #timer { color:#6338a2; }
 .game .turn-header + #turn-status { font-size:11px; text-align:center; margin:8px 0; min-height:16px; color:#2d2830; font-weight:650; }
 .players { flex:1; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:space-between; gap:48px 15px; padding:5px 0; min-height:230px; }
+.players { pointer-events:none; }
+.players .player,.players .center-item { pointer-events:auto; }
 .players::before { display:none; }
 .player { align-self:start; padding:0; background:var(--paper); color:var(--ink); border:2px solid var(--ink); border-radius:12px; overflow:visible; box-shadow:2px 4px 0 #49352396; text-align:left; min-height:0; }
 .player:nth-of-type(even) { transform:rotate(2deg); }
