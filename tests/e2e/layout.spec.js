@@ -58,7 +58,7 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
         await expect(page.locator('.game')).toHaveAttribute('data-phase',phase);
         const failures=await page.evaluate(()=>{
           const bad=[];
-          for(const selector of ['.game','.players','[data-player]','.controls button','.result','#back-lobby','#leave-room']) {
+          for(const selector of ['.game','.players','[data-player]','.controls button','.result','.end-celebration','.outcome-card','.outcome-winner','#back-lobby','#leave-room']) {
             for(const el of document.querySelectorAll(selector)) {
               const r=el.getBoundingClientRect();
               if(r.top<0||r.left<0||r.right>innerWidth+1||r.bottom>innerHeight+1) bad.push(`${selector}: fuera del viewport`);
