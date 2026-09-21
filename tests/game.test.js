@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RULES, SYNC_WAIT_MS, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked } from '../src/game.js';
+import { RULES, SYNC_WAIT_MS, AUTO_LOBBY_MS, newGame, resolveRound, validateIntent, pruneLobby, phaseDeadline, allMarked, lobbyReturnSeconds } from '../src/game.js';
 import { createServerClock, clockSample } from '../src/clock.js';
 
 const members = count => Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: `Jugador ${i}`, joinedAt: i, lastSeenAt: 1000, left: false }]));
@@ -28,6 +28,19 @@ test('una partida nueva comienza con cuenta regresiva de 3 segundos', () => {
   assert.equal(state.phase, 'countdown');
   assert.equal(state.countdownEndsAt, 4000);
   assert.equal(state.deadline, 12000);
+});
+
+test('el regreso al lobby espera 3s y luego cuenta 5, 4, 3, 2, 1 hasta cero', () => {
+  const state = { phase: 'finished', finishedAt: 10000 };
+  assert.equal(AUTO_LOBBY_MS, 8000);
+  assert.equal(lobbyReturnSeconds(state, 12999), null);
+  assert.equal(lobbyReturnSeconds(state, 13000), 5);
+  assert.equal(lobbyReturnSeconds(state, 14000), 4);
+  assert.equal(lobbyReturnSeconds(state, 15000), 3);
+  assert.equal(lobbyReturnSeconds(state, 16000), 2);
+  assert.equal(lobbyReturnSeconds(state, 17000), 1);
+  assert.equal(lobbyReturnSeconds(state, 18000), 0);
+  assert.equal(lobbyReturnSeconds({ phase:'reveal', finishedAt:10000 }, 18000), null);
 });
 test('las posiciones usan el orden persistido y dejan al jugador local para el layout inferior', () => {
   const state = newGame('room', { z: { name: 'Z', joinedAt: 30 }, a: { name: 'A', joinedAt: 10 }, b: { name: 'B', joinedAt: 20 } }, 1000);

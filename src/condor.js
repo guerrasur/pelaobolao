@@ -51,8 +51,10 @@ function pulseClass(node, className, duration = 650) {
 }
 
 function updateAimGuide(board) {
-  const source = board?.querySelector('#blow');
-  const target = board?.querySelector('.player.selected-target');
+  const sourcePlayer = board?.querySelector('.player.self');
+  const targetPlayer = board?.querySelector('.player.selected-target');
+  const source = sourcePlayer?.querySelector('.avatar-wrap') ?? sourcePlayer;
+  const target = targetPlayer?.querySelector('.avatar-wrap') ?? targetPlayer;
   let guide = board?.querySelector('.condor-aim-guide');
   if (!board || board.dataset.phase !== 'choosing' || !source || !target) {
     guide?.remove();
@@ -71,11 +73,16 @@ function updateAimGuide(board) {
     guide.innerHTML = '<i></i><i></i><i></i><b>ATAQUE</b>';
     board.append(guide);
   }
-  const stopShort = Math.min(targetRect.width, targetRect.height) * .26;
+  const label = guide.querySelector('b');
+  const targetName = targetPlayer?.querySelector('.player-label')?.textContent?.trim();
+  const nextLabel = targetName ? `SOPLO → ${targetName}` : 'ATAQUE';
+  if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
+  const stopShort = Math.min(targetRect.width, targetRect.height) * .42;
   guide.style.left = `${geometry.left}px`;
   guide.style.top = `${geometry.top}px`;
   guide.style.width = `${Math.max(20, geometry.length - stopShort)}px`;
   guide.style.transform = `rotate(${geometry.angle}deg)`;
+  guide.classList.toggle('is-reversed', geometry.angle > 90 || geometry.angle < -90);
 }
 
 export function startCondor(root = document) {

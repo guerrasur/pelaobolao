@@ -126,6 +126,14 @@ test('partida completa, ganador, revancha y perfil persistente intacto',async()=
   await a.client.call('roomCommand',{command:'start',roomId});
   assert.notEqual((await read(a.db,`rooms/${roomId}`)).gameId,gameId);
 });
+test('al terminar, un jugador puede relevar al host caído con el lease corto',async()=>{
+  const {a,b,gameId,roomId}=await started();
+  await patch(`games/${gameId}`,{phase:'finished',finishedAt:Date.now()-6000,lastProgressAt:Timestamp.fromMillis(Date.now()),winnerId:a.uid});
+  await patch(`rooms/${roomId}`,{status:'finished',[`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000)});
+  await b.client.call('roomCommand',{command:'touch',roomId});
+  assert.equal((await read(b.db,`rooms/${roomId}`)).hostId,b.uid);
+});
+
 test('host sale del lobby: transferencia y reingreso',async()=>{
   const {a,b,roomId}=await pair();
   await a.client.call('roomCommand',{command:'leave',roomId});

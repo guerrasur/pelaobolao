@@ -179,22 +179,34 @@
   height:0;
   transform-origin:0 50%;
   pointer-events:none;
-  border-top:3px dashed #ef294f;
-  filter:drop-shadow(0 1px 0 #fff8e9) drop-shadow(0 0 4px #ff244d66);
-  opacity:.88;
+  border-top:4px dashed #ef294f;
+  filter:drop-shadow(0 1px 0 #fff8e9) drop-shadow(0 0 6px #ff244d88);
+  opacity:.94;
   animation:condor-aim-guide-in .22s ease-out both;
+}
+.condor-aim-guide::before {
+  content:'';
+  position:absolute;
+  left:-5px;
+  top:-7px;
+  width:10px;
+  height:10px;
+  border:2px solid #ef294f;
+  border-radius:50%;
+  background:#fff8e9;
+  box-shadow:0 0 0 3px #ef294f30;
 }
 .condor-aim-guide::after {
   content:'';
   position:absolute;
-  right:-2px;
-  top:-8px;
+  right:-4px;
+  top:-10px;
   width:0;
   height:0;
-  border-top:7px solid transparent;
-  border-bottom:7px solid transparent;
-  border-left:11px solid #ef294f;
-  filter:drop-shadow(1px 1px 0 #fff8e9);
+  border-top:9px solid transparent;
+  border-bottom:9px solid transparent;
+  border-left:15px solid #ef294f;
+  filter:drop-shadow(1px 1px 0 #fff8e9) drop-shadow(0 0 3px #ef294f77);
 }
 .condor-aim-guide i {
   position:absolute;
@@ -223,7 +235,11 @@
   line-height:1;
   font-weight:1000;
   letter-spacing:.5px;
+  white-space:nowrap;
   box-shadow:1px 1px 0 #5b0b1d;
+}
+.condor-aim-guide.is-reversed b {
+  transform:rotate(180deg);
 }
 
 .player.condor-target-lock .attack-target-badge {

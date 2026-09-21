@@ -87,7 +87,7 @@ service cloud.firestore {
       function takeover() {
         let old = resource.data;
         return member(old) && request.resource.data.hostId == request.auth.uid
-          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(old.status == 'playing' ? 5 : 45,'s'))
+          && (old.members[old.hostId].left || request.time > old.members[old.hostId].lastSeenAt + duration.value(old.status in ['playing','finished'] ? 5 : 45,'s'))
           && ownMemberChange()
           && request.resource.data.diff(old).affectedKeys().hasOnly(['hostId','members','updatedAt']);
       }

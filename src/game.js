@@ -8,6 +8,9 @@ export const LOBBY_LEASE_MS = 45000;
 export const GAME_HOST_LEASE_MS = 5000;
 export const ABANDON_MS = 120000;
 export const SYNC_WAIT_MS = 5000;
+export const END_LOBBY_DELAY_MS = 3000;
+export const END_LOBBY_COUNTDOWN_SECONDS = 5;
+export const AUTO_LOBBY_MS = END_LOBBY_DELAY_MS + END_LOBBY_COUNTDOWN_SECONDS * 1000;
 
 // All screens derive their timer from the same server-authored timestamp.
 export function phaseDeadline(game) {
@@ -23,6 +26,15 @@ export function phaseDeadline(game) {
 }
 export const allMarked = (game, field) => game.memberIds.every(uid =>
   game.players[uid].hair <= 0 || game[field]?.[uid] === true);
+
+export function lobbyReturnSeconds(game, currentTime) {
+  if (game?.phase !== 'finished') return null;
+  const finishedAt = millis(game.finishedAt);
+  if (!Number.isFinite(finishedAt) || finishedAt <= 0 || !Number.isFinite(currentTime)) return null;
+  const elapsed = Math.max(0, currentTime - finishedAt);
+  if (elapsed < END_LOBBY_DELAY_MS) return null;
+  return Math.max(0, Math.ceil((AUTO_LOBBY_MS - elapsed) / 1000));
+}
 
 export class GameError extends Error {
   constructor(code, message) { super(message); this.code = code; }

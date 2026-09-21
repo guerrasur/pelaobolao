@@ -103,7 +103,7 @@ export function createClient(db, uid, clock = Date.now) {
           } else {
             room.members[uid] = { ...room.members[uid], lastSeenAt: serverTimestamp() };
             // Read the old lease; the transaction conflicts with a returning host's heartbeat.
-            if (!live(old.members[old.hostId], time, old.status === 'playing' ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS)) room.hostId = uid;
+            if (!live(old.members[old.hostId], time, ['playing','finished'].includes(old.status) ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS)) room.hostId = uid;
             if (command === 'ready') {
               room.members[uid] = { ...room.members[uid], ready: data.ready === true };
             }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
-import { millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS } from '../src/game.js';
+import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS } from '../src/game.js';
 import { playerCard as renderPlayerCard } from '../src/visuals.js';
 import { isNewerVersion } from '../src/version.js';
 
@@ -29,7 +29,7 @@ async function setup(handler = async () => ({})) {
       const sub = { path, next, error, active: true }; subscriptions.push(sub);
       return () => { sub.active = false; };
     },
-    connect: async () => api, millis, phaseDeadline, allMarked, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, isNewerVersion,
+    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, isNewerVersion,
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');
