@@ -235,7 +235,7 @@ async function flushIntent() {
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
         if (!s.intent || s.intent.turn !== result.turn || s.intent.revision <= result.revision) s.intent = result;
         if (!pending) s.choice = null;
-        message('Elección guardada. El turno cierra cuando todos eligen o se acaba el tiempo.');
+        message('');
       }
     } catch (error) {
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
@@ -507,6 +507,13 @@ function tick() {
       .catch(showError).finally(() => { advancing = false; });
   }
 }
+
+document.querySelector('.brand')?.addEventListener('click', event => {
+  if (!s.roomId) return;
+  event.preventDefault();
+  message('Salí de la sala para volver al inicio.');
+  vibrate(8);
+});
 
 window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
 const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
