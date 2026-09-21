@@ -573,3 +573,17 @@
 @media(prefers-reduced-motion:reduce) {
   .game[data-phase="locked"] .sealed-choice { animation:none!important; }
 }
+
+
+/* Plan Águila 0.18.0 — item arrival respects the absolute center slot. */
+.center-item-slot .floating-hair-item.condor-item-arrive {
+  animation:aguila-floating-item-arrive .78s cubic-bezier(.16,.86,.27,1.25) both!important;
+}
+@keyframes aguila-floating-item-arrive {
+  0% { opacity:0; transform:translateY(6px) rotate(-8deg) scale(.35); filter:blur(2px) brightness(1.35); }
+  55% { opacity:1; transform:translateY(-3px) rotate(2deg) scale(1.12); filter:none; }
+  100% { opacity:1; transform:translateY(0) rotate(0) scale(1); filter:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item-slot .floating-hair-item.condor-item-arrive { animation:none!important; }
+}
