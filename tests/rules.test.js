@@ -48,20 +48,38 @@ test('propietario cambia solo intención propia válida; no estado ni resultados
   await assertFails(updateDoc(doc(b,'rooms',roomId),{hostId:'bob',updatedAt:serverTimestamp()}));
   await assertFails(updateDoc(doc(b,'rooms',roomId),{'members.alice.left':true,updatedAt:serverTimestamp()}));
 });
-test('intención de Soplar acepta el objeto central solo cuando existe y hay Soplo',async()=>{
+test('intención de Agarrar acepta el mechón sin Soplos y bloquea Soplarlo en reglas v3',async()=>{
   await env.withSecurityRulesDisabled(async ctx=>{
     await updateDoc(doc(ctx.firestore(),'games',gameId),{
-      centerItem:{kind:'hair_plus_1',spawnedTurn:1,source:'test'},
-      'players.bob.breath':1,
+      centerItem:{kind:'hair_plus_1',spawnedTurn:4,source:'test'},
+      'players.bob.breath':0,
+      'rules.version':3,
     });
   });
   await assertSucceeds(setDoc(doc(b,'games',gameId,'intents','bob'),{
-    turn:1,action:'blow',target:'__center_item__',requestId:'item-ok',revision:3,submittedAt:serverTimestamp(),
+    turn:1,action:'grab',target:'__center_item__',requestId:'item-grab',revision:3,submittedAt:serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{
+    turn:1,action:'blow',target:'__center_item__',requestId:'item-blow',revision:4,submittedAt:serverTimestamp(),
   }));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{centerItem:null}));
   await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{
-    turn:1,action:'blow',target:'__center_item__',requestId:'item-missing',revision:4,submittedAt:serverTimestamp(),
+    turn:1,action:'grab',target:'__center_item__',requestId:'item-missing',revision:4,submittedAt:serverTimestamp(),
   }));
+});
+test('reglas v2 conservan la disputa del objeto con Soplo',async()=>{
+  await env.withSecurityRulesDisabled(async ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{
+    centerItem:{kind:'hair_plus_1',spawnedTurn:3,source:'legacy'},
+    'players.bob.breath':1,
+    'rules.version':2,
+  }));
+  await assertSucceeds(setDoc(doc(b,'games',gameId,'intents','bob'),{
+    turn:1,action:'blow',target:'__center_item__',requestId:'legacy-item',revision:5,submittedAt:serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{
+    turn:1,action:'grab',target:'__center_item__',requestId:'legacy-grab',revision:6,submittedAt:serverTimestamp(),
+  }));
+  await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{'rules.version':3}));
 });
 test('ajenos no acceden a la partida; el código exacto permite descubrir una sala activa sin enumerarla',async()=>{
   const anonymous=env.unauthenticatedContext().firestore();
