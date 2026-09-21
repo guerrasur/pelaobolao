@@ -399,7 +399,7 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   ui.s.targeting=false;
   ui.render();
   const html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/center-item-slot/);
+  assert.doesNotMatch(html,/center-item-slot/);
   assert.match(html,/class="center-item hair-item free-pickup targetable/);
   assert.match(html,/data-center-item="__center_item__"/);
   assert.match(html,/class="hair-tuft"/);
