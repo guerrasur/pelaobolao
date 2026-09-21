@@ -28,7 +28,7 @@ test('el bloqueo de actualización sólo acepta versiones realmente más nuevas'
 });
 
 
-test('0.22 se instala como app móvil y mantiene fresco el gate de versión', async () => {
+test('0.23 se instala como app móvil y mantiene fresco el gate de versión', async () => {
   const html = await readFile('index.html', 'utf8');
   const manifest = JSON.parse(await readFile('public/manifest.webmanifest', 'utf8'));
   const worker = await readFile('public/sw.js', 'utf8');
@@ -43,7 +43,7 @@ test('0.22 se instala como app móvil y mantiene fresco el gate de versión', as
   assert.equal(manifest.scope, '/');
   assert.ok(manifest.icons.some(icon => icon.sizes === '192x192' && icon.src === '/icon-192.png'));
   assert.ok(manifest.icons.some(icon => icon.sizes === 'any' && icon.src === '/icon.svg'));
-  assert.match(worker, /pelaobolao-shell-0\.22\.0/);
+  assert.match(worker, /pelaobolao-shell-0\.23\.0/);
   assert.match(worker, /skipWaiting/);
   assert.match(worker, /url\.pathname === '\/version\.json'/);
   const icon = Buffer.from(encodedIcon, 'base64');
@@ -52,7 +52,7 @@ test('0.22 se instala como app móvil y mantiene fresco el gate de versión', as
 });
 
 
-test('0.22 mantiene el targeting limpio y recalibra la guía en viewport móvil', async () => {
+test('0.23 mantiene el targeting limpio y recalibra la guía en viewport móvil', async () => {
   const [html, visuals, legacyCss, condor20Css, condor20Js] = await Promise.all([
     readFile('index.html', 'utf8'),
     readFile('src/visuals.js', 'utf8'),
@@ -69,4 +69,20 @@ test('0.22 mantiene el targeting limpio y recalibra la guía en viewport móvil'
   assert.match(condor20Js, /orientationchange/);
   assert.match(condor20Js, /visibilitychange/);
   assert.match(condor20Js, /dispatchEvent\(new Event\('resize'\)\)/);
+});
+
+
+test('0.23 viste la entrada como una experiencia de juego y respeta movimiento reducido', async () => {
+  const [condor, entryCss, sound] = await Promise.all([
+    readFile('src/condor.js', 'utf8'),
+    readFile('src/entry.css', 'utf8'),
+    readFile('src/sound.js', 'utf8'),
+  ]);
+  assert.match(condor, /import '\.\/entry\.css'/);
+  assert.match(condor, /dataset\.entryMode/);
+  assert.match(condor, /playCue\('door'\)/);
+  assert.match(entryCss, /\.home-mascot/);
+  assert.match(entryCss, /@media \(prefers-reduced-motion:reduce\)/);
+  assert.match(sound, /door: \{ notes:/);
+  assert.match(sound, /tap: \{ notes:/);
 });
