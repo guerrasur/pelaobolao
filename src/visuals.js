@@ -40,6 +40,7 @@ function effectMarkup(effects = {}) {
   if (effects.action === 'blow') bits.push('<span class="fx fx-wind"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">¡SOPLA!</b>');
   if (effects.action === 'air') bits.push('<span class="fx fx-air"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">+1 SOPLO</b>');
   if (effects.action === 'hide') bits.push('<span class="fx fx-desk"><i></i></span><b class="fx-label fx-label-action">¡ABAJO!</b>');
+  if (effects.action === 'grab') bits.push('<span class="fx fx-grab"><i></i><i></i></span><b class="fx-label fx-label-grab">¡VA POR EL MECHÓN!</b>');
   if (effects.action === 'distracted') bits.push('<span class="fx fx-distracted">…</span>');
   if (effects.hit) {
     bits.push('<span class="fx fx-hair"><i></i><i></i><i></i><i></i></span>');
@@ -64,7 +65,6 @@ export function playerCard({ uid, player: p, index, self, selected, chosen, conn
   const breathFill = Math.max(0, Math.min(1, Number(p.breath || 0) / Math.max(1, Number(rules.maxBreath || 1))));
   return `<button class="player ${self ? 'self' : ''} ${winner ? 'winner' : ''} ${targetable ? 'targetable' : ''} ${chosen ? 'has-chosen' : ''} ${p.hair === 0 ? 'eliminated' : ''} ${p.hair === 1 ? 'critical' : ''} ${!connected ? 'offline-player' : ''} ${selected ? 'selected-target' : ''} ${effectClass}" data-player="${esc(uid)}" style="--seat-color:${colors[seat % colors.length]};--hair-fill:${hairFill};--breath-fill:${breathFill}" ${p.hair <= 0 || self || !targetable ? 'disabled' : ''}>
     <strong class="player-name"><i>${seat + 1}</i><span class="player-label" title="${esc(p.name)}${self ? ' (vos)' : ''}">${esc(p.name)}</span>${self ? '<span class="self-tag">VOS</span>' : ''}<span class="presence-dot ${connected ? 'online' : ''}" data-presence-dot="${esc(uid)}" aria-hidden="true"></span></strong>
-    ${selected ? '<span class="attack-target-badge" aria-hidden="true">◎</span>' : ''}
     <div class="player-body"><div class="avatar-wrap"><div class="avatar">${avatar(seat, p.hair, effects)}</div></div>${effectMarkup(effects)}<div class="resources">
     <span class="resource-label hair-resource">Pelo <b>${p.hair}</b>/${rules.maxHair}</span><span class="hair-pips" aria-hidden="true">${Array.from({ length: rules.maxHair }, (_, n) => `<i class="${n < p.hair ? 'full' : ''}"></i>`).join('')}</span>
     <span class="resource-label breath-resource">Soplos <b>${p.breath}</b>/${rules.maxBreath}</span><span class="breath-pips" aria-hidden="true">${Array.from({ length: rules.maxBreath }, (_, n) => `<i class="${n < p.breath ? 'full' : ''}">≋</i>`).join('')}</span>
