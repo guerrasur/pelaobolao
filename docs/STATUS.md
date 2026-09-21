@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.19.0 — Plan Águila: targeting limpio + instalación como app
+
+- Se elimina el rectángulo amarillo “SOLTÁ ACÁ” durante el arrastre. La tarjeta rival sigue resaltándose y la trayectoria roja continúa marcando con claridad dónde va el Soplo.
+- Se elimina la retícula/círculo rojo `◎` que aparecía sobre el rival después de fijar el objetivo. Se conserva el marco rojo de la tarjeta y la guía desde tu personaje al rival.
+- El favicon y el ícono de pantalla de inicio parten del ícono aprobado de la pelada con un único pelo sobre fondo azul.
+- Se agrega Web App Manifest con `display: standalone`, nombre, colores, scope/start URL, PNG 192px para Home Screen y un ícono SVG escalable para instalaciones de alta resolución.
+- Safari/iOS recibe metadatos de Home Screen (`apple-mobile-web-app-capable`, título e ícono) y Chrome usa el manifest para abrir sin la barra del navegador cuando se inicia desde el ícono.
+- Se registra un Service Worker mínimo y network-first. `version.json` queda explícitamente fuera del caché para no interferir con el bloqueo obligatorio de versiones.
+- El PNG aprobado se reconstruye antes de `dev` y `build` desde una fuente base64 versionada, por lo que CI y Firebase Hosting publican siempre el mismo ícono.
+- Se actualizan regresiones unitarias/E2E para confirmar que el objetivo sigue seleccionado sin el badge circular y que los metadatos instalables permanecen presentes.
+- Sin cambios en daño, Pelo, Soplos, ítems, resolución simultánea, Firestore o autoridad del host.
+
 ## 0.18.0 — Plan Cóndor: feedback contextual para Agarrar
 
 - Se corrigió una ambigüedad introducida por la 0.17: elegir `grab` ya no puede generar la guía roja “SOPLO → +1 PELO”. La guía de ataque sólo reconoce jugadores rivales seleccionados.
