@@ -386,6 +386,33 @@ function sealedChoiceHtml(game, choice, me) {
   return `<div class="sealed-choice" role="status"><b>JUGADA SELLADA</b><span>${esc(label)}</span></div>`;
 }
 
+function floatingHairArt() {
+  return `<svg class="floating-hair-art" viewBox="0 0 100 118" aria-hidden="true">
+    <defs>
+      <linearGradient id="pb-hair-grad" x1="18" y1="12" x2="76" y2="105" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#8d4b22"/><stop offset=".36" stop-color="#d7833b"/>
+        <stop offset=".67" stop-color="#713619"/><stop offset="1" stop-color="#2f1914"/>
+      </linearGradient>
+      <linearGradient id="pb-hair-shine" x1="30" y1="18" x2="62" y2="92" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#ffd089" stop-opacity=".9"/><stop offset="1" stop-color="#ffd089" stop-opacity="0"/>
+      </linearGradient>
+      <filter id="pb-hair-glow" x="-70%" y="-70%" width="240%" height="240%">
+        <feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <ellipse class="hair-shadow" cx="50" cy="105" rx="25" ry="5" fill="#173044" opacity=".2"/>
+    <path class="hair-aura hair-aura-back" d="M17 69c18 13 49 10 64-8M22 83c21 10 43 7 57-2" fill="none" stroke="#65d7ff" stroke-width="4.5" stroke-linecap="round" filter="url(#pb-hair-glow)"/>
+    <path class="hair-lock" d="M65 9c-5 22-27 23-31 43-4 18 14 25 8 43-3 8-10 14-18 17 18 1 34-8 41-23 8-16-2-25 4-40 5-13 16-23 16-40-5 7-11 10-20 0Z" fill="url(#pb-hair-grad)" stroke="#2b1714" stroke-width="3.5" stroke-linejoin="round"/>
+    <path class="hair-highlight" d="M63 20c-8 17-23 24-23 39 0 9 6 13 8 19" fill="none" stroke="url(#pb-hair-shine)" stroke-width="6" stroke-linecap="round"/>
+    <path class="hair-aura hair-aura-front" d="M18 63c15 16 47 18 67 2" fill="none" stroke="#99e9ff" stroke-width="4.5" stroke-linecap="round" filter="url(#pb-hair-glow)"/>
+    <g class="hair-sparkles" fill="#ffd94a" stroke="#9b6610" stroke-width="1.2">
+      <path d="m18 29 2.7 6.2 6.3 2.7-6.3 2.8-2.7 6.2-2.8-6.2-6.2-2.8 6.2-2.7Z"/>
+      <path d="m80 35 1.8 4 4 1.8-4 1.8-1.8 4-1.8-4-4-1.8 4-1.8Z"/>
+      <path d="m76 84 2.2 5 5 2.2-5 2.2-2.2 5-2.2-5-5-2.2 5-2.2Z"/>
+    </g>
+  </svg>`;
+}
+
 function centerItemHtml(game, choice) {
   if (game.centerItem?.kind !== HAIR_ITEM_KIND || !['choosing', 'locked', 'reveal'].includes(game.phase)) return '';
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
@@ -394,32 +421,35 @@ function centerItemHtml(game, choice) {
     : choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
   const targetable = Boolean(canChoose() && (freePickup || s.targeting));
   const isNew = game.phase === 'choosing' && game.centerItem.spawnedTurn === game.turn;
-  const label = freePickup ? '+1 Pelo. Agarrar no cuesta Soplos, pero te deja expuesto.' : '+1 Pelo, cuesta 1 Soplo';
-  return `<button type="button" class="center-item hair-item ${targetable ? 'targetable' : ''} ${selected ? 'selected-target' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" tabindex="${targetable ? '0' : '-1'}" aria-label="${label}">
-    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>OBJETO EN EL AULA</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
+  const label = freePickup
+    ? 'Mechón flotante, +1 Pelo. Agarrarlo no cuesta Soplos pero te deja vulnerable.'
+    : '+1 Pelo, cuesta 1 Soplo';
+  const selectedClass = selected ? (freePickup ? 'selected-item' : 'selected-target') : '';
+  if (!freePickup) {
+    return `<button type="button" class="center-item hair-item ${targetable ? 'targetable' : ''} ${selectedClass} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
+      ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>OBJETO EN EL AULA</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>1 SOPLO</span>
+    </button>`;
+  }
+  return `<button type="button" class="center-item hair-item floating-hair-item ${targetable ? 'item-available' : ''} ${selectedClass} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
+    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}${floatingHairArt()}<span class="item-copy"><small>MECHÓN FLOTANTE</small><strong class="item-label">+1 PELO</strong><em>SIN COSTO · VULNERABLE</em></span>
   </button>`;
 }
 
 function centerItemNotice(game, me) {
   if (game.phase !== 'choosing' || game.centerItem?.kind !== HAIR_ITEM_KIND) return '';
-  const maxHair = Number(game.rules?.maxHair || 4);
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
-  if (!freePickup) {
-    const detail = !me || me.hair <= 0
-      ? 'Los jugadores pueden disputarlo con 1 Soplo.'
-      : me.breath < 1
-        ? 'Necesitás 1 Soplo para disputarlo.'
-        : me.hair >= maxHair
-          ? 'Tenés Pelo al máximo: todavía podés disputarlo para negárselo a otro.'
-          : 'Cuesta 1 Soplo. Si van 2 o más, nadie se lo lleva.';
-    return `<div class="item-notice" role="status"><b>+1 PELO EN JUEGO</b><span>${detail}</span></div>`;
-  }
+  // New matches carry their explanation inside the floating item and play hint.
+  // Keeping this out of document flow prevents the board from shifting when the event appears.
+  if (freePickup) return '';
+  const maxHair = Number(game.rules?.maxHair || 4);
   const detail = !me || me.hair <= 0
-    ? 'No cuesta Soplos. Quien lo intente queda expuesto a ataques.'
-    : me.hair >= maxHair
-      ? 'No cuesta Soplos: podés negárselo a otro, pero quedás expuesto.'
-      : 'Tocalo para agarrarlo gratis. No te escondés: si te Soplan, recibís el golpe.';
-  return `<div class="item-notice item-notice-free" role="status"><b>MECHÓN +1</b><span>${detail} Si van 2 o más, nadie se lo lleva.</span></div>`;
+    ? 'Los jugadores pueden disputarlo con 1 Soplo.'
+    : me.breath < 1
+      ? 'Necesitás 1 Soplo para disputarlo.'
+      : me.hair >= maxHair
+        ? 'Tenés Pelo al máximo: todavía podés disputarlo para negárselo a otro.'
+        : 'Cuesta 1 Soplo. Si van 2 o más, nadie se lo lleva.';
+  return `<div class="item-notice" role="status"><b>+1 PELO EN JUEGO</b><span>${detail}</span></div>`;
 }
 
 function outcomeKind(game, uid) {
