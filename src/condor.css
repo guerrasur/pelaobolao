@@ -168,3 +168,166 @@
   }
   .condor-chalk-burst,.condor-ripple { display:none!important; }
 }
+
+
+/* Plan Cóndor 0.10.0: intención de ataque y lobby con feedback, sin autoridad de juego. */
+.game { position:relative; }
+
+.condor-aim-guide {
+  position:absolute;
+  z-index:0;
+  height:0;
+  transform-origin:0 50%;
+  pointer-events:none;
+  border-top:3px dashed #ef294f;
+  filter:drop-shadow(0 1px 0 #fff8e9) drop-shadow(0 0 4px #ff244d66);
+  opacity:.88;
+  animation:condor-aim-guide-in .22s ease-out both;
+}
+.condor-aim-guide::after {
+  content:'';
+  position:absolute;
+  right:-2px;
+  top:-8px;
+  width:0;
+  height:0;
+  border-top:7px solid transparent;
+  border-bottom:7px solid transparent;
+  border-left:11px solid #ef294f;
+  filter:drop-shadow(1px 1px 0 #fff8e9);
+}
+.condor-aim-guide i {
+  position:absolute;
+  top:-6px;
+  left:18%;
+  width:18px;
+  height:3px;
+  border-radius:999px;
+  background:#fff8e9;
+  border:1px solid #8e102b;
+  opacity:0;
+  animation:condor-aim-gust 1.05s linear infinite;
+}
+.condor-aim-guide i:nth-child(2) { animation-delay:.33s; }
+.condor-aim-guide i:nth-child(3) { animation-delay:.66s; }
+.condor-aim-guide b {
+  position:absolute;
+  left:38%;
+  top:-18px;
+  padding:2px 5px;
+  border:1.5px solid #5b0b1d;
+  border-radius:4px;
+  background:#fff4d9;
+  color:#84142c;
+  font-size:7px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.5px;
+  box-shadow:1px 1px 0 #5b0b1d;
+}
+
+.player.condor-target-lock {
+  animation:condor-target-confirm .58s cubic-bezier(.16,.85,.28,1.35) both!important;
+}
+.player.condor-target-lock::before {
+  content:'';
+  position:absolute;
+  z-index:11;
+  inset:-9px;
+  border:3px solid #ffdf4f;
+  border-radius:12px;
+  pointer-events:none;
+  opacity:0;
+  animation:condor-target-ring .58s ease-out both;
+}
+
+.lobby-list li.condor-lobby-join {
+  animation:condor-lobby-join .68s cubic-bezier(.16,.85,.28,1.18) both;
+}
+.lobby-list li.condor-lobby-ready {
+  animation:condor-lobby-ready .62s cubic-bezier(.16,.85,.28,1.2) both;
+}
+.lobby-list li.condor-lobby-ready::after {
+  content:'✓ LISTO';
+  position:absolute;
+  z-index:4;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%) rotate(-4deg);
+  padding:4px 8px;
+  border:2px solid #214f37;
+  border-radius:5px;
+  background:#c8f6d9;
+  color:#214f37;
+  font-size:9px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.55px;
+  box-shadow:2px 2px 0 #214f37;
+  pointer-events:none;
+  animation:condor-ready-stamp .62s ease-out both;
+}
+.lobby-list li.condor-lobby-unready {
+  animation:condor-lobby-unready .42s ease-out both;
+}
+
+@keyframes condor-aim-guide-in {
+  from { opacity:0; filter:drop-shadow(0 0 0 transparent); }
+  to { opacity:.88; }
+}
+@keyframes condor-aim-gust {
+  0% { left:12%; opacity:0; transform:scaleX(.7); }
+  16% { opacity:.9; }
+  78% { opacity:.75; }
+  100% { left:84%; opacity:0; transform:scaleX(1.2); }
+}
+@keyframes condor-target-confirm {
+  0% { transform:scale(1)!important; }
+  40% { transform:scale(1.045)!important; }
+  72% { transform:scale(.985)!important; }
+  100% { transform:scale(1)!important; }
+}
+@keyframes condor-target-ring {
+  0% { opacity:0; transform:scale(.82); }
+  28% { opacity:1; }
+  100% { opacity:0; transform:scale(1.1); }
+}
+@keyframes condor-lobby-join {
+  0% { opacity:.35; transform:translateX(-12px) scale(.985); }
+  58% { opacity:1; transform:translateX(3px) scale(1.01); }
+  100% { opacity:1; transform:none; }
+}
+@keyframes condor-lobby-ready {
+  0% { transform:scale(1); }
+  42% { transform:scale(1.025) rotate(-.6deg); }
+  100% { transform:none; }
+}
+@keyframes condor-ready-stamp {
+  0% { opacity:0; transform:translate(-50%,-50%) rotate(-9deg) scale(1.45); }
+  32% { opacity:1; transform:translate(-50%,-50%) rotate(-4deg) scale(.92); }
+  72% { opacity:1; }
+  100% { opacity:0; transform:translate(-50%,-50%) rotate(-2deg) scale(1.04); }
+}
+@keyframes condor-lobby-unready {
+  0% { filter:saturate(.6); }
+  100% { filter:none; }
+}
+
+@media(max-height:560px) {
+  .condor-aim-guide b { display:none; }
+  .lobby-list li.condor-lobby-ready::after { font-size:7px; padding:2px 5px; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .condor-aim-guide,
+  .condor-aim-guide i,
+  .player.condor-target-lock,
+  .player.condor-target-lock::before,
+  .lobby-list li.condor-lobby-join,
+  .lobby-list li.condor-lobby-ready,
+  .lobby-list li.condor-lobby-ready::after,
+  .lobby-list li.condor-lobby-unready {
+    animation:none!important;
+  }
+  .condor-aim-guide i { display:none!important; }
+}
