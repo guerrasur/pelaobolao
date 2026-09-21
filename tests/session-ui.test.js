@@ -463,7 +463,8 @@ test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/MECHÓN \+1/);
-  assert.match(html,/Tenés Pelo al máximo/);
+  assert.match(html,/No cuesta Soplos/);
+  assert.match(html,/quedás expuesto/);
   assert.match(html,/item-new-badge">NUEVO/);
   assert.match(html,/aria-disabled="false"/);
 
