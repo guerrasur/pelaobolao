@@ -157,3 +157,25 @@ test('host en segundo plano: el otro jugador retoma y ambos siguen al volver', a
     for(const p of [page,guest]) await expect(p.locator('.game')).toBeVisible();
   } finally { await guestContext.close(); }
 });
+
+
+test('cancelar compartir después de salir de la sala no rompe la app', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: () => new Promise((_, reject) => { window.rejectPendingShare = reject; }),
+    });
+  });
+  await page.goto('http://127.0.0.1:5173');
+  await page.getByLabel('Nombre', { exact: true }).fill('Ana');
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await page.getByRole('button', { name: 'Crear sala' }).click();
+  await page.getByRole('button', { name: 'Compartir' }).click();
+  await expect.poll(() => page.evaluate(() => typeof window.rejectPendingShare)).toBe('function');
+  await page.getByRole('button', { name: 'Salir de la sala' }).click();
+  await page.evaluate(() => window.rejectPendingShare(new Error('cancelled')));
+  await expect(page.getByRole('button', { name: 'Crear sala' })).toBeVisible();
+  expect(errors).toEqual([]);
+});
