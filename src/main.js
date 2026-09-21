@@ -194,10 +194,19 @@ function subscribeGame(id) {
       if (s.game.phase === 'choosing') playCue('start');
       if (s.game.phase === 'reveal') {
         const impact = roundImpact(s.game);
-        playCue(impact === 'hit' ? 'hit' : impact === 'block' ? 'block' : impact === 'heal' ? 'heal' : 'reveal');
+        const cue = {
+          hit: 'hit', block: 'block', heal: 'heal', swing: 'swing',
+          'item-clash': 'itemClash', 'item-claim': 'itemClaim',
+        }[impact] || 'reveal';
+        playCue(cue);
         const mine = playerEffects(s.game, api.uid);
-        if (mine.hit) vibrate([38, 28, 62]);
+        const itemResult = s.game.lastResult?.item;
+        const itemAttempted = itemResult?.attempts?.includes?.(api.uid);
+        if (mine.hit && mine.healed) vibrate([42, 22, 20, 22, 38]);
+        else if (mine.hit) vibrate([38, 28, 62]);
         else if (mine.healed) vibrate([18, 24, 18]);
+        else if (itemResult?.outcome === 'contested' && itemAttempted) vibrate([16, 18, 16]);
+        else if (itemResult?.outcome === 'claimed' && itemResult.winnerId === api.uid) vibrate([16, 22, 38]);
         else if (mine.blockedDefense) vibrate([22, 32, 22]);
         else if (mine.blockedAttack) vibrate(18);
       }
