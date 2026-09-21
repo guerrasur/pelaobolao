@@ -633,3 +633,12 @@
   .center-item.condor-item-grab .hair-tuft { animation:none!important; }
 }
 
+
+
+/* Plan Águila 0.19.0 — targeting limpio: la tarjeta y la trayectoria alcanzan. */
+.player.drag-target::after,
+.center-item.drag-target::after {
+  content:none!important;
+  display:none!important;
+}
+.attack-target-badge { display:none!important; }
