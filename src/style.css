@@ -2190,3 +2190,57 @@ header { min-height:48px; }
     font-size:7px;
   }
 }
+
+
+/* v0.7.0 — chalk countdown splash */
+.countdown-splash {
+  position:absolute;
+  z-index:18;
+  inset:0;
+  display:grid;
+  place-content:center;
+  justify-items:center;
+  pointer-events:none;
+  background:radial-gradient(circle at 50% 48%,#fff7d61f 0 18%,transparent 52%);
+}
+.countdown-splash strong {
+  display:block;
+  color:#fff7d6;
+  font-family:"Trebuchet MS",system-ui,sans-serif;
+  font-size:clamp(64px,22vw,132px);
+  line-height:.78;
+  font-weight:1000;
+  letter-spacing:-6px;
+  -webkit-text-stroke:2px #202633;
+  text-shadow:
+    3px 4px 0 #202633,
+    -2px -2px 0 #ffffff24,
+    0 0 18px #fff4bd55;
+  transform:rotate(-4deg);
+  animation:pb-countdown-chalk .68s cubic-bezier(.2,.8,.24,1) infinite alternate;
+}
+.countdown-splash span {
+  margin-top:14px;
+  padding:4px 10px;
+  border:2px solid #202633;
+  border-radius:3px;
+  background:#ffdf4f;
+  color:#392e18;
+  box-shadow:2px 3px 0 #202633;
+  font-size:10px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.6px;
+  transform:rotate(1.5deg);
+}
+@keyframes pb-countdown-chalk {
+  from { transform:rotate(-4deg) scale(.92); opacity:.76; }
+  to { transform:rotate(2deg) scale(1.04); opacity:1; }
+}
+@media(max-height:520px) and (min-width:600px) {
+  .countdown-splash strong { font-size:58px; }
+  .countdown-splash span { margin-top:6px; font-size:8px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .countdown-splash strong { animation:none!important; }
+}
