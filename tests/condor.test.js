@@ -391,7 +391,7 @@ test('el lote de pulido: ningún request interno puede dejar congelado heartbeat
 test('el lote de pulido: la recuperación transitoria no deja avisos de error pegados', async () => {
   const main = await readFile('src/main.js', 'utf8');
   assert.match(main, /const showInternalError = error =>/);
-  assert.match(main, /endsWith\('unavailable'\)\) showError\(error\)/);
+  assert.match(main, /code\.endsWith\('unavailable'\) \|\| code\.endsWith\('permission-denied'\)/);
   assert.match(main, /catch\(showInternalError\)/);
   assert.match(main, /notice\.textContent === 'Comprobando conexión con el servidor…'/);
   assert.match(main, /message\(''\)/);
