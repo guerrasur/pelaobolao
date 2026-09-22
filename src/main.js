@@ -30,7 +30,7 @@ let renderedHtml;
 let lastRevealStageKey = null;
 let lastRevealCountdown = null;
 let pending = null, sending = false, intentGeneration = 0, sendingGeneration = -1, drag = null, suppressClick = false, lastNudge = 0;
-let leaveArmedUntil = 0, leaveArmTimer = 0;
+let leaveArmedUntil = 0, leaveArmTimer = 0, lastCheckingConnection = false;
 const now = () => api?.now() ?? Date.now();
 const connectionFresh = () => !s.roomId || !lastContact || Date.now() - lastContact <= 30000;
 const setText = (node, value) => {
@@ -136,7 +136,9 @@ function showError(error) {
   message(friendly[code] || error.message || 'No pudimos completar la operación.');
 }
 const showInternalError = error => {
-  if (!String(error?.code || '').endsWith('unavailable')) showError(error);
+  const code = String(error?.code || '');
+  if (code.endsWith('unavailable') || code.endsWith('permission-denied')) return;
+  showError(error);
 };
 function clearDragFeedback() {
   document.getElementById('blow-drag-ghost')?.remove();
@@ -963,6 +965,13 @@ function tick() {
   connection.classList.toggle('checking', checkingConnection);
   connection.classList.toggle('connecting', connecting);
   if (!checkingConnection && notice.textContent === 'Comprobando conexión con el servidor…') message('');
+  if (s.game && checkingConnection !== lastCheckingConnection) {
+    lastCheckingConnection = checkingConnection;
+    if (checkingConnection) { cancelDrag(); s.targeting = false; }
+    render();
+    return;
+  }
+  lastCheckingConnection = checkingConnection;
   if (s.updateRequired) return;
   document.querySelectorAll('[data-presence]').forEach(el => {
     const online = memberOnline(el.dataset.presence);
