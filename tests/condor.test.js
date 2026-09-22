@@ -294,3 +294,17 @@ test('el lote de pulido conserva una jugada pendiente durante una desconexión b
   assert.match(flush, /Sin conexión · la jugada se enviará al volver/);
   assert.match(main, /Sin conexión · pendiente:/);
 });
+
+test('el lote de pulido diferencia GUARDANDO de ELEGIDA también en feedback visual y sonoro', async () => {
+  const [visuals, css, condor, sound] = await Promise.all([
+    readFile('src/visuals.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+    readFile('src/condor.js', 'utf8'),
+    readFile('src/sound.js', 'utf8'),
+  ]);
+  assert.match(visuals, /saving \? 'saving-action' : 'chosen-action'/);
+  assert.match(css, /button\.saving-action/);
+  assert.match(css, /@keyframes condor-saving-pulse/);
+  assert.match(condor, /classList\.contains\('self'\)\) playCue\('confirm'\)/);
+  assert.match(sound, /confirm: \{ notes:/);
+});
