@@ -7,8 +7,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   for (const page of [a, b]) page.on('pageerror', error => errors.push(error.message));
   for (const [page, name] of [[a, 'Ana'], [b, 'Beto']]) {
     await page.goto('http://127.0.0.1:5173');
-    await page.getByLabel('Nombre del jugador', { exact: true }).fill(name);
-    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await page.locator('#player-name').fill(name);
+    await page.locator('#profile-form button').click();
     await expect(page.locator('#create-room')).toBeVisible();
   }
   await a.locator('#create-room').click();
@@ -16,14 +16,14 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   expect(code).toMatch(/^[A-Z2-9]{4}$/);
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
   await b.goto(`http://127.0.0.1:5173/?s=${code}`);
-  await expect(b.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Beto');
-  await b.getByRole('button', { name: 'Entrar al aula' }).click();
+  await expect(b.locator('#player-name')).toHaveValue('Beto');
+  await b.locator('#profile-form button').click();
   await expect(b.getByLabel('Código de sala')).toHaveValue(code);
   await b.getByRole('button', { name: 'ENTRAR', exact: true }).click();
-  await expect(a.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible();
+  await expect(a.locator('.lobby-list li')).toHaveCount(2);
   await a.reload();
-  await expect(a.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Ana');
-  await a.getByRole('button', { name: 'Entrar al aula' }).click();
+  await expect(a.locator('#player-name')).toHaveValue('Ana');
+  await a.locator('#profile-form button').click();
   await a.getByLabel('Código de sala').fill(code);
   await a.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   const selfLobby = a.locator('.lobby-list li:has(.lobby-self-tag)');
@@ -115,8 +115,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await expect(b.locator('#connection')).toContainText('Sin conexión');
   await contextB.setOffline(false);
   await b.reload();
-  await expect(b.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Beto');
-  await b.getByRole('button', { name: 'Entrar al aula' }).click();
+  await expect(b.locator('#player-name')).toHaveValue('Beto');
+  await b.locator('#profile-form button').click();
   await b.getByLabel('Código de sala').fill(code);
   await b.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   await expect(b.locator('[data-player].self .player-label')).toHaveText('Beto');
@@ -143,7 +143,7 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.screenshot({ path: 'test-results/loser-tomatoes.png', fullPage: true });
   await expect(a.locator('[data-lobby-return]')).toBeVisible({ timeout: 5000 });
   await expect(a.locator('[data-lobby-return]')).toContainText(/Regresando al lobby en [1-5]s|Regresando al lobby…/);
-  await expect(b.getByRole('heading', { name: 'Jugadores · 2/6' })).toBeVisible({ timeout: 9000 });
+  await expect(b.locator('.lobby-list li')).toHaveCount(2, { timeout: 9000 });
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
   for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
@@ -156,8 +156,8 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
 
 test('el teclado móvil no colapsa el menú de ingreso de sala', async ({ page }) => {
   await page.goto('http://127.0.0.1:5173');
-  await page.getByLabel('Nombre del jugador', { exact:true }).fill('Teclado');
-  await page.getByRole('button', { name:'Entrar al aula' }).click();
+  await page.locator('#player-name').fill('Teclado');
+  await page.locator('#profile-form button').click();
   await expect(page.locator('.home-screen')).toBeVisible();
 
   const input = page.getByLabel('Código de sala');
@@ -176,7 +176,7 @@ test('el teclado móvil no colapsa el menú de ingreso de sala', async ({ page }
   }));
   expect(layout.bodyHeight).toBeGreaterThan(700);
   expect(layout.homeHeight).toBeGreaterThan(600);
-  expect(layout.heroHeight).toBeGreaterThan(80);
+  expect(layout.heroHeight).toBeLessThanOrEqual(2);
   expect(layout.joinHeight).toBeGreaterThan(70);
 
   await input.blur();
@@ -204,5 +204,5 @@ test('una versión pública anterior no bloquea un cliente más nuevo', async ({
   }));
   await page.goto('http://127.0.0.1:5173');
   await expect(page.getByRole('heading', { name: 'Hay que actualizar para seguir' })).toHaveCount(0);
-  await expect(page.getByLabel('Nombre del jugador', { exact: true })).toBeVisible();
+  await expect(page.locator('#player-name')).toBeVisible();
 });

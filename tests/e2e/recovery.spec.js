@@ -21,8 +21,8 @@ async function pair(browser, host) {
   const guest = await guestContext.newPage();
   for (const [page, name] of [[host, 'Ana'], [guest, '<b>Beto</b>']]) {
     await page.goto('http://127.0.0.1:5173');
-    await page.getByLabel('Nombre del jugador', { exact: true }).fill(name);
-    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await page.locator('#player-name').fill(name);
+    await page.locator('#profile-form button').click();
     await expect(page.locator('#create-room')).toBeVisible();
   }
   await host.locator('#create-room').click();
@@ -43,11 +43,11 @@ test('reingresar con un turno vencido no rompe la pantalla del nombre', async ({
   const { guestContext, guest, gameId, code } = await pair(browser, page);
   try {
     await page.reload();
-    await expect(page.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Ana');
+    await expect(page.locator('#player-name')).toHaveValue('Ana');
     await patch(`games/${gameId}`, { deadline: Date.now() - 5000, phaseStartedAt: Timestamp.fromMillis(Date.now()-15000) });
     // The reloaded host does not resume or advance the saved match on its own.
-    await expect(page.getByLabel('Nombre del jugador', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await expect(page.locator('#player-name')).toBeVisible();
+    await page.locator('#profile-form button').click();
     await expect(page.locator('#create-room')).toBeVisible();
     await page.getByLabel('Código de sala').fill(code);
     await page.getByRole('button', { name: 'ENTRAR', exact: true }).click();
@@ -87,8 +87,8 @@ test('actualización cancela arrastre, bloquea acciones y permite reingresar con
     await expect(page.locator('.controls')).toHaveCount(0);
     version = packageInfo.version;
     await page.getByRole('button', { name: 'Actualizar ahora' }).click();
-    await expect(page.getByLabel('Nombre del jugador', { exact: true })).toHaveValue('Ana');
-    await page.getByRole('button', { name: 'Entrar al aula' }).click();
+    await expect(page.locator('#player-name')).toHaveValue('Ana');
+    await page.locator('#profile-form button').click();
     await expect(page.locator('#create-room')).toBeVisible();
     await page.getByLabel('Código de sala').fill(code);
     await page.getByRole('button', { name: 'ENTRAR', exact: true }).click();
@@ -245,12 +245,12 @@ test('cancelar compartir después de salir de la sala no rompe la app', async ({
     });
   });
   await page.goto('http://127.0.0.1:5173');
-  await page.getByLabel('Nombre del jugador', { exact: true }).fill('Ana');
-  await page.getByRole('button', { name: 'Entrar al aula' }).click();
+  await page.locator('#player-name').fill('Ana');
+  await page.locator('#profile-form button').click();
   await page.locator('#create-room').click();
   await page.getByRole('button', { name: 'Compartir' }).click();
   await expect.poll(() => page.evaluate(() => typeof window.rejectPendingShare)).toBe('function');
-  await page.getByRole('button', { name: 'Salir de la sala' }).click();
+  await page.locator('#leave-room').click();
   await page.evaluate(() => window.rejectPendingShare(new Error('cancelled')));
   await expect(page.locator('#create-room')).toBeVisible();
   expect(errors).toEqual([]);
