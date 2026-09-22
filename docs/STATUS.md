@@ -22,6 +22,7 @@
 - El drag de `Soplar` ignora punteros secundarios: un segundo dedo accidental ya no puede reemplazar el gesto principal ni dejar el apuntado en un estado inconsistente.
 - El click sintético que algunos navegadores móviles disparan al terminar un drag se consume tanto en `Soplar` como en tarjetas/ítems, evitando una segunda selección accidental.
 - La nueva confirmación de salida también respeta `prefers-reduced-motion`; no introduce una animación obligatoria para usuarios que la desactivan.
+- Después del endurecimiento táctil se vuelve a correr el checkpoint rápido de tests y build antes de sumar más cambios.
 - Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
 - Checkpoint rápido del lote: `npm test` + build se ejecutan sobre la rama; integración/E2E/Firebase quedan reservados para el cierre.
 - La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
