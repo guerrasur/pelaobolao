@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.29.0 — Plan Cóndor: mechón central sin tarjeta
+
+- El ítem +1 Pelo deja de renderizar papel, borde, cinta, badge “NUEVO”, copy “+1 PELO” y CTA “AGARRAR”: dentro del tablero sólo queda visible el mechón.
+- El área táctil absoluta permanece estable e invisible para no mover las tarjetas de jugadores ni empeorar la interacción mobile.
+- El mechón adopta un halo cálido y un trazo luminoso inspirado en el concepto aprobado; targeting y selección intensifican el halo sin volver a introducir una placa.
+- Se elimina también el pseudo-callout “SOLTÁ ACÁ” del centro para evitar ruido visual heredado.
+- La tercera ronda del objeto mantiene el parpadeo lento, ahora aplicado al mechón/halo en vez de una tarjeta completa.
+- Se agregan regresiones de UI/CSS para impedir que vuelva a aparecer texto o un contenedor visual alrededor del ítem.
+- Sin cambios en spawn, disputa, +1 Pelo, vulnerabilidad al agarrar, expiración, Firestore ni autoridad del host.
+
+
 ## 0.28.0 — Plan Cóndor: director de reveal estable
 
 - El número 3–2–1 deja de formar parte del HTML calculado por `render()`; `tick()` actualiza únicamente el nodo del contador. Un heartbeat o snapshot de presencia ya no reemplaza todo el tablero por haber cambiado el segundo visual.

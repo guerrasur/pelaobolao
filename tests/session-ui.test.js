@@ -439,8 +439,7 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   assert.match(html,/class="center-item hair-item free-pickup targetable/);
   assert.match(html,/data-center-item="__center_item__"/);
   assert.match(html,/class="hair-tuft"/);
-  assert.match(html,/>\+1 PELO<\/strong>/);
-  assert.match(html,/AGARRAR/);
+  assert.doesNotMatch(html,/item-new-badge|item-label|OBJETO EN EL AULA|>AGARRAR<|>\+1 PELO</);
   assert.match(html,/gratis; al hacerlo quedás expuesto/);
   assert.doesNotMatch(html,/1 SOPLO/);
 });
@@ -514,7 +513,8 @@ test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar desh
   let html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/selected-grab/);
   assert.match(html,/aria-pressed="true"/);
-  assert.match(html,/>YENDO…<\/span>/);
+  assert.match(html,/class="hair-tuft"/);
+  assert.doesNotMatch(html,/>YENDO…<\/span>|item-label|item-new-badge/);
   assert.doesNotMatch(html,/selected-target/);
 
   ui.s.choice=null;
@@ -610,7 +610,8 @@ test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima
   assert.match(html,/MECHÓN \+1/);
   assert.match(html,/No cuesta Soplos/);
   assert.match(html,/quedás expuesto/);
-  assert.match(html,/item-new-badge">NUEVO/);
+  assert.doesNotMatch(html,/item-new-badge">NUEVO/);
+  assert.match(html,/class="hair-tuft"/);
   assert.match(html,/aria-disabled="false"/);
 
   ui.s.game={...base,phase:'finished',winnerId:'me',draw:false,finishedAt:now,lastResult:{

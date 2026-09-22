@@ -2994,3 +2994,163 @@ header { min-height:48px; }
     opacity:.5!important;
   }
 }
+
+
+/* Plan Cóndor 0.29.0 — el objeto central es sólo el mechón, sin tarjeta ni texto. */
+.center-item {
+  width:clamp(68px,18vw,88px)!important;
+  height:clamp(68px,18vw,88px)!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:50%!important;
+  outline:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  appearance:none;
+  -webkit-appearance:none;
+  display:grid!important;
+  place-items:center;
+  overflow:visible;
+  isolation:isolate;
+}
+.center-item::before {
+  content:''!important;
+  position:absolute!important;
+  inset:8px!important;
+  width:auto!important;
+  height:auto!important;
+  top:8px!important;
+  left:8px!important;
+  transform:none!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:radial-gradient(circle,rgba(255,236,137,.48) 0 24%,rgba(255,204,72,.28) 42%,rgba(255,174,42,.12) 58%,transparent 74%)!important;
+  box-shadow:0 0 12px rgba(255,205,72,.5),0 0 25px rgba(255,170,36,.26)!important;
+  filter:blur(1.5px);
+  opacity:.82;
+  pointer-events:none;
+  z-index:-1;
+}
+.center-item small,
+.center-item .item-label,
+.center-item > span,
+.center-item .item-new-badge {
+  display:none!important;
+}
+.center-item.targetable,
+.game[data-targeting="true"] .center-item.targetable {
+  outline:0!important;
+  box-shadow:none!important;
+  animation:none!important;
+}
+.center-item.targetable::before {
+  opacity:1;
+  box-shadow:0 0 14px rgba(255,220,92,.72),0 0 30px rgba(255,176,42,.38)!important;
+  animation:pb-hair-aura 1.25s ease-in-out infinite alternate;
+}
+.center-item.selected-grab,
+.center-item.selected-target,
+.center-item.drag-target {
+  outline:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  transform:none!important;
+}
+.center-item.selected-grab::before,
+.center-item.selected-target::before,
+.center-item.drag-target::before {
+  inset:3px!important;
+  opacity:1;
+  box-shadow:0 0 0 2px rgba(255,244,178,.88),0 0 16px rgba(255,203,68,.92),0 0 34px rgba(255,149,28,.52)!important;
+}
+.center-item.drag-target::after {
+  content:none!important;
+  display:none!important;
+}
+.center-item.free-pickup,
+.center-item.free-pickup.targetable {
+  animation:none!important;
+}
+.hair-tuft {
+  position:relative;
+  display:block;
+  width:52px;
+  height:44px;
+  margin:0!important;
+  transform:rotate(-7deg);
+  filter:
+    drop-shadow(0 0 1px #fff8c7)
+    drop-shadow(0 0 5px rgba(255,209,77,.9))
+    drop-shadow(0 0 11px rgba(255,155,30,.48));
+  pointer-events:none;
+  transition:transform .16s ease,filter .16s ease;
+}
+.hair-tuft b {
+  position:absolute;
+  bottom:5px;
+  width:15px;
+  height:34px;
+  border:2px solid #2d1710!important;
+  border-left-width:2px!important;
+  border-radius:92% 18% 82% 24%;
+  background:linear-gradient(145deg,#d08a3b 0 13%,#8f5127 30%,#56301b 61%,#2f1811 100%);
+  box-shadow:inset 3px 1px 0 rgba(255,204,111,.24);
+  transform-origin:50% 94%;
+}
+.hair-tuft b:nth-child(1) { left:4px; height:27px; transform:rotate(-58deg) translateY(5px); }
+.hair-tuft b:nth-child(2) { left:11px; height:34px; transform:rotate(-31deg) translateY(1px); }
+.hair-tuft b:nth-child(3) { left:19px; height:40px; transform:rotate(-5deg) translateY(-1px); }
+.hair-tuft b:nth-child(4) { left:28px; height:33px; transform:rotate(24deg) translateY(1px); }
+.hair-tuft b:nth-child(5) { left:36px; height:25px; transform:rotate(51deg) translateY(6px); }
+.center-item.targetable .hair-tuft {
+  transform:rotate(-7deg) scale(1.035);
+}
+.center-item.selected-grab .hair-tuft,
+.center-item.selected-target .hair-tuft,
+.center-item.drag-target .hair-tuft {
+  transform:rotate(-5deg) scale(1.1);
+  filter:
+    drop-shadow(0 0 2px #fffbd8)
+    drop-shadow(0 0 7px rgba(255,222,98,1))
+    drop-shadow(0 0 15px rgba(255,149,28,.7));
+}
+.center-item.free-pickup .hair-tuft {
+  animation:pb-tuft-float 1.25s ease-in-out infinite alternate;
+}
+.center-item.is-expiring {
+  animation:pb-item-expiring 2.2s ease-in-out infinite!important;
+  will-change:opacity;
+}
+@keyframes pb-hair-aura {
+  from { transform:scale(.94); opacity:.72; }
+  to { transform:scale(1.06); opacity:1; }
+}
+@media(max-width:380px), (max-height:600px) {
+  .center-item {
+    width:58px!important;
+    height:58px!important;
+    padding:0!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+  .center-item::before { inset:6px!important; }
+  .hair-tuft {
+    width:43px;
+    height:36px;
+    transform:rotate(-7deg) scale(.92);
+  }
+  .hair-tuft b { width:13px; height:28px; }
+  .hair-tuft b:nth-child(1) { left:3px; height:22px; }
+  .hair-tuft b:nth-child(2) { left:9px; height:28px; }
+  .hair-tuft b:nth-child(3) { left:16px; height:33px; }
+  .hair-tuft b:nth-child(4) { left:24px; height:27px; }
+  .hair-tuft b:nth-child(5) { left:31px; height:21px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item.targetable::before,
+  .center-item.free-pickup .hair-tuft {
+    animation:none!important;
+  }
+}
