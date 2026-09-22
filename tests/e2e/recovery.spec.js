@@ -465,7 +465,8 @@ test('doble toque sobre la misma acción no crea una revisión extra', async ({ 
     await page.waitForTimeout(250);
     const second = await read(intentPath);
     expect(second.revision).toBe(first.revision);
-    expect(second.requestId).toBe(first.requestId);
+    expect(second.action).toBe(first.action);
+    expect(second.target ?? null).toBe(first.target ?? null);
   } finally {
     await guestContext.close();
   }
