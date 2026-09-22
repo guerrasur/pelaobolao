@@ -473,3 +473,23 @@ test('cierre del lote 0.36 alinea versión y auditoría terminal', async () => {
   assert.equal(packageInfo.version, publicVersion.version);
   assert.match(sw, new RegExp(`pelaobolao-shell-${packageInfo.version.replaceAll('.', '\\.')}`));
 });
+
+
+test('0.38 integra la ilustración original del menú y mantiene versión/cache alineados', async () => {
+  const [main, menuCss, sw, packageInfo, publicVersion] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor30.css', 'utf8'),
+    readFile('public/sw.js', 'utf8'),
+    readFile('package.json', 'utf8').then(JSON.parse),
+    readFile('public/version.json', 'utf8').then(JSON.parse),
+  ]);
+  assert.match(main, /class="home-artwork"/);
+  assert.match(main, /\/assets\/menu-pelao-bolao\.webp/);
+  assert.doesNotMatch(main, /class="home-mascot"/);
+  assert.match(menuCss, /\.home-artwork\s*\{/);
+  assert.match(menuCss, /prefers-reduced-motion:reduce/);
+  assert.match(sw, /\/assets\/menu-pelao-bolao\.webp/);
+  assert.equal(packageInfo.version, '0.38.0');
+  assert.equal(publicVersion.version, packageInfo.version);
+  assert.match(sw, /pelaobolao-shell-0\.38\.0/);
+});

@@ -627,3 +627,61 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
     letter-spacing:2.5px;
   }
 }
+
+
+/* v0.38.0 — Plan Águila: ilustración original en el menú principal */
+.home-title-mark {
+  z-index:3;
+  width:min(45%, 214px);
+}
+.home-artwork {
+  position:absolute;
+  z-index:2;
+  right:-2.5%;
+  bottom:3%;
+  width:min(62%, 316px);
+  aspect-ratio:420 / 271;
+  margin:0;
+  overflow:hidden;
+  border:2px solid var(--entry-ink);
+  border-radius:7px 5px 9px 6px;
+  background:#fff;
+  box-shadow:4px 5px 0 rgba(20,34,32,.78);
+  transform:rotate(1.2deg);
+  transform-origin:54% 82%;
+  pointer-events:none;
+  animation:pb-home-art-idle 4.4s ease-in-out infinite;
+}
+.home-artwork img {
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#fff;
+}
+@keyframes pb-home-art-idle {
+  0%,100% { transform:translateY(0) rotate(1.2deg); }
+  50% { transform:translateY(-2px) rotate(.7deg); }
+}
+@media(max-width:380px) {
+  .home-title-mark {
+    left:14px;
+    width:45%;
+  }
+  .home-title-mark strong { font-size:clamp(27px,8vw,36px); }
+  .home-artwork {
+    right:-5%;
+    bottom:4%;
+    width:61%;
+  }
+}
+@media(max-height:620px) {
+  .home-title-mark strong { font-size:clamp(25px,7.5vw,34px); }
+  .home-artwork {
+    width:min(58%, 276px);
+    bottom:2%;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .home-artwork { animation:none!important; }
+}

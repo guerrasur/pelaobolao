@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.38.0 — Plan Águila: ilustración original en el menú principal
+
+- El menú principal deja de usar la mascota construida con CSS y muestra la ilustración original aprobada para Pelao Bolao.
+- El dibujo se sirve como WebP liviano (aprox. 22 KB) para no penalizar la entrada desde celular.
+- Se conserva el fondo blanco del asset y se presenta como una pieza gráfica dentro del pizarrón, con borde, sombra y una animación mínima de reposo.
+- La marca “PELAO / BOLAO / No te quedes pelao” sigue a la izquierda y queda por delante de la ilustración para conservar lectura en pantallas angostas.
+- El asset entra al precache del Service Worker para que también esté disponible al reabrir la app sin conexión.
+- La pasada Cóndor agrega regresiones de marcado, caché y layout móvil para evitar overflow o scroll en 320×568.
+- Versión pública, paquete, lockfile y caché del Service Worker quedan alineados en v0.38.0.
+
+
 ## 0.37.0 — Plan Águila: contador de victorias de sala
 
 - Después de completar la primera partida, cada jugador muestra en el lobby una insignia compacta de victorias de esa sala (`★ N VICT.`); antes de jugar no aparece ningún contador.
