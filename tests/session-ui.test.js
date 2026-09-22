@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND } from '../src/game.js';
-import { playerCard as renderPlayerCard } from '../src/visuals.js';
+import { playerCard as renderPlayerCard, actionControls as renderActionControls } from '../src/visuals.js';
 import { isNewerVersion } from '../src/version.js';
 import { dragGuideGeometry, shouldHoldRenderForDrag } from '../src/condor-core.js';
 
@@ -464,9 +464,11 @@ test('Plan Condor 0.25: Esconderse queda bloqueado después de tres defensas seg
   };
   ui.render();
   const html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/data-action="hide" class="hide-locked /);
-  assert.match(html,/LÍMITE 3/);
   assert.match(html,/Esconderse bloqueado: ya van 3 seguidas/);
+  const controls = renderActionControls(true, 1, false, null, true);
+  assert.match(controls,/data-action="hide" class="hide-locked /);
+  assert.match(controls,/LÍMITE 3/);
+  assert.match(controls,/data-action="hide"[^>]*disabled/);
 });
 
 test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar deshabilita el mechón', async () => {
