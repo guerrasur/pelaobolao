@@ -7,7 +7,7 @@
 - El stress multijugador ahora mete tráfico de presencia de todos los jugadores, no sólo del host, mientras entran jugadas y se resuelven rondas.
 - Se agregan regresiones para: `GUARDANDO…` vs `ELEGIDA`, relevo de host durante `locked`, timeout con jugador distraído, timer sin quedarse en 0, reconexión durante targeting, layout 6 jugadores a 320×568 sin scroll y combinación mechón + ataque + límite de Esconderse.
 - Salir durante una partida activa ahora requiere una segunda confirmación breve; el primer toque no puede cerrar accidentalmente la partida de todos.
-- Al entrar mediante un enlace de invitación, el parámetro `?s=` se limpia del navegador una vez confirmada la sala, evitando reingresos accidentales después de salir.
+- El enlace de invitación conserva `?s=` durante esa navegación: si un compañero recarga por accidente, el código vuelve a quedar precargado, pero nunca se reingresa automáticamente.
 - La revancha se prueba desde estado contaminado y debe reiniciar Pelo, Soplos, racha de Esconderse, ítem central, resultado, `chosen` y `ready` desde cero.
 - Las colas de intención ahora llevan generación propia: una escritura vieja que termine tarde después de salir/cambiar de ronda no puede bloquear ni consumir la primera jugada de la sala siguiente.
 - Audio y vibración quedan silenciados mientras la app está en segundo plano, evitando feedback fantasma de rondas que avanzan con el celular bloqueado.
