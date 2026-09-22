@@ -9,6 +9,7 @@
 - Salir durante una partida activa ahora requiere una segunda confirmación breve; el primer toque no puede cerrar accidentalmente la partida de todos.
 - Al entrar mediante un enlace de invitación, el parámetro `?s=` se limpia del navegador una vez confirmada la sala, evitando reingresos accidentales después de salir.
 - La revancha se prueba desde estado contaminado y debe reiniciar Pelo, Soplos, racha de Esconderse, ítem central, resultado, `chosen` y `ready` desde cero.
+- Las colas de intención ahora llevan generación propia: una escritura vieja que termine tarde después de salir/cambiar de ronda no puede bloquear ni consumir la primera jugada de la sala siguiente.
 - Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
 
 ## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
