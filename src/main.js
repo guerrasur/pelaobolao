@@ -182,7 +182,7 @@ function cancelDrag() {
 }
 function detachGame() {
   gameGeneration += 1; cancelDrag(); returningLobby = false; lastLobbyReturnAttempt = 0;
-  window.clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
+  clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   gameOff?.(); intentOff?.(); gameOff = null; intentOff = null;
   s.gameId = null; s.game = null; s.intent = null; s.gameError = null;
   intentGeneration += 1;
@@ -200,8 +200,8 @@ function resetRoomSession(text = '') {
 function leaveRoom() {
   if (matchStillRunning() && Date.now() >= leaveArmedUntil) {
     leaveArmedUntil = Date.now() + 2600;
-    window.clearTimeout(leaveArmTimer);
-    leaveArmTimer = window.setTimeout(() => {
+    clearTimeout(leaveArmTimer);
+    leaveArmTimer = setTimeout(() => {
       if (Date.now() < leaveArmedUntil) return;
       leaveArmedUntil = 0; leaveArmTimer = 0;
       message(''); render();
@@ -210,7 +210,7 @@ function leaveRoom() {
     render();
     return;
   }
-  window.clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
+  clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   const roomId = s.roomId;
   resetRoomSession();
   if (roomId) void call('roomCommand', { command: 'leave', roomId }).catch(() => {});
