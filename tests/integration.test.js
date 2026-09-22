@@ -460,3 +460,71 @@ test('Plan Condor: una partida protocol v1 puede pasar de reveal al turno siguie
   assert.ok(Object.prototype.hasOwnProperty.call(g,'centerItem'));
   assert.ok(Object.prototype.hasOwnProperty.call(g,'lastItemSpawnTurn'));
 });
+
+
+test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes sin duplicar ni trabar turnos', async () => {
+  for (const count of [2, 3, 4, 6]) {
+    const { a, players, gameId, roomId } = await started(count);
+    for (let turn = 1; turn <= 4; turn++) {
+      const before = await read(a.db, `games/${gameId}`);
+      assert.equal(before.phase, 'choosing');
+      assert.equal(before.turn, turn);
+
+      const submissions = players.map((player, index) => {
+        const action = (turn + index) % 2 === 0 ? 'air' : 'hide';
+        return choose(player, gameId, turn, action);
+      });
+      const heartbeatBursts = Array.from({ length: Math.min(3, count) }, () =>
+        a.client.call('roomCommand', { command: 'touch', roomId }));
+      await Promise.all([...submissions, ...heartbeatBursts]);
+
+      const chosen = await read(a.db, `games/${gameId}`);
+      assert.equal(chosen.turn, turn);
+      assert.equal(chosen.phase, 'choosing');
+      for (const player of players) {
+        assert.equal(chosen.chosen[player.uid], true);
+        const ownIntent = await read(player.db, `games/${gameId}/intents/${player.uid}`);
+        assert.equal(ownIntent.turn, turn);
+        assert.equal(ownIntent.revision, 1);
+      }
+
+      const resolutionRace = await Promise.allSettled([
+        a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
+        a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
+        a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
+        a.client.call('roomCommand', { command: 'touch', roomId }),
+      ]);
+      const resolutionResults = resolutionRace.slice(0, 3)
+        .filter(result => result.status === 'fulfilled')
+        .map(result => result.value);
+      assert.equal(resolutionResults.filter(result => result.advanced).length, 1);
+
+      const resolved = await read(a.db, `games/${gameId}`);
+      assert.equal(resolved.phase, 'reveal');
+      assert.equal(resolved.resolvedTurn, turn);
+      assert.equal(resolved.lastResult.turn, turn);
+      for (const player of Object.values(resolved.players)) {
+        assert.ok(player.hair >= 0 && player.hair <= resolved.rules.maxHair);
+        assert.ok(player.breath >= 0 && player.breath <= resolved.rules.maxBreath);
+      }
+      assert.equal((await getDocs(collection(a.db, `games/${gameId}/rounds`))).size, turn);
+      assert.equal((await a.client.call('advanceGame', { gameId, turn, phase: 'choosing' })).advanced, false);
+
+      await expire(gameId, resolved.rules.revealMs);
+      const revealRace = await Promise.allSettled([
+        a.client.call('advanceGame', { gameId, turn, phase: 'reveal' }),
+        a.client.call('advanceGame', { gameId, turn, phase: 'reveal' }),
+        a.client.call('roomCommand', { command: 'touch', roomId }),
+      ]);
+      const revealResults = revealRace.slice(0, 2)
+        .filter(result => result.status === 'fulfilled')
+        .map(result => result.value);
+      assert.equal(revealResults.filter(result => result.advanced).length, 1);
+
+      const next = await read(a.db, `games/${gameId}`);
+      assert.equal(next.phase, 'choosing');
+      assert.equal(next.turn, turn + 1);
+      assert.deepEqual(next.chosen, {});
+    }
+  }
+});
