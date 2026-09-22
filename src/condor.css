@@ -792,3 +792,17 @@
     transition:none!important;
   }
 }
+
+
+/* Salir de una partida activa requiere una segunda intención visible para evitar abandonos accidentales. */
+.game #leave-room.leave-armed {
+  border-color:#8c1534;
+  background:#fff0f0;
+  color:#8c1534;
+  box-shadow:0 0 0 3px #d3315522;
+  animation:condor-leave-arm .42s ease-out both;
+}
+@keyframes condor-leave-arm {
+  from { transform:scale(.97); }
+  to { transform:scale(1); }
+}
