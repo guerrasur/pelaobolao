@@ -451,3 +451,14 @@ test('el lote de pulido ignora taps duplicados sobre la misma jugada local o ace
   assert.match(main, /\(current\.target \?\? null\) === \(target \?\? null\)/);
   assert.match(main, /s\.targeting = false;\n    render\(\);\n    return;/);
 });
+
+
+test('el lote de pulido restaura BFCache sin conservar targeting ni perder reintentos', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /window\.addEventListener\('pagehide', \(\) => \{/);
+  assert.match(main, /pagehide[\s\S]*?s\.targeting = false/);
+  assert.match(main, /window\.addEventListener\('pageshow', event => \{/);
+  assert.match(main, /if \(!event\.persisted\) return/);
+  assert.match(main, /s\.online = navigator\.onLine/);
+  assert.match(main, /resyncClock\(\); void heartbeat\(true\); void checkVersion\(\); render\(\); void flushIntent\(\)/);
+});
