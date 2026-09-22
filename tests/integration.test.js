@@ -661,3 +661,27 @@ test('la revancha arranca sin residuos de la partida anterior', async () => {
     assert.equal(player.hideStreak, 0);
   }
 });
+
+
+test('si el host cae al terminar, el relevo puede devolver la sala al lobby', async () => {
+  const { a, b, players, gameId, roomId } = await started(3);
+  await patch(`games/${gameId}`, {
+    phase:'finished',
+    finishedAt:Date.now()-9000,
+    lastProgressAt:Timestamp.now(),
+    winnerId:a.uid,
+  });
+  await patch(`rooms/${roomId}`, {
+    status:'finished',
+    [`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000),
+  });
+  await b.client.call('roomCommand', { command:'touch', roomId });
+  assert.equal((await read(b.db, `rooms/${roomId}`)).hostId, b.uid);
+  await b.client.call('roomCommand', { command:'lobby', roomId });
+  const lobby = await read(b.db, `rooms/${roomId}`);
+  assert.equal(lobby.status, 'lobby');
+  assert.equal(lobby.gameId, null);
+  assert.ok(lobby.members[b.uid]);
+  assert.ok(lobby.members[players[2].uid]);
+  assert.ok(Object.values(lobby.members).every(member => member.ready === false));
+});
