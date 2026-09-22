@@ -1,4 +1,4 @@
-const CACHE = 'pelaobolao-shell-0.29.0';
+const CACHE = 'pelaobolao-shell-0.29.1';
 const CORE = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon.svg'];
 
 self.addEventListener('install', event => {

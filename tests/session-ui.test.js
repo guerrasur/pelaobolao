@@ -440,8 +440,8 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   assert.match(html,/data-center-item="__center_item__"/);
   assert.match(html,/class="hair-tuft"/);
   assert.doesNotMatch(html,/item-new-badge|item-label|OBJETO EN EL AULA|>AGARRAR<|>\+1 PELO</);
-  assert.match(html,/gratis; al hacerlo quedás expuesto/);
-  assert.doesNotMatch(html,/1 SOPLO/);
+  assert.match(html,/aria-label="\+1 Pelo\. Agarrar no cuesta Soplos, pero te deja expuesto\./);
+  assert.doesNotMatch(html,/class="item-notice/);
 });
 
 test('Plan Condor 0.25: el mechón parpadea en su tercera ronda y avisa que va a desaparecer', async () => {
@@ -464,8 +464,8 @@ test('Plan Condor 0.25: el mechón parpadea en su tercera ronda y avisa que va a
   const html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/center-item hair-item free-pickup targetable[^"]*is-expiring/);
   assert.match(html,/data-item-age="3"/);
-  assert.match(html,/ÚLTIMA RONDA/);
-  assert.match(html,/si nadie lo agarra ahora, desaparece/);
+  assert.match(html,/aria-label="[^"]*Última ronda antes de desaparecer\./);
+  assert.doesNotMatch(html,/class="item-notice/);
 });
 
 test('Plan Condor 0.25: Esconderse queda bloqueado después de tres defensas seguidas', async () => {
@@ -607,9 +607,8 @@ test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima
   ui.s.game={...base,phase:'choosing'};
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/MECHÓN \+1/);
-  assert.match(html,/No cuesta Soplos/);
-  assert.match(html,/quedás expuesto/);
+  assert.match(html,/aria-label="\+1 Pelo\. Agarrar no cuesta Soplos, pero te deja expuesto\./);
+  assert.doesNotMatch(html,/class="item-notice/);
   assert.doesNotMatch(html,/item-new-badge">NUEVO/);
   assert.match(html,/class="hair-tuft"/);
   assert.match(html,/aria-disabled="false"/);

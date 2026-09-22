@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última actualización (0.29.0): Plan Cóndor simplifica el ítem central. El +1 Pelo deja de mostrarse como tarjeta: en el tablero sólo aparece el mechón, con un halo cálido que refuerza visibilidad, selección y targeting sin agregar texto ni ocupar geometría extra. El hit-area táctil se conserva estable y la tercera ronda sigue parpadeando sobre el propio mechón.
+Última actualización (0.29.1): Plan Cóndor termina de limpiar el ítem central. Además de quitar la tarjeta y el copy dentro del objeto, desaparece el aviso textual separado: durante la ronda el centro muestra únicamente el mechón con halo. La mecánica y el vencimiento siguen disponibles en el aria-label, y la tercera ronda mantiene el parpadeo.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 

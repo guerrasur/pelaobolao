@@ -548,30 +548,10 @@ function centerItemHtml(game, choice) {
   </button>`;
 }
 
-function centerItemNotice(game, me) {
-  if (game.phase !== 'choosing' || game.centerItem?.kind !== HAIR_ITEM_KIND) return '';
-  const maxHair = Number(game.rules?.maxHair || 4);
-  const freePickup = Number(game.rules?.version ?? 0) >= 3;
-  const itemAgeRounds = Number.isInteger(game.centerItem.spawnedTurn)
-    ? Math.max(1, game.turn - game.centerItem.spawnedTurn + 1)
-    : 1;
-  const expiring = itemAgeRounds >= 3;
-  if (!freePickup) {
-    const detail = !me || me.hair <= 0
-      ? 'Los jugadores pueden disputarlo con 1 Soplo.'
-      : me.breath < 1
-        ? 'Necesitás 1 Soplo para disputarlo.'
-        : me.hair >= maxHair
-          ? 'Tenés Pelo al máximo: todavía podés disputarlo para negárselo a otro.'
-          : 'Cuesta 1 Soplo. Si van 2 o más, nadie se lo lleva.';
-    return `<div class="item-notice ${expiring ? 'item-notice-expiring' : ''}" role="status"><b>${expiring ? 'ÚLTIMA RONDA DEL MECHÓN' : '+1 PELO EN JUEGO'}</b><span>${detail}${expiring ? ' Si nadie lo agarra ahora, desaparece.' : ''}</span></div>`;
-  }
-  const detail = !me || me.hair <= 0
-    ? 'No cuesta Soplos. Quien lo intente queda expuesto a ataques.'
-    : me.hair >= maxHair
-      ? 'No cuesta Soplos: podés negárselo a otro, pero quedás expuesto.'
-      : 'Tocalo para agarrarlo gratis. No te escondés: si te Soplan, recibís el golpe.';
-  return `<div class="item-notice item-notice-free ${expiring ? 'item-notice-expiring' : ''}" role="status"><b>${expiring ? 'ÚLTIMA RONDA DEL MECHÓN' : 'MECHÓN +1'}</b><span>${detail} Si van 2 o más, nadie se lo lleva.${expiring ? ' Está parpadeando: si nadie lo agarra ahora, desaparece.' : ''}</span></div>`;
+function centerItemNotice() {
+  // The center pickup is intentionally communicated by the tuft alone.
+  // Mechanics and expiry remain available on the interactive tuft's aria-label.
+  return '';
 }
 
 function outcomeKind(game, uid) {
