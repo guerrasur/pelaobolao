@@ -274,3 +274,23 @@ test('0.35 endurece resolución y cubre stress multijugador', async () => {
   assert.equal(publicVersion.version, '0.35.0');
   assert.match(sw, /pelaobolao-shell-0\.35\.0/);
 });
+
+
+test('el lote de pulido conserva una jugada pendiente durante una desconexión breve', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  const offlineStart = main.indexOf("window.addEventListener('offline'");
+  const onlineStart = main.indexOf("window.addEventListener('online'", offlineStart);
+  const offlineBlock = main.slice(offlineStart, onlineStart);
+  const onlineBlock = main.slice(onlineStart, main.indexOf("document.addEventListener('visibilitychange'", onlineStart));
+  const flushStart = main.indexOf('async function flushIntent');
+  const flushEnd = main.indexOf('function roundImpact', flushStart);
+  const flush = main.slice(flushStart, flushEnd);
+  assert.ok(offlineStart >= 0 && onlineStart > offlineStart);
+  assert.doesNotMatch(offlineBlock, /pending\s*=\s*null/);
+  assert.doesNotMatch(offlineBlock, /s\.choice\s*=\s*null/);
+  assert.match(onlineBlock, /flushIntent\(\)/);
+  assert.match(main, /function pendingIntentStillValid/);
+  assert.match(flush, /endsWith\('unavailable'\)/);
+  assert.match(flush, /Sin conexión · la jugada se enviará al volver/);
+  assert.match(main, /Sin conexión · pendiente:/);
+});
