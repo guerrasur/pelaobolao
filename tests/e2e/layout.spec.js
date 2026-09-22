@@ -166,3 +166,37 @@ test('el contador de victorias no rompe el lobby de seis jugadores en 320 px', a
   expect(layout.bad).toEqual([]);
   expect(layout.pageWidth).toBeLessThanOrEqual(1);
 });
+
+
+test('el menú 0.38 muestra la ilustración original sin scroll en mobile', async ({ page }) => {
+  await page.setViewportSize({ width:320, height:568 });
+  await page.goto('/');
+  await page.locator('#player-name').fill('Menu');
+  await page.locator('#profile-form button').click();
+
+  const artwork = page.locator('.home-artwork');
+  await expect(artwork).toBeVisible();
+  await expect(artwork.locator('img')).toHaveAttribute('src', '/assets/menu-pelao-bolao.webp');
+  await expect(artwork.locator('img')).toHaveJSProperty('complete', true);
+
+  const layout = await page.evaluate(() => {
+    const art = document.querySelector('.home-artwork')?.getBoundingClientRect();
+    const hero = document.querySelector('.home-hero')?.getBoundingClientRect();
+    const title = document.querySelector('.home-title-mark')?.getBoundingClientRect();
+    return {
+      art: art && { left:art.left, top:art.top, right:art.right, bottom:art.bottom, width:art.width, height:art.height },
+      hero: hero && { left:hero.left, top:hero.top, right:hero.right, bottom:hero.bottom },
+      title: title && { left:title.left, top:title.top, right:title.right, bottom:title.bottom },
+      pageWidth: document.documentElement.scrollWidth - innerWidth,
+      pageHeight: document.documentElement.scrollHeight - innerHeight,
+    };
+  });
+  expect(layout.art).toBeTruthy();
+  expect(layout.hero).toBeTruthy();
+  expect(layout.title).toBeTruthy();
+  expect(layout.art.width).toBeGreaterThan(120);
+  expect(layout.art.right).toBeLessThanOrEqual(321);
+  expect(layout.art.bottom).toBeLessThanOrEqual(layout.hero.bottom + 1);
+  expect(layout.pageWidth).toBeLessThanOrEqual(1);
+  expect(layout.pageHeight).toBeLessThanOrEqual(1);
+});
