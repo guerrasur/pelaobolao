@@ -451,3 +451,22 @@ test('mandar la app a segundo plano cancela un Soplo sin objetivo sin enviar una
     await guestContext.close();
   }
 });
+
+
+test('doble toque sobre la misma acción no crea una revisión extra', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { 'rules.turnMs':60000 });
+    const intentPath = `games/${gameId}/intents/${room.hostId}`;
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await expect(page.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
+    const first = await read(intentPath);
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await page.waitForTimeout(250);
+    const second = await read(intentPath);
+    expect(second.revision).toBe(first.revision);
+    expect(second.requestId).toBe(first.requestId);
+  } finally {
+    await guestContext.close();
+  }
+});
