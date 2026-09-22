@@ -43,6 +43,7 @@ function addPressRipple(event) {
   ripple.style.setProperty('--x', `${event.clientX - rect.left}px`);
   ripple.style.setProperty('--y', `${event.clientY - rect.top}px`);
   button.append(ripple);
+  playCue('gameTap');
   window.setTimeout(() => ripple.remove(), 520);
 }
 
@@ -106,6 +107,8 @@ export function startCondor(root = document) {
   let itemInitialized = false;
   let lastItemTurn = null;
   let lastGrabSelected = false;
+  let chosenInitialized = false;
+  let chosenIds = new Set();
   let enhanceFrame = null;
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
@@ -149,6 +152,8 @@ export function startCondor(root = document) {
       itemInitialized = false;
       lastItemTurn = null;
       lastGrabSelected = false;
+      chosenInitialized = false;
+      chosenIds = new Set();
       enhanceLobby();
       return;
     }
@@ -186,6 +191,21 @@ export function startCondor(root = document) {
     }
     lastTargetUid = targetUid;
     updateAimGuide(board);
+
+    // A locked choice is public information, but only the newly locked seat gets
+    // the stamp animation. Existing checks stay still when another player acts.
+    const nextChosenIds = new Set([...board.querySelectorAll('.player.has-chosen[data-player]')]
+      .map(card => card.dataset.player).filter(Boolean));
+    if (chosenInitialized) {
+      for (const uid of nextChosenIds) {
+        if (chosenIds.has(uid)) continue;
+        const card = [...board.querySelectorAll('.player.has-chosen[data-player]')]
+          .find(node => node.dataset.player === uid);
+        pulseClass(card, 'condor-choice-locked', 520);
+      }
+    }
+    chosenIds = nextChosenIds;
+    chosenInitialized = true;
 
     const centerItem = board.querySelector('[data-center-item]');
     const grabSelected = Boolean(centerItem?.classList.contains('selected-grab'));
