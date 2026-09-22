@@ -3154,3 +3154,58 @@ header { min-height:48px; }
     animation:none!important;
   }
 }
+
+
+/* v0.37.0 — room win counter: compact session score without reordering seats */
+.lobby-player-meta {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.lobby-win-count {
+  display:inline-flex!important;
+  align-items:center;
+  gap:3px!important;
+  padding:1px 5px 1px 4px;
+  border:1px solid #202633;
+  border-radius:999px;
+  background:#fff0a8;
+  color:#5d4704;
+  box-shadow:1px 1px 0 #20263338;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  animation:pb-win-stamp .24s cubic-bezier(.2,.8,.3,1) both;
+}
+.lobby-win-count i {
+  color:#a87500;
+  font-size:8px;
+  line-height:1;
+  font-style:normal;
+}
+.lobby-win-count b {
+  min-width:0!important;
+  color:#202633;
+  font-size:9px!important;
+  line-height:1;
+}
+.lobby-win-count small {
+  color:#705817;
+  font-size:6.5px;
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:.35px;
+}
+@keyframes pb-win-stamp {
+  from { opacity:.35; transform:scale(.88) rotate(-3deg); }
+  to { opacity:1; transform:none; }
+}
+@media(max-width:360px) {
+  .lobby-player-meta { gap:4px; }
+  .lobby-win-count { padding-inline:4px; }
+  .lobby-win-count small { display:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .lobby-win-count { animation:none!important; }
+}
