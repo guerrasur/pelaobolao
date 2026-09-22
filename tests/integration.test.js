@@ -583,3 +583,38 @@ test('relevo de host en locked conserva todas las jugadas y resuelve una sola ve
   assert.equal(game.lastResult.actions[players[2].uid].action, 'air');
   assert.equal((await getDocs(collection(b.db, `games/${gameId}/rounds`))).size, 1);
 });
+
+
+test('mechón, ataque y límite de Esconderse conviven sin estados imposibles', async () => {
+  const { a, players, gameId } = await started(4);
+  await patch(`games/${gameId}`, {
+    centerItem:{ kind:HAIR_ITEM_KIND, spawnedTurn:1, source:'test' },
+    [`players.${players[0].uid}.hair`]:1,
+    [`players.${players[1].uid}.breath`]:1,
+    [`players.${players[2].uid}.hideStreak`]:2,
+  });
+  await choose(players[0], gameId, 1, 'grab', CENTER_ITEM_TARGET);
+  await choose(players[1], gameId, 1, 'blow', players[0].uid);
+  await choose(players[2], gameId, 1, 'hide');
+  await choose(players[3], gameId, 1, 'air');
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' })).advanced, true);
+
+  const resolved = await read(a.db, `games/${gameId}`);
+  assert.equal(resolved.phase, 'reveal');
+  assert.equal(resolved.players[players[0].uid].hair, 0);
+  assert.equal(resolved.players[players[1].uid].breath, 0);
+  assert.equal(resolved.players[players[2].uid].hideStreak, 3);
+  assert.equal(resolved.players[players[3].uid].breath, 1);
+  assert.equal(resolved.centerItem, null);
+  assert.equal(resolved.lastResult.item.outcome, 'claimed');
+  assert.equal(resolved.lastResult.item.claimantAlive, false);
+  assert.equal(resolved.lastResult.heals[players[0].uid], undefined);
+
+  await expire(gameId, resolved.rules.revealMs);
+  await a.client.call('advanceGame', { gameId, turn:1, phase:'reveal' });
+  await assert.rejects(choose(players[2], gameId, 2, 'hide'));
+  await choose(players[2], gameId, 2, 'air');
+  const nextIntent = await read(players[2].db, `games/${gameId}/intents/${players[2].uid}`);
+  assert.equal(nextIntent.turn, 2);
+  assert.equal(nextIntent.action, 'air');
+});
