@@ -383,11 +383,13 @@ function playerEffects(game, uid, stage = 'impact') {
 
 function revealOverlayHtml(game, stage) {
   if (!game?.lastResult || !['reveal', 'finished'].includes(game.phase) || Number(game.rules?.version ?? 0) < 5 || stage === 'impact') return '';
+  // Keep the markup independent from wall-clock time. tick() owns the visible
+  // countdown so harmless room/presence snapshots cannot replace the whole game
+  // tree midway through 3 → 2 → 1 and restart the reveal choreography.
   if (stage === 'suspense') {
-    const count = revealCountdown(game, now()) ?? 1;
-    return `<div class="round-reveal-overlay suspense" aria-live="assertive"><div><small>JUGADAS SELLADAS</small><strong data-reveal-countdown>${count}</strong><span>Nadie puede cambiar ahora</span></div></div>`;
+    return '<div class="round-reveal-overlay suspense" aria-hidden="true"><div><small>JUGADAS SELLADAS</small><strong data-reveal-countdown></strong><span>Nadie puede cambiar ahora</span></div></div>';
   }
-  return '<div class="round-reveal-overlay actions" aria-live="assertive"><div><strong>¡JUGADAS!</strong><span>Todos muestran qué hicieron</span></div></div>';
+  return '<div class="round-reveal-overlay actions" aria-hidden="true"><div><strong>¡JUGADAS!</strong><span>Todos muestran qué hicieron</span></div></div>';
 }
 
 function drawRevealAttackLines(game, stage) {
