@@ -502,7 +502,10 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
       if (initialResolutionWins === 0) {
         const stalled = await read(a.db, `games/${gameId}`);
         assert.ok(['choosing', 'locked'].includes(stalled.phase));
-        const recovered = await a.client.call('advanceGame', { gameId, turn, phase: stalled.phase });
+        const authoritativeRoom = await read(a.db, `rooms/${roomId}`);
+        const authority = players.find(player => player.uid === authoritativeRoom.hostId);
+        assert.ok(authority, 'el host vigente debe seguir siendo un participante del stress test');
+        const recovered = await authority.client.call('advanceGame', { gameId, turn, phase: stalled.phase });
         assert.equal(recovered.advanced, true);
       }
 
@@ -531,7 +534,10 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
       if (initialRevealWins === 0) {
         const stalledReveal = await read(a.db, `games/${gameId}`);
         assert.equal(stalledReveal.phase, 'reveal');
-        assert.equal((await a.client.call('advanceGame', { gameId, turn, phase:'reveal' })).advanced, true);
+        const authoritativeRoom = await read(a.db, `rooms/${roomId}`);
+        const authority = players.find(player => player.uid === authoritativeRoom.hostId);
+        assert.ok(authority, 'el host vigente debe poder continuar después del reveal');
+        assert.equal((await authority.client.call('advanceGame', { gameId, turn, phase:'reveal' })).advanced, true);
       }
 
       const next = await read(a.db, `games/${gameId}`);
