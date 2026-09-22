@@ -618,3 +618,46 @@ test('mechón, ataque y límite de Esconderse conviven sin estados imposibles', 
   assert.equal(nextIntent.turn, 2);
   assert.equal(nextIntent.action, 'air');
 });
+
+
+test('la revancha arranca sin residuos de la partida anterior', async () => {
+  const { a, b, players, gameId, roomId } = await started();
+  await patch(`games/${gameId}`, {
+    phase:'finished',
+    finishedAt:Date.now()-1000,
+    winnerId:a.uid,
+    resolvedTurn:4,
+    turn:4,
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'test'},
+    lastResult:{turn:4,actions:{},hits:[],losses:{},heals:{},item:null},
+    [`players.${a.uid}.hair`]:1,
+    [`players.${a.uid}.breath`]:2,
+    [`players.${a.uid}.hideStreak`]:3,
+    [`players.${b.uid}.hair`]:2,
+    [`chosen.${a.uid}`]:true,
+  });
+  await patch(`rooms/${roomId}`, { status:'finished' });
+
+  await a.client.call('roomCommand', { command:'lobby', roomId });
+  const lobby = await read(a.db, `rooms/${roomId}`);
+  assert.equal(lobby.status, 'lobby');
+  assert.equal(lobby.gameId, null);
+  assert.ok(Object.values(lobby.members).every(member => member.ready === false));
+
+  for (const player of players) await player.client.call('roomCommand', { command:'ready', roomId, ready:true });
+  await a.client.call('roomCommand', { command:'start', roomId });
+  const restartedRoom = await read(a.db, `rooms/${roomId}`);
+  assert.notEqual(restartedRoom.gameId, gameId);
+  const next = await read(a.db, `games/${restartedRoom.gameId}`);
+  assert.equal(next.turn, 1);
+  assert.equal(next.resolvedTurn, 0);
+  assert.equal(next.centerItem, null);
+  assert.equal(next.lastResult, null);
+  assert.deepEqual(next.chosen, {});
+  assert.deepEqual(next.ready, {});
+  for (const player of Object.values(next.players)) {
+    assert.equal(player.hair, next.rules.initialHair);
+    assert.equal(player.breath, next.rules.initialBreath);
+    assert.equal(player.hideStreak, 0);
+  }
+});
