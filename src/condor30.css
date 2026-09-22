@@ -1,0 +1,381 @@
+/* Plan Cóndor 0.30.0 — menú y lobby: menos copy, geometría estable, mejor teclado móvil. */
+
+.entry-step,
+.home-copy,
+.home-create small,
+.join-heading span,
+.home-footnote,
+.profile-heading p,
+.entry-form button small,
+.entry-footnote,
+.entry-loading .muted,
+.room-loading .muted,
+.lobby-heading .eyebrow,
+.lobby-screen > h2,
+.lobby-help {
+  display:none!important;
+}
+
+/* Menú principal: la marca y la mascota hacen el trabajo visual; las acciones quedan solas. */
+#app > .home-screen {
+  display:grid;
+  grid-template-rows:minmax(150px,32vh) auto;
+  align-content:center;
+  gap:clamp(12px,2.4vh,20px);
+  width:min(100%,540px);
+  overflow:hidden!important;
+  padding:clamp(8px,2vh,18px)!important;
+}
+
+.home-hero {
+  min-height:0;
+  height:100%;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:2px solid #101c20;
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 50% 44%,#6d9186 0 12%,transparent 13%),
+    repeating-linear-gradient(0deg,transparent 0 31px,#d9ead516 32px 33px),
+    linear-gradient(155deg,#466960,#35564f);
+  box-shadow:3px 4px 0 #122323,inset 0 0 0 2px #ffffff10;
+  transform:none;
+  overflow:hidden;
+}
+
+.home-hero::after {
+  content:'';
+  position:absolute;
+  left:10%;
+  right:10%;
+  bottom:12%;
+  height:2px;
+  border-radius:999px;
+  background:#e4eee242;
+  box-shadow:0 -42px 0 #e4eee21d,0 -84px 0 #e4eee212;
+  pointer-events:none;
+}
+
+.home-mascot {
+  position:relative;
+  right:auto;
+  bottom:auto;
+  width:min(46vw,178px);
+  max-width:none;
+  transform:rotate(2deg) translateY(3px);
+  filter:drop-shadow(3px 5px 0 #1a2a2b75);
+}
+
+.home-actions {
+  width:100%;
+  display:grid;
+  gap:10px;
+  margin:0 auto;
+}
+
+.home-create {
+  min-height:64px;
+  padding:10px 14px!important;
+  text-align:center;
+  transform:none;
+  border-radius:12px!important;
+}
+.home-create span {
+  font-size:18px;
+  line-height:1;
+  letter-spacing:.55px;
+}
+
+.join-card {
+  margin:0!important;
+  padding:10px!important;
+  transform:none;
+  border-radius:12px;
+}
+.join-heading {
+  margin:0 0 6px;
+  align-items:center;
+}
+.join-heading label {
+  font-size:10px;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+}
+.join-row {
+  grid-template-columns:minmax(0,1fr) minmax(92px,34%);
+  gap:8px;
+}
+.join-row #room-code {
+  min-height:52px;
+  font-size:23px;
+  letter-spacing:7px;
+}
+.join-row button {
+  min-height:52px;
+}
+
+/* El teclado pasa a un modo propio: no intenta encoger el afiche y el formulario a la vez. */
+@media(max-width:519px) {
+  body[data-keyboard-open="true"][data-ui-screen="home"] #app > .home-screen {
+    grid-template-rows:0 auto;
+    align-content:start;
+    gap:6px;
+    padding-top:6px!important;
+  }
+  body[data-keyboard-open="true"][data-ui-screen="home"] .home-hero {
+    min-height:0;
+    height:0;
+    padding:0;
+    border-width:0;
+    opacity:0;
+    pointer-events:none;
+  }
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .profile-doodle,
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .entry-note-pin {
+    display:none;
+  }
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .profile-heading {
+    grid-template-columns:1fr;
+    margin-bottom:6px;
+  }
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .profile-heading h1 {
+    font-size:29px;
+  }
+}
+
+/* Lobby: una sola superficie, posiciones estables y estados legibles sin párrafos auxiliares. */
+body[data-ui-screen="lobby"] #app {
+  min-height:0;
+  overflow:hidden;
+}
+
+#app > .lobby-screen {
+  width:min(100%,560px);
+  height:100%;
+  min-height:0;
+  margin:0 auto;
+  padding:clamp(9px,1.8vh,16px)!important;
+  display:flex;
+  flex-direction:column;
+  gap:clamp(6px,1.15vh,10px);
+  overflow:hidden;
+  border:2px solid #202633!important;
+  border-radius:15px!important;
+  background:
+    repeating-linear-gradient(0deg,#fff9e9 0 31px,#c8d7e2 32px 33px)!important;
+  box-shadow:3px 4px 0 #152322!important;
+  color:#202633;
+}
+
+.lobby-heading {
+  flex:0 0 auto;
+  align-items:center;
+  gap:10px;
+}
+.lobby-heading > div {
+  min-width:0;
+}
+.lobby-heading h1 {
+  margin:0;
+  font-size:clamp(22px,6.2vw,31px);
+  line-height:1;
+  white-space:nowrap;
+}
+.lobby-heading .code {
+  padding:4px 10px;
+  letter-spacing:4px;
+  box-shadow:1px 2px 0 #202633;
+}
+.compact-button {
+  flex:0 0 auto;
+  min-width:96px;
+  min-height:38px;
+  margin:0;
+  padding:6px 10px;
+  font-size:11px;
+}
+
+.ready-progress {
+  flex:0 0 auto;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  margin:0;
+}
+.ready-progress > div {
+  height:10px;
+  border-width:1.5px;
+  box-shadow:none;
+}
+.ready-progress span {
+  font-size:9px;
+  letter-spacing:.15px;
+}
+
+.lobby-list {
+  flex:1 1 auto;
+  min-height:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:5px;
+  overflow:hidden;
+}
+.lobby-list li {
+  position:relative;
+  flex:1 1 0;
+  min-height:40px;
+  max-height:58px;
+  margin:0;
+  padding:6px 8px;
+  border-width:1.5px;
+  border-radius:8px;
+  box-shadow:1px 1px 0 #79674c42;
+  transform:none!important;
+  overflow:hidden;
+}
+.lobby-list li.is-ready {
+  background:#effcf2;
+  border-color:#63a87e;
+}
+.lobby-list li.is-offline {
+  opacity:.72;
+  border-style:dashed;
+}
+
+.lobby-player {
+  min-width:0;
+  justify-content:center;
+  gap:2px;
+}
+.lobby-player strong {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.lobby-slot {
+  flex:0 0 22px;
+  width:22px;
+  height:22px;
+  display:grid!important;
+  place-items:center;
+  border:1.5px solid #202633;
+  border-radius:50%;
+  background:#fff3be;
+  font-size:10px!important;
+  font-variant-numeric:tabular-nums;
+}
+.lobby-player-name {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:13px!important;
+}
+.lobby-self-tag {
+  flex:0 0 auto;
+}
+
+.presence-text {
+  width:9px;
+  height:9px;
+  min-height:9px;
+  overflow:hidden;
+  font-size:0!important;
+  line-height:0;
+}
+.presence-text::before {
+  width:7px;
+  height:7px;
+  flex-basis:7px;
+  margin:0;
+  box-shadow:none;
+}
+
+.lobby-state {
+  min-width:62px;
+  flex:0 0 auto;
+}
+.lobby-state em {
+  font-size:7px;
+  padding:2px 4px;
+}
+.lobby-state b {
+  min-width:50px;
+  padding:3px 5px;
+  font-size:7px!important;
+}
+
+#ready-toggle,
+#start-game {
+  flex:0 0 auto;
+  min-height:46px;
+  padding-block:8px;
+  border-radius:9px;
+  font-size:13px;
+}
+#ready-toggle + #start-game {
+  margin-top:0;
+}
+#app > .lobby-screen > .quiet {
+  flex:0 0 auto;
+  width:auto;
+  min-height:28px;
+  margin:0 auto;
+  padding:2px 14px;
+  font-size:10px;
+  text-decoration:none;
+  opacity:.72;
+}
+
+/* Menos blur/filtros durante entrada: mejor respuesta en iPhone viejos. */
+@keyframes entry-surface-in {
+  0% { opacity:0; transform:translateY(8px) scale(.985); }
+  68% { opacity:1; transform:translateY(-1px) scale(1.003); }
+  100% { opacity:1; transform:none; }
+}
+@keyframes entry-actions-in {
+  from { opacity:0; transform:translateY(9px); }
+  to { opacity:1; transform:none; }
+}
+
+@media(max-height:620px) {
+  #app > .home-screen {
+    grid-template-rows:minmax(105px,24vh) auto;
+    gap:7px;
+    padding-block:5px!important;
+  }
+  .home-mascot { width:min(35vw,138px); }
+  .home-create { min-height:52px; }
+  .join-row #room-code,
+  .join-row button { min-height:46px; }
+  #app > .lobby-screen { gap:4px; padding:6px!important; }
+  .lobby-list { gap:3px; }
+  .lobby-list li { min-height:34px; max-height:48px; padding:3px 6px; }
+  #ready-toggle,#start-game { min-height:39px; padding-block:5px; }
+  #app > .lobby-screen > .quiet { min-height:22px; }
+}
+
+@media(max-width:360px) {
+  #app > .home-screen { padding-inline:5px!important; }
+  .home-hero { border-radius:13px; }
+  .home-mascot { width:min(50vw,158px); }
+  .join-card { padding:8px!important; }
+  .join-row { grid-template-columns:minmax(0,1fr) 92px; gap:6px; }
+  .join-row #room-code { padding-left:14px; font-size:21px; letter-spacing:5px; }
+  .compact-button { min-width:82px; padding-inline:7px; font-size:9px; }
+  .lobby-heading h1 { font-size:21px; }
+  .lobby-heading .code { letter-spacing:3px; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .home-hero,
+  .home-mascot,
+  .lobby-list li,
+  .ready-progress i {
+    transition:none!important;
+    animation:none!important;
+  }
+}
