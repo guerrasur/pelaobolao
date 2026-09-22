@@ -134,3 +134,35 @@ test('el lobby mantiene SALA neutro y resalta sólo el código amarillo en mobil
   expect(layout.shareRight).toBeLessThanOrEqual(layout.viewport + 1);
   expect(layout.bodyScrollWidth).toBeLessThanOrEqual(layout.viewport + 1);
 });
+
+
+test('el contador de victorias no rompe el lobby de seis jugadores en 320 px', async ({ page }) => {
+  await page.setViewportSize({ width:320, height:568 });
+  await page.goto('/');
+  await page.locator('#player-name').fill('Marcador');
+  await page.locator('#profile-form button').click();
+  await page.locator('#create-room').click();
+  const code=await page.locator('.code').textContent();
+  let room;
+  await env.withSecurityRulesDisabled(async ctx=>{room=(await getDoc(doc(ctx.firestore(),'rooms',code))).data();});
+  const members={...room.members};
+  const wins={[room.hostId]:3};
+  for(let i=1;i<6;i++) {
+    const uid=`score-${i}`;
+    members[uid]={name:`Jugador largo ${i}`,joinedAt:Date.now()+i,lastSeenAt:Timestamp.now(),left:false,ready:false};
+    wins[uid]=i===1?2:i===2?1:0;
+  }
+  await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'rooms',code),{members,wins,matchCount:6}));
+  await expect(page.locator('.lobby-win-count')).toHaveCount(6);
+  const layout=await page.evaluate(()=>{
+    const bad=[];
+    for(const el of document.querySelectorAll('.lobby-list li,.lobby-player,.lobby-player-meta,.lobby-win-count,.lobby-state')) {
+      const r=el.getBoundingClientRect();
+      if(r.left<-1||r.right>innerWidth+1) bad.push(`${el.className||el.tagName}: fuera del viewport`);
+      if(el.scrollWidth>el.clientWidth+2) bad.push(`${el.className||el.tagName}: contenido horizontal recortado`);
+    }
+    return {bad,pageWidth:document.documentElement.scrollWidth-innerWidth};
+  });
+  expect(layout.bad).toEqual([]);
+  expect(layout.pageWidth).toBeLessThanOrEqual(1);
+});
