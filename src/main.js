@@ -1081,7 +1081,15 @@ document.addEventListener('visibilitychange', () => {
   }
   resyncClock(); void heartbeat(true); tick(); void checkVersion(); void flushIntent();
 });
-window.addEventListener('pagehide', cancelDrag);
+window.addEventListener('pagehide', () => {
+  cancelDrag();
+  s.targeting = false;
+});
+window.addEventListener('pageshow', event => {
+  if (!event.persisted) return;
+  s.online = navigator.onLine;
+  resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
+});
 setInterval(tick, 200);
 setInterval(heartbeat, 2000);
 setInterval(checkVersion, 60000);
