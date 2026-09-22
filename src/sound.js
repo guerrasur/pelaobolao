@@ -17,6 +17,7 @@ if (typeof document !== 'undefined') {
 
 export function playCue(kind) {
   try {
+    if (typeof document !== 'undefined' && document.hidden) return;
     const audio = getContext();
     if (!audio) return;
     if (audio.state === 'suspended') void audio.resume();
