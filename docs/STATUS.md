@@ -1,5 +1,13 @@
 # Estado del MVP Spark
 
+## 0.29.1 — Plan Cóndor: sólo el mechón
+
+- Se elimina el aviso textual separado del +1 Pelo. Durante la elección ya no aparece ningún bloque explicativo, título o CTA asociado al objeto.
+- En el tablero queda únicamente el mechón con su halo; el hit-area continúa invisible y estable.
+- La explicación de riesgo y la advertencia de última ronda permanecen en el `aria-label` para accesibilidad, sin ocupar espacio visual.
+- Se mantienen intactas la aparición aleatoria, la disputa, la vulnerabilidad al agarrar, el parpadeo de tercera ronda y la desaparición posterior.
+- Se añaden regresiones para impedir que el banner textual vuelva a renderizarse.
+
 ## 0.29.0 — Plan Cóndor: mechón central sin tarjeta
 
 - El ítem +1 Pelo deja de renderizar papel, borde, cinta, badge “NUEVO”, copy “+1 PELO” y CTA “AGARRAR”: dentro del tablero sólo queda visible el mechón.
