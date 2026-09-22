@@ -474,8 +474,8 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
         const action = (turn + index) % 2 === 0 ? 'air' : 'hide';
         return choose(player, gameId, turn, action);
       });
-      const heartbeatBursts = Array.from({ length: Math.min(3, count) }, () =>
-        a.client.call('roomCommand', { command: 'touch', roomId }));
+      const heartbeatBursts = players.map(player =>
+        player.client.call('roomCommand', { command: 'touch', roomId }));
       await Promise.all([...submissions, ...heartbeatBursts]);
 
       const chosen = await read(a.db, `games/${gameId}`);
@@ -492,7 +492,7 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
         a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
         a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
         a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
-        a.client.call('roomCommand', { command: 'touch', roomId }),
+        ...players.map(player => player.client.call('roomCommand', { command: 'touch', roomId })),
       ]);
       const resolutionResults = resolutionRace.slice(0, 3)
         .filter(result => result.status === 'fulfilled')
@@ -514,7 +514,7 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
       const revealRace = await Promise.allSettled([
         a.client.call('advanceGame', { gameId, turn, phase: 'reveal' }),
         a.client.call('advanceGame', { gameId, turn, phase: 'reveal' }),
-        a.client.call('roomCommand', { command: 'touch', roomId }),
+        ...players.map(player => player.client.call('roomCommand', { command: 'touch', roomId })),
       ]);
       const revealResults = revealRace.slice(0, 2)
         .filter(result => result.status === 'fulfilled')
