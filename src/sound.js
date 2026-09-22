@@ -40,6 +40,7 @@ export function playCue(kind) {
       menuSoft: { notes:[420], step:.03, length:.06, type:'triangle', gain:.016 },
       menuMove: { notes:[360,480], step:.05, length:.10, type:'triangle', gain:.022 },
       menuEnter: { notes:[392,523.25,659.25], step:.055, length:.14, type:'triangle', gain:.035 },
+      gameTap: { notes:[293.66,392], step:.028, length:.075, type:'triangle', gain:.024 },
       win: { notes:[523.25,659.25,783.99,1046.5], step:.075, length:.24, type:'triangle', gain:.075 },
       lose: { notes:[196,164.81,130.81,98], step:.085, length:.22, type:'sawtooth', gain:.045 },
       end: { notes:[659.25,523.25,392], step:.09, length:.18, type:'triangle', gain:.07 },

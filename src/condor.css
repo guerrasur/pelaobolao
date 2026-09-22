@@ -636,3 +636,142 @@
   display:none!important;
 }
 .attack-target-badge { display:none!important; }
+
+
+/* Plan Cóndor 0.33.0 — tactilidad, jerarquía de fase y feedback causal.
+   Inspiración de interacción: botones con squash/press, estados de acción nítidos
+   y una superficie que acompaña la fase sin mover la geometría del tablero. */
+.game {
+  --condor33-phase-glow:#0000;
+  box-shadow:
+    0 7px 0 #142422,
+    inset 0 0 0 3px #f5c5858c,
+    inset 0 0 30px var(--condor33-phase-glow);
+  transition:box-shadow .24s ease;
+}
+.game[data-phase="countdown"],
+.game[data-phase="syncing"] { --condor33-phase-glow:#50bfea2c; }
+.game[data-phase="choosing"] { --condor33-phase-glow:#ffdf4f2b; }
+.game[data-phase="locked"] { --condor33-phase-glow:#9c74e92b; }
+.game[data-phase="reveal"] { --condor33-phase-glow:#b58af22d; }
+.game[data-phase="finished"] { --condor33-phase-glow:#69ce8a24; }
+.game[data-phase="abandoned"] { --condor33-phase-glow:#b8b1a21d; }
+
+.game[data-phase="choosing"] .phase-banner strong::before {
+  content:'';
+  display:inline-block;
+  width:6px;
+  height:6px;
+  margin-right:5px;
+  border-radius:50%;
+  background:#d33155;
+  box-shadow:0 0 0 3px #d3315520;
+  vertical-align:1px;
+  animation:condor33-live-dot .8s ease-in-out infinite alternate;
+}
+
+/* El botón elegido queda físicamente hundido: la decisión se percibe antes de leerla. */
+.controls button {
+  transform-origin:50% 78%;
+}
+.controls button:not(:disabled):active {
+  transform:translateY(4px) scale(.94)!important;
+  filter:saturate(1.08) brightness(1.02);
+  box-shadow:
+    inset 0 0 0 3px #ffffff66,
+    inset 0 -2px 0 #0003,
+    0 1px 0 var(--ink)!important;
+}
+.controls button.chosen-action {
+  transform:translateY(3px) scale(.97);
+  filter:saturate(1.16) brightness(1.04);
+  box-shadow:
+    inset 0 0 0 3px #fff9e9,
+    inset 0 -3px 0 #0003,
+    0 2px 0 var(--ink),
+    0 0 0 4px #ffdf4f!important;
+}
+.controls button.chosen-action .action-state {
+  animation:condor33-choice-stamp .38s cubic-bezier(.18,.9,.26,1.25) both;
+}
+
+/* Sólo el jugador que acaba de fijar su jugada recibe el sello, evitando
+   que todos los checks vuelvan a saltar en cada render. */
+.game[data-phase="choosing"] .player.condor-choice-locked::after {
+  animation:condor33-seat-stamp .42s cubic-bezier(.18,.9,.26,1.25) both;
+}
+.game[data-phase="choosing"] .player.condor-choice-locked .player-name {
+  animation:condor33-name-lock .42s ease-out both;
+}
+
+/* La tarjeta propia se lee como el puesto de mando sin agregar copy. */
+.game[data-phase="choosing"] .player.self:not(.eliminated) {
+  box-shadow:
+    0 0 0 3px #ffdb55,
+    2px 5px 0 #49352396,
+    0 9px 18px #2d201c20;
+}
+.game[data-phase="choosing"] .player.self.has-chosen:not(.eliminated) {
+  box-shadow:
+    0 0 0 3px #64d997,
+    2px 4px 0 #49352396,
+    0 7px 14px #2d201c1a;
+}
+
+/* Los recursos son instrumentos del juego: ganan contraste sin agrandar el HUD. */
+.hair-resource,
+.breath-resource {
+  border-radius:3px;
+  padding-inline:2px;
+}
+.player.critical:not(.eliminated) .hair-resource {
+  color:#8c1534;
+  font-weight:900;
+}
+.player.action-air .breath-resource b {
+  display:inline-block;
+  animation:condor33-resource-pop .5s cubic-bezier(.18,.9,.26,1.25) .18s both;
+}
+.player.took-hit .hair-resource b,
+.player.healed-hair .hair-resource b {
+  display:inline-block;
+  animation:condor33-resource-pop .52s cubic-bezier(.18,.9,.26,1.25) .22s both;
+}
+
+@keyframes condor33-live-dot {
+  from { opacity:.48; transform:scale(.78); }
+  to { opacity:1; transform:scale(1.13); }
+}
+@keyframes condor33-choice-stamp {
+  0% { opacity:.2; transform:translateY(-5px) rotate(7deg) scale(1.28); }
+  62% { opacity:1; transform:translateY(1px) rotate(-2deg) scale(.96); }
+  100% { opacity:1; transform:none; }
+}
+@keyframes condor33-seat-stamp {
+  0% { transform:scale(.35) rotate(-18deg); opacity:.25; }
+  64% { transform:scale(1.2) rotate(5deg); opacity:1; }
+  100% { transform:none; opacity:1; }
+}
+@keyframes condor33-name-lock {
+  0% { filter:brightness(1.35); }
+  100% { filter:none; }
+}
+@keyframes condor33-resource-pop {
+  0% { transform:scale(.72); }
+  58% { transform:scale(1.3) rotate(-3deg); }
+  100% { transform:none; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .game,
+  .game[data-phase="choosing"] .phase-banner strong::before,
+  .controls button.chosen-action .action-state,
+  .game[data-phase="choosing"] .player.condor-choice-locked::after,
+  .game[data-phase="choosing"] .player.condor-choice-locked .player-name,
+  .player.action-air .breath-resource b,
+  .player.took-hit .hair-resource b,
+  .player.healed-hair .hair-resource b {
+    animation:none!important;
+    transition:none!important;
+  }
+}

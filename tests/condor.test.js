@@ -206,3 +206,23 @@ test('0.32 recupera el resaltado amarillo sólo para el código de sala', async 
   const labelBlock = css.slice(labelStart, labelEnd + 1);
   assert.doesNotMatch(labelBlock, /background:#ffdf4f|background:yellow/);
 });
+
+
+test('0.33 refuerza tactilidad y jerarquía de fase sin mover la geometría', async () => {
+  const [js, css, sound, packageInfo] = await Promise.all([
+    readFile('src/condor.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+    readFile('src/sound.js', 'utf8'),
+    readFile('package.json', 'utf8').then(JSON.parse),
+  ]);
+  assert.equal(packageInfo.version, '0.33.0');
+  assert.match(js, /playCue\('gameTap'\)/);
+  assert.match(js, /chosenInitialized/);
+  assert.match(js, /condor-choice-locked/);
+  assert.match(css, /Plan Cóndor 0\.33\.0/);
+  assert.match(css, /--condor33-phase-glow/);
+  assert.match(css, /button\.chosen-action/);
+  assert.match(css, /condor33-seat-stamp/);
+  assert.match(css, /prefers-reduced-motion:reduce/);
+  assert.match(sound, /gameTap: \{ notes:/);
+});
