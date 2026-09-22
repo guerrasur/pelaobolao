@@ -986,7 +986,7 @@ document.querySelector('.brand')?.addEventListener('click', event => {
   vibrate(8);
 });
 
-window.addEventListener('offline', () => { cancelDrag(); s.online = false; render(); });
+window.addEventListener('offline', () => { cancelDrag(); s.targeting = false; s.online = false; render(); });
 const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
 window.addEventListener('online', () => {
   s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
