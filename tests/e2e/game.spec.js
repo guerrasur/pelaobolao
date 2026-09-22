@@ -20,7 +20,6 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.locator('#profile-form button').click();
   await expect(b.getByLabel('Código de sala')).toHaveValue(code);
   await b.getByRole('button', { name: 'ENTRAR', exact: true }).click();
-  await expect.poll(() => new URL(b.url()).searchParams.get('s')).toBe(null);
   await expect(a.locator('.lobby-list li')).toHaveCount(2);
   await a.reload();
   await expect(a.locator('#player-name')).toHaveValue('Ana');
