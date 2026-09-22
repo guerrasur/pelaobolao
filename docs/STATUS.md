@@ -10,6 +10,9 @@
 - Al entrar mediante un enlace de invitación, el parámetro `?s=` se limpia del navegador una vez confirmada la sala, evitando reingresos accidentales después de salir.
 - La revancha se prueba desde estado contaminado y debe reiniciar Pelo, Soplos, racha de Esconderse, ítem central, resultado, `chosen` y `ready` desde cero.
 - Las colas de intención ahora llevan generación propia: una escritura vieja que termine tarde después de salir/cambiar de ronda no puede bloquear ni consumir la primera jugada de la sala siguiente.
+- Audio y vibración quedan silenciados mientras la app está en segundo plano, evitando feedback fantasma de rondas que avanzan con el celular bloqueado.
+- Al volver a primer plano o cambiar el `visualViewport`, se recalcula la geometría de targeting/FX para Safari y navegadores móviles.
+- Se agrega un escenario E2E donde un jugador pierde una transición completa estando offline y, al reconectar, aterriza directamente en el turno vigente sin repetir reveal ni conservar una elección vieja.
 - Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
 - Checkpoint rápido del lote: `npm test` + build se ejecutan sobre la rama; integración/E2E/Firebase quedan reservados para el cierre.
 - La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
