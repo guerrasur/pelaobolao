@@ -497,9 +497,6 @@ function syncRevealTimeline(game) {
     playCue('reveal');
     vibrate(8);
     render();
-    // Build arrows once after the action-stage DOM exists. Recreating them every
-    // 200 ms restarted their CSS animation and made the reveal flicker.
-    drawRevealAttackLines(game, stage);
     return true;
   }
 
@@ -778,7 +775,7 @@ function render() {
                 : game.phase === 'reveal' ? 'Resultado del turno'
                   : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.'
                     : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${['actions','impact'].includes(revealStep) && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -797,7 +794,9 @@ function render() {
       if (inputValue !== null) { replacement.value = inputValue; replacement.setSelectionRange(...selection); }
     }
   }
-  bind(); tick();
+  bind();
+  if (s.game && revealStage(s.game, now()) === 'actions') drawRevealAttackLines(s.game, 'actions');
+  tick();
 }
 
 function bind() {
