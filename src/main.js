@@ -32,6 +32,7 @@ let lastRevealCountdown = null;
 let pending = null, sending = false, intentGeneration = 0, sendingGeneration = -1, drag = null, suppressClick = false, lastNudge = 0;
 let leaveArmedUntil = 0, leaveArmTimer = 0;
 const now = () => api?.now() ?? Date.now();
+const connectionFresh = () => !s.roomId || !lastContact || Date.now() - lastContact <= 30000;
 const setText = (node, value) => {
   if (!node) return false;
   const next = String(value ?? '');
@@ -234,6 +235,7 @@ function subscribeGame(id) {
     if (generation !== gameGeneration) return;
     // Never drive timers/transitions using speculative writes or an old cached round.
     if (snap.metadata.hasPendingWrites || snap.metadata.fromCache) return;
+    lastContact = Date.now();
     if (!snap.exists()) {
       cancelDrag(); s.game = null;
       s.gameError = 'La partida ya no existe o quedó incompleta.';
@@ -269,6 +271,7 @@ function subscribeGame(id) {
   });
   intentOff = onSnapshot(doc(api.db, 'games', id, 'intents', api.uid), snap => {
     if (generation !== gameGeneration) return;
+    if (!snap.metadata?.fromCache) lastContact = Date.now();
     s.intent = snap.data() ?? null;
     render();
   }, error => {
@@ -282,6 +285,7 @@ function subscribeRoom(id) {
   if (!id) { render(); return; }
   roomOff = onSnapshot(doc(api.db, 'rooms', id), { includeMetadataChanges: true }, snap => {
     if (generation !== roomGeneration || snap.metadata.hasPendingWrites || snap.metadata.fromCache) return;
+    lastContact = Date.now();
     const room = snap.data();
     if (!room || room.status === 'closed' || !room.members?.[api.uid] || room.members[api.uid].left) {
       void resetRoomSession('Esa sala ya no está disponible. Podés crear otra o volver con un código.');
@@ -338,7 +342,7 @@ async function heartbeat(force = false) {
 }
 
 function canChoose() {
-  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && s.game?.phase === 'choosing'
+  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && connectionFresh() && s.game?.phase === 'choosing'
     && Number.isFinite(phaseDeadline(s.game)) && now() < phaseDeadline(s.game)
     && !(s.game.protocolVersion === 2 && allMarked(s.game, 'chosen')) && s.game.players[api.uid]?.hair > 0;
 }
@@ -350,6 +354,7 @@ function pendingIntentStillValid(intent) {
 }
 function accepted() { return s.intent?.turn === s.game?.turn ? s.intent : null; }
 function choose(action, target = null) {
+  if (s.online && !connectionFresh()) { message('Comprobando conexión con el servidor…'); return; }
   if (!canChoose()) { message('Ya no podés elegir en este turno.'); return; }
   if (action === 'blow' && (s.game.players[api.uid].breath < 1 || !validBlowTarget(target))) return;
   if (action === 'hide' && isHideLocked()) { message(`Solo podés esconderte ${hideLimit()} veces seguidas. Elegí otra acción.`); return; }
@@ -931,7 +936,7 @@ function bind() {
 }
 
 function tick() {
-  const checkingConnection = s.online && Boolean(lastContact && Date.now() - lastContact > 30000 && s.roomId);
+  const checkingConnection = s.online && Boolean(s.roomId && !connectionFresh());
   const connecting = s.online && !api;
   setText(connection, !s.online ? 'Sin conexión · reconectando al volver la señal' : checkingConnection ? 'Comprobando conexión con el servidor…' : api ? 'Conectado' : 'Conectando…');
   connection.classList.toggle('offline', !s.online);
@@ -973,6 +978,7 @@ function tick() {
     timer.classList.toggle('urgent', game.phase === 'choosing' && seconds !== null && seconds <= 3);
   }
   const board = document.querySelector('.game');
+  board?.classList.toggle('connection-stale', checkingConnection);
   if (board && game.phase === 'choosing' && Number.isFinite(deadline)) {
     const duration = Number(game.rules?.turnMs) || 1;
     const remaining = Math.max(0, Math.min(duration, deadline - now()));
