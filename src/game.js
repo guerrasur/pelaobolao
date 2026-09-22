@@ -3,8 +3,8 @@ export const CENTER_ITEM_TARGET = '__center_item__';
 export const HAIR_ITEM_KIND = 'hair_plus_1';
 
 export const RULES = Object.freeze({
-  version: 5, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
-  minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 3200,
+  version: 6, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
+  minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 4000,
   countdownMs: 3000,
   maxConsecutiveHides: 3,
   centerItems: true,

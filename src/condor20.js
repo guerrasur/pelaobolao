@@ -6,9 +6,21 @@ const requestFrame = window.requestAnimationFrame?.bind(window)
 let refreshFrame = null;
 let lastWidth = null;
 let lastHeight = null;
+let blurTimer = null;
+
+function entryInputFocused() {
+  const active = document.activeElement;
+  return active instanceof HTMLInputElement && !active.closest?.('.game');
+}
+
+function setKeyboardMode(active = entryInputFocused()) {
+  document.body.dataset.keyboardOpen = active ? 'true' : 'false';
+  return active;
+}
 
 function refreshViewport() {
   refreshFrame = null;
+  const keyboardOpen = setKeyboardMode();
   const visual = window.visualViewport;
   const viewport = viewportPixels(window.innerWidth, window.innerHeight, visual?.width, visual?.height);
   if (!viewport) return;
@@ -21,9 +33,10 @@ function refreshViewport() {
   document.documentElement.style.setProperty('--pb-viewport-width', `${viewport.width}px`);
   document.documentElement.style.setProperty('--pb-viewport-height', `${viewport.height}px`);
 
-  // condor.js already recalculates the player-to-target trajectory on resize.
-  // Bridge browser-chrome/keyboard viewport changes into that existing path.
-  window.dispatchEvent(new Event('resize'));
+  // On entry/profile screens the CSS deliberately ignores visualViewport height
+  // while the keyboard is open. Dispatching synthetic resize events there only
+  // caused extra reflow during Safari's keyboard animation.
+  if (!keyboardOpen) window.dispatchEvent(new Event('resize'));
 }
 
 function scheduleViewportRefresh() {
@@ -31,10 +44,26 @@ function scheduleViewportRefresh() {
   refreshFrame = requestFrame(refreshViewport);
 }
 
-window.visualViewport?.addEventListener('resize', scheduleViewportRefresh, { passive: true });
-window.visualViewport?.addEventListener('scroll', scheduleViewportRefresh, { passive: true });
-window.addEventListener('orientationchange', scheduleViewportRefresh, { passive: true });
-window.addEventListener('pageshow', scheduleViewportRefresh, { passive: true });
+document.addEventListener('focusin', event => {
+  if (!(event.target instanceof HTMLInputElement) || event.target.closest?.('.game')) return;
+  window.clearTimeout(blurTimer);
+  setKeyboardMode(true);
+  scheduleViewportRefresh();
+}, { passive:true });
+
+document.addEventListener('focusout', event => {
+  if (!(event.target instanceof HTMLInputElement) || event.target.closest?.('.game')) return;
+  window.clearTimeout(blurTimer);
+  blurTimer = window.setTimeout(() => {
+    setKeyboardMode();
+    scheduleViewportRefresh();
+  }, 120);
+}, { passive:true });
+
+window.visualViewport?.addEventListener('resize', scheduleViewportRefresh, { passive:true });
+window.visualViewport?.addEventListener('scroll', scheduleViewportRefresh, { passive:true });
+window.addEventListener('orientationchange', scheduleViewportRefresh, { passive:true });
+window.addEventListener('pageshow', scheduleViewportRefresh, { passive:true });
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) scheduleViewportRefresh();
 });

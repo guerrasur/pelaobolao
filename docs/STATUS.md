@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.27.0 — Plan Cóndor: reveal estable + teclado iOS
+
+- La revelación de partidas nuevas usa reglas v6 y una ventana de 4 s: 1,5 s para el 3–2–1, 1,2 s para leer las jugadas y 1,3 s para las consecuencias.
+- Las partidas v5 ya iniciadas siguen entrando completas dentro de sus 3,2 s snapshotteados.
+- Se elimina la segunda animación de la misma acción al llegar el daño: la etapa de impacto muestra impacto/curación/bloqueo, no vuelve a ejecutar Soplar, Esconderse o Tomar aire.
+- Las flechas de Soplo se construyen una vez por render de la etapa de jugadas en vez de recrearse cada 200 ms; se elimina el parpadeo/reinicio de animación.
+- La etapa de jugadas deja de heredar el oscurecimiento general del reveal y usa el sistema de FX existente, sin una segunda capa de animaciones que competía por `transform`.
+- El timer de turno sólo aparece durante `choosing`; la revelación usa sus propios beats y no muestra una cuenta secundaria acelerada.
+- En pantallas de entrada/perfil, `visualViewport` deja de controlar la altura del `body`. Safari puede reducir su viewport visual por el teclado sin colapsar el menú.
+- `condor20.js` marca explícitamente el modo teclado y evita disparar reflows sintéticos durante la animación de apertura/cierre del teclado.
+- Se agregan regresiones unitarias y e2e que reproducen un viewport visual de 360 px con el input enfocado y exigen que el menú conserve su altura normal.
+
 ## 0.26.0 — Plan Águila: revelación de ronda
 
 - La resolución simultánea ahora se presenta en tres momentos sincronizados por `phaseStartedAt`: una cuenta 3–2–1 breve, la revelación de las jugadas y recién después las consecuencias.

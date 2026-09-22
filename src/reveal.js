@@ -1,8 +1,23 @@
 import { millis } from './game.js';
 
 export const REVEAL_SEQUENCE_RULE_VERSION = 5;
-export const REVEAL_SUSPENSE_MS = 840;
-export const REVEAL_ACTION_MS = 760;
+export const REVEAL_SUSPENSE_MS = 1500;
+export const REVEAL_ACTION_MS = 1200;
+export const REVEAL_IMPACT_MS = 1300;
+
+export function revealDurations(game) {
+  const total = Math.max(2400, Number(game?.rules?.revealMs) || 3200);
+  const version = Number(game?.rules?.version ?? 0);
+  if (version >= 6) {
+    const suspense = Math.min(REVEAL_SUSPENSE_MS, Math.round(total * .4));
+    const actions = Math.min(REVEAL_ACTION_MS, Math.round(total * .3));
+    return { suspense, actions, impact: Math.max(500, total - suspense - actions) };
+  }
+  // v5 matches already in progress keep fitting inside their snapshotted 3.2 s reveal.
+  const suspense = Math.min(1050, Math.round(total * .34));
+  const actions = Math.min(1050, Math.round(total * .34));
+  return { suspense, actions, impact: Math.max(400, total - suspense - actions) };
+}
 
 const stagedPhase = game => Boolean(game?.lastResult)
   && ['reveal', 'finished'].includes(game.phase)
@@ -13,8 +28,9 @@ export function revealStage(game, currentTime = Date.now()) {
   const started = millis(game.phaseStartedAt);
   if (!Number.isFinite(started) || started <= 0) return 'impact';
   const elapsed = Math.max(0, currentTime - started);
-  if (elapsed < REVEAL_SUSPENSE_MS) return 'suspense';
-  if (elapsed < REVEAL_SUSPENSE_MS + REVEAL_ACTION_MS) return 'actions';
+  const durations = revealDurations(game);
+  if (elapsed < durations.suspense) return 'suspense';
+  if (elapsed < durations.suspense + durations.actions) return 'actions';
   return 'impact';
 }
 
@@ -22,7 +38,7 @@ export function revealCountdown(game, currentTime = Date.now()) {
   if (revealStage(game, currentTime) !== 'suspense') return null;
   const started = millis(game.phaseStartedAt);
   const elapsed = Math.max(0, currentTime - started);
-  const slice = REVEAL_SUSPENSE_MS / 3;
+  const slice = revealDurations(game).suspense / 3;
   return Math.max(1, 3 - Math.floor(elapsed / slice));
 }
 
