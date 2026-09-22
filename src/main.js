@@ -119,6 +119,22 @@ async function call(name, data) {
   if (result.serverNow) s.offset = result.serverNow - (start + Date.now()) / 2;
   return result;
 }
+async function boundedCall(promise, ms) {
+  if (typeof globalThis.setTimeout !== 'function') return promise;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = globalThis.setTimeout(() => {
+      const error = new Error('La conexión tardó demasiado.');
+      error.code = 'unavailable';
+      reject(error);
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    globalThis.clearTimeout?.(timer);
+  }
+}
 function showError(error) {
   const code = error.code;
   const friendly = {
@@ -380,7 +396,10 @@ async function flushIntent() {
       continue;
     }
     try {
-      const result = await call('submitIntent', { ...next, expectedRevision: accepted()?.revision ?? 0 });
+      const result = await boundedCall(
+        call('submitIntent', { ...next, expectedRevision: accepted()?.revision ?? 0 }),
+        3200,
+      );
       if (generation !== intentGeneration) break;
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
         if (!s.intent || s.intent.turn !== result.turn || s.intent.revision <= result.revision) s.intent = result;
