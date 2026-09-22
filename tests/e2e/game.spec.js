@@ -117,7 +117,7 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.reload();
   await expect(b.locator('#player-name')).toHaveValue('Beto');
   await b.locator('#profile-form button').click();
-  await b.getByLabel('Código de sala').fill(code);
+  await expect(b.getByLabel('Código de sala')).toHaveValue(code);
   await b.getByRole('button', { name: 'ENTRAR', exact: true }).click();
   await expect(b.locator('[data-player].self .player-label')).toHaveText('Beto');
   await expect(b.locator('[data-player].self .self-tag')).toHaveText('VOS');
