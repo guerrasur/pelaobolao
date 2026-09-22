@@ -1068,7 +1068,11 @@ window.addEventListener('online', () => {
   s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { cancelDrag(); return; }
+  if (document.hidden) {
+    cancelDrag();
+    if (s.targeting) { s.targeting = false; render(); }
+    return;
+  }
   resyncClock(); void heartbeat(true); tick(); void checkVersion(); void flushIntent();
 });
 window.addEventListener('pagehide', cancelDrag);
