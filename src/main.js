@@ -1020,7 +1020,7 @@ function tick() {
     abandoning = true;
     const gameId = s.gameId;
     resetRoomSession('La partida venció por inactividad. Podés crear una sala nueva.');
-    void call('abandonGame', { gameId }).catch(() => {}).finally(() => { abandoning = false; });
+    void boundedCall(call('abandonGame', { gameId }), 4000).catch(() => {}).finally(() => { abandoning = false; });
     return;
   }
   // If the authority tab disappeared, an active participant claims host as soon as
