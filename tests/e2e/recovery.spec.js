@@ -285,18 +285,23 @@ test('GUARDANDO es local y ELEGIDA requiere confirmación real del servidor', as
   try {
     await patch(`games/${gameId}`, { 'rules.turnMs': 60000 });
     const immediate = await page.evaluate(() => {
-      const button = document.querySelector('[data-action="air"]');
-      button.click();
+      document.querySelector('[data-action="air"]').click();
+      const currentButton = document.querySelector('[data-action="air"]');
       return {
-        actionState: button.querySelector('.action-state')?.textContent ?? '',
+        actionState: currentButton?.querySelector('.action-state')?.textContent ?? '',
+        actionClass: currentButton?.className ?? '',
         selfStatus: document.querySelector('[data-player].self small')?.textContent ?? '',
         selection: document.querySelector('#selection')?.textContent ?? '',
       };
     });
     expect(immediate.actionState).toContain('GUARDANDO');
+    expect(immediate.actionClass).toContain('saving-action');
+    expect(immediate.actionClass).not.toContain('chosen-action');
     expect(immediate.selfStatus).not.toContain('Ya eligió');
     expect(immediate.selection).toContain('Guardando');
 
+    await expect(page.locator('[data-action="air"]')).toHaveClass(/chosen-action/);
+    await expect(page.locator('[data-action="air"]')).not.toHaveClass(/saving-action/);
     await expect(page.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
     await expect(page.locator('[data-player].self small')).toContainText('Ya eligió');
     await expect(page.locator('#selection')).toContainText('Elegido: Tomar aire');
