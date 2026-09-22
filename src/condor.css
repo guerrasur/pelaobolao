@@ -682,6 +682,18 @@
     inset 0 -2px 0 #0003,
     0 1px 0 var(--ink)!important;
 }
+.controls button.saving-action {
+  transform:translateY(1px) scale(.985);
+  filter:saturate(1.04);
+  box-shadow:
+    inset 0 0 0 2px #fff9e988,
+    0 3px 0 var(--ink),
+    0 0 0 3px #ffdf4f99!important;
+}
+.controls button.saving-action .action-state {
+  opacity:.78;
+  animation:condor-saving-pulse .7s ease-in-out infinite alternate;
+}
 .controls button.chosen-action {
   transform:translateY(3px) scale(.97);
   filter:saturate(1.16) brightness(1.04);
@@ -693,6 +705,10 @@
 }
 .controls button.chosen-action .action-state {
   animation:condor33-choice-stamp .38s cubic-bezier(.18,.9,.26,1.25) both;
+}
+@keyframes condor-saving-pulse {
+  from { transform:scale(.96); opacity:.62; }
+  to { transform:scale(1); opacity:.92; }
 }
 
 /* Sólo el jugador que acaba de fijar su jugada recibe el sello, evitando
@@ -765,13 +781,40 @@
 @media(prefers-reduced-motion:reduce) {
   .game,
   .game[data-phase="choosing"] .phase-banner strong::before,
+  .controls button.saving-action .action-state,
   .controls button.chosen-action .action-state,
   .game[data-phase="choosing"] .player.condor-choice-locked::after,
   .game[data-phase="choosing"] .player.condor-choice-locked .player-name,
   .player.action-air .breath-resource b,
   .player.took-hit .hair-resource b,
-  .player.healed-hair .hair-resource b {
+  .player.healed-hair .hair-resource b,
+  .game #leave-room.leave-armed {
     animation:none!important;
     transition:none!important;
   }
+}
+
+
+/* Salir de una partida activa requiere una segunda intención visible para evitar abandonos accidentales. */
+.game #leave-room.leave-armed {
+  border-color:#8c1534;
+  background:#fff0f0;
+  color:#8c1534;
+  box-shadow:0 0 0 3px #d3315522;
+  animation:condor-leave-arm .42s ease-out both;
+}
+@keyframes condor-leave-arm {
+  from { transform:scale(.97); }
+  to { transform:scale(1); }
+}
+
+
+/* Si el navegador sigue "online" pero Firestore deja de confirmar contacto,
+   el tablero conserva su geometría pero baja la intensidad de las acciones. */
+.game.connection-stale .controls {
+  opacity:.58;
+  filter:saturate(.62);
+}
+.game.connection-stale .controls button {
+  cursor:wait;
 }

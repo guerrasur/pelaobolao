@@ -474,8 +474,8 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
         const action = (turn + index) % 2 === 0 ? 'air' : 'hide';
         return choose(player, gameId, turn, action);
       });
-      const heartbeatBursts = Array.from({ length: Math.min(3, count) }, () =>
-        a.client.call('roomCommand', { command: 'touch', roomId }));
+      const heartbeatBursts = players.map(player =>
+        player.client.call('roomCommand', { command: 'touch', roomId }));
       await Promise.all([...submissions, ...heartbeatBursts]);
 
       const chosen = await read(a.db, `games/${gameId}`);
@@ -492,7 +492,7 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
         a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
         a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
         a.client.call('advanceGame', { gameId, turn, phase: 'choosing' }),
-        a.client.call('roomCommand', { command: 'touch', roomId }),
+        ...players.map(player => player.client.call('roomCommand', { command: 'touch', roomId })),
       ]);
       const resolutionResults = resolutionRace.slice(0, 3)
         .filter(result => result.status === 'fulfilled')
@@ -514,7 +514,7 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
       const revealRace = await Promise.allSettled([
         a.client.call('advanceGame', { gameId, turn, phase: 'reveal' }),
         a.client.call('advanceGame', { gameId, turn, phase: 'reveal' }),
-        a.client.call('roomCommand', { command: 'touch', roomId }),
+        ...players.map(player => player.client.call('roomCommand', { command: 'touch', roomId })),
       ]);
       const revealResults = revealRace.slice(0, 2)
         .filter(result => result.status === 'fulfilled')
@@ -527,4 +527,201 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
       assert.deepEqual(next.chosen, {});
     }
   }
+});
+
+
+test('si alguien no elige, el deadline resuelve como Distraído sin trabar al resto', async () => {
+  const { a, players, gameId } = await started(4);
+  await choose(players[0], gameId, 1, 'air');
+  await choose(players[1], gameId, 1, 'hide');
+  await choose(players[2], gameId, 1, 'air');
+  // players[3] deja vencer el turno sin enviar intención.
+  await expire(gameId);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' })).advanced, true);
+  const resolved = await read(a.db, `games/${gameId}`);
+  assert.equal(resolved.phase, 'reveal');
+  assert.equal(resolved.resolvedTurn, 1);
+  assert.equal(resolved.lastResult.actions[players[3].uid].action, 'distracted');
+  assert.equal(resolved.lastResult.actions[players[0].uid].action, 'air');
+  assert.equal(resolved.lastResult.actions[players[1].uid].action, 'hide');
+  assert.equal((await getDocs(collection(a.db, `games/${gameId}/rounds`))).size, 1);
+  await expire(gameId, resolved.rules.revealMs);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'reveal' })).advanced, true);
+  const next = await read(a.db, `games/${gameId}`);
+  assert.equal(next.phase, 'choosing');
+  assert.equal(next.turn, 2);
+});
+
+
+test('relevo de host en locked conserva todas las jugadas y resuelve una sola vez', async () => {
+  const { a, b, players, gameId, roomId } = await started(3);
+  await choose(players[0], gameId, 1, 'air');
+  await choose(players[1], gameId, 1, 'hide');
+  await choose(players[2], gameId, 1, 'air');
+  await patch(`games/${gameId}`, { phase:'locked', lastProgressAt:Timestamp.now() });
+  await patch(`rooms/${roomId}`, { [`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000) });
+
+  await b.client.call('roomCommand', { command:'touch', roomId });
+  const room = await read(b.db, `rooms/${roomId}`);
+  assert.equal(room.hostId, b.uid);
+  assert.equal(room.status, 'playing');
+
+  const race = await Promise.allSettled([
+    a.client.call('advanceGame', { gameId, turn:1, phase:'locked' }),
+    b.client.call('advanceGame', { gameId, turn:1, phase:'locked' }),
+    b.client.call('advanceGame', { gameId, turn:1, phase:'locked' }),
+  ]);
+  assert.equal(race[0].status, 'rejected');
+  const winners = race.slice(1).filter(result => result.status === 'fulfilled' && result.value.advanced);
+  assert.equal(winners.length, 1);
+
+  const game = await read(b.db, `games/${gameId}`);
+  assert.equal(game.phase, 'reveal');
+  assert.equal(game.resolvedTurn, 1);
+  assert.equal(game.lastResult.actions[players[0].uid].action, 'air');
+  assert.equal(game.lastResult.actions[players[1].uid].action, 'hide');
+  assert.equal(game.lastResult.actions[players[2].uid].action, 'air');
+  assert.equal((await getDocs(collection(b.db, `games/${gameId}/rounds`))).size, 1);
+});
+
+
+test('mechón, ataque y límite de Esconderse conviven sin estados imposibles', async () => {
+  const { a, players, gameId } = await started(4);
+  await patch(`games/${gameId}`, {
+    centerItem:{ kind:HAIR_ITEM_KIND, spawnedTurn:1, source:'test' },
+    [`players.${players[0].uid}.hair`]:1,
+    [`players.${players[1].uid}.breath`]:1,
+    [`players.${players[2].uid}.hideStreak`]:2,
+  });
+  await choose(players[0], gameId, 1, 'grab', CENTER_ITEM_TARGET);
+  await choose(players[1], gameId, 1, 'blow', players[0].uid);
+  await choose(players[2], gameId, 1, 'hide');
+  await choose(players[3], gameId, 1, 'air');
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' })).advanced, true);
+
+  const resolved = await read(a.db, `games/${gameId}`);
+  assert.equal(resolved.phase, 'reveal');
+  assert.equal(resolved.players[players[0].uid].hair, 0);
+  assert.equal(resolved.players[players[1].uid].breath, 0);
+  assert.equal(resolved.players[players[2].uid].hideStreak, 3);
+  assert.equal(resolved.players[players[3].uid].breath, 1);
+  assert.equal(resolved.centerItem, null);
+  assert.equal(resolved.lastResult.item.outcome, 'claimed');
+  assert.equal(resolved.lastResult.item.claimantAlive, false);
+  assert.equal(resolved.lastResult.heals[players[0].uid], undefined);
+
+  await expire(gameId, resolved.rules.revealMs);
+  await a.client.call('advanceGame', { gameId, turn:1, phase:'reveal' });
+  await assert.rejects(choose(players[2], gameId, 2, 'hide'));
+  await choose(players[2], gameId, 2, 'air');
+  const nextIntent = await read(players[2].db, `games/${gameId}/intents/${players[2].uid}`);
+  assert.equal(nextIntent.turn, 2);
+  assert.equal(nextIntent.action, 'air');
+});
+
+
+test('la revancha arranca sin residuos de la partida anterior', async () => {
+  const { a, b, players, gameId, roomId } = await started();
+  await patch(`games/${gameId}`, {
+    phase:'finished',
+    finishedAt:Date.now()-1000,
+    winnerId:a.uid,
+    resolvedTurn:4,
+    turn:4,
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'test'},
+    lastResult:{turn:4,actions:{},hits:[],losses:{},heals:{},item:null},
+    [`players.${a.uid}.hair`]:1,
+    [`players.${a.uid}.breath`]:2,
+    [`players.${a.uid}.hideStreak`]:3,
+    [`players.${b.uid}.hair`]:2,
+    [`chosen.${a.uid}`]:true,
+  });
+  await patch(`rooms/${roomId}`, { status:'finished' });
+
+  await a.client.call('roomCommand', { command:'lobby', roomId });
+  const lobby = await read(a.db, `rooms/${roomId}`);
+  assert.equal(lobby.status, 'lobby');
+  assert.equal(lobby.gameId, null);
+  assert.ok(Object.values(lobby.members).every(member => member.ready === false));
+
+  for (const player of players) await player.client.call('roomCommand', { command:'ready', roomId, ready:true });
+  await a.client.call('roomCommand', { command:'start', roomId });
+  const restartedRoom = await read(a.db, `rooms/${roomId}`);
+  assert.notEqual(restartedRoom.gameId, gameId);
+  const next = await read(a.db, `games/${restartedRoom.gameId}`);
+  assert.equal(next.turn, 1);
+  assert.equal(next.resolvedTurn, 0);
+  assert.equal(next.centerItem, null);
+  assert.equal(next.lastResult, null);
+  assert.deepEqual(next.chosen, {});
+  assert.deepEqual(next.ready, {});
+  for (const player of Object.values(next.players)) {
+    assert.equal(player.hair, next.rules.initialHair);
+    assert.equal(player.breath, next.rules.initialBreath);
+    assert.equal(player.hideStreak, 0);
+  }
+});
+
+
+test('si el host cae al terminar, el relevo puede devolver la sala al lobby', async () => {
+  const { a, b, players, gameId, roomId } = await started(3);
+  await patch(`games/${gameId}`, {
+    phase:'finished',
+    finishedAt:Date.now()-9000,
+    lastProgressAt:Timestamp.now(),
+    winnerId:a.uid,
+  });
+  await patch(`rooms/${roomId}`, {
+    status:'finished',
+    [`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000),
+  });
+  await b.client.call('roomCommand', { command:'touch', roomId });
+  assert.equal((await read(b.db, `rooms/${roomId}`)).hostId, b.uid);
+  await b.client.call('roomCommand', { command:'lobby', roomId });
+  const lobby = await read(b.db, `rooms/${roomId}`);
+  assert.equal(lobby.status, 'lobby');
+  assert.equal(lobby.gameId, null);
+  assert.ok(lobby.members[b.uid]);
+  assert.ok(lobby.members[players[2].uid]);
+  assert.ok(Object.values(lobby.members).every(member => member.ready === false));
+});
+
+
+test('fin de partida no puede resolverse dos veces ni reabrir una ronda', async () => {
+  const { a, b, players, gameId, roomId } = await started(2);
+  await patch(`games/${gameId}`, {
+    [`players.${a.uid}.hair`]:1,
+    [`players.${b.uid}.hair`]:1,
+    [`players.${a.uid}.breath`]:1,
+    [`players.${b.uid}.breath`]:1,
+  });
+  await choose(a, gameId, 1, 'blow', b.uid);
+  await choose(b, gameId, 1, 'blow', a.uid);
+
+  const race = await Promise.allSettled([
+    a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' }),
+    a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' }),
+    a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' }),
+  ]);
+  const winners = race.filter(result => result.status === 'fulfilled' && result.value.advanced);
+  assert.equal(winners.length, 1);
+
+  const finished = await read(a.db, `games/${gameId}`);
+  assert.equal(finished.phase, 'finished');
+  assert.equal(finished.draw, true);
+  assert.equal(finished.resolvedTurn, 1);
+  assert.equal((await getDocs(collection(a.db, `games/${gameId}/rounds`))).size, 1);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'locked' })).advanced, false);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'reveal' })).advanced, false);
+
+  const roomFinished = await read(a.db, `rooms/${roomId}`);
+  assert.equal(roomFinished.status, 'finished');
+  await Promise.all([
+    a.client.call('roomCommand', { command:'lobby', roomId }),
+    a.client.call('roomCommand', { command:'lobby', roomId }),
+  ]);
+  const lobby = await read(a.db, `rooms/${roomId}`);
+  assert.equal(lobby.status, 'lobby');
+  assert.equal(lobby.gameId, null);
+  assert.ok(Object.values(lobby.members).every(member => member.ready === false));
 });

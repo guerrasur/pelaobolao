@@ -29,8 +29,10 @@ let operationGeneration = 0;
 let renderedHtml;
 let lastRevealStageKey = null;
 let lastRevealCountdown = null;
-let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
+let pending = null, sending = false, intentGeneration = 0, sendingGeneration = -1, drag = null, suppressClick = false, lastNudge = 0;
+let leaveArmedUntil = 0, leaveArmTimer = 0, lastCheckingConnection = false;
 const now = () => api?.now() ?? Date.now();
+const connectionFresh = () => !s.roomId || !lastContact || Date.now() - lastContact <= 30000;
 const setText = (node, value) => {
   if (!node) return false;
   const next = String(value ?? '');
@@ -56,7 +58,12 @@ const orderedLobbyMembers = members => Object.entries(members ?? {}).sort(([uidA
   const joinedA = millis(a?.joinedAt), joinedB = millis(b?.joinedAt);
   return joinedA - joinedB || uidA.localeCompare(uidB);
 });
-const vibrate = pattern => { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
+const vibrate = pattern => { try { if (!document.hidden && typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
+const matchStillRunning = () => s.room?.status === 'playing' && s.game && !['finished', 'abandoned'].includes(s.game.phase);
+function leaveMatchButton() {
+  const armed = matchStillRunning() && Date.now() < leaveArmedUntil;
+  return `<button id="leave-room" class="quiet${armed ? ' leave-armed' : ''}">${armed ? 'Confirmar salida' : 'Salir de la partida'}</button>`;
+}
 appMeta.textContent = `MVP · v${APP_VERSION}`;
 
 async function checkVersion() {
@@ -66,6 +73,7 @@ async function checkVersion() {
     const latest = (await response.json()).version;
     if (typeof latest === 'string' && isNewerVersion(latest, APP_VERSION)) {
       s.updateRequired = latest;
+      intentGeneration += 1;
       cancelDrag(); pending = null; s.choice = null; s.targeting = false;
       render();
     }
@@ -103,6 +111,22 @@ async function call(name, data) {
   if (result.serverNow) s.offset = result.serverNow - (start + Date.now()) / 2;
   return result;
 }
+async function boundedCall(promise, ms) {
+  if (typeof globalThis.setTimeout !== 'function') return promise;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = globalThis.setTimeout(() => {
+      const error = new Error('La conexión tardó demasiado.');
+      error.code = 'unavailable';
+      reject(error);
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    globalThis.clearTimeout?.(timer);
+  }
+}
 function showError(error) {
   const code = error.code;
   const friendly = {
@@ -111,6 +135,11 @@ function showError(error) {
   };
   message(friendly[code] || error.message || 'No pudimos completar la operación.');
 }
+const showInternalError = error => {
+  const code = String(error?.code || '');
+  if (code.endsWith('unavailable') || code.endsWith('permission-denied')) return;
+  showError(error);
+};
 function clearDragFeedback() {
   document.getElementById('blow-drag-ghost')?.remove();
   document.getElementById('blow-drag-vector')?.remove();
@@ -167,8 +196,10 @@ function cancelDrag() {
 }
 function detachGame() {
   gameGeneration += 1; cancelDrag(); returningLobby = false; lastLobbyReturnAttempt = 0;
+  globalThis.clearTimeout?.(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   gameOff?.(); intentOff?.(); gameOff = null; intentOff = null;
   s.gameId = null; s.game = null; s.intent = null; s.gameError = null;
+  intentGeneration += 1;
   s.choice = null; pending = null; s.targeting = false;
 }
 function resetRoomSession(text = '') {
@@ -181,6 +212,19 @@ function resetRoomSession(text = '') {
   if (oldRoomId) void call('clearRoomSession', { roomId: oldRoomId }).catch(() => {});
 }
 function leaveRoom() {
+  if (matchStillRunning() && Date.now() >= leaveArmedUntil) {
+    leaveArmedUntil = Date.now() + 2600;
+    globalThis.clearTimeout?.(leaveArmTimer);
+    leaveArmTimer = globalThis.setTimeout?.(() => {
+      if (Date.now() < leaveArmedUntil) return;
+      leaveArmedUntil = 0; leaveArmTimer = 0;
+      message(''); render();
+    }, 2700);
+    message('Tocá Confirmar salida para abandonar esta partida.');
+    render();
+    return;
+  }
+  globalThis.clearTimeout?.(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   const roomId = s.roomId;
   resetRoomSession();
   if (roomId) void call('roomCommand', { command: 'leave', roomId }).catch(() => {});
@@ -204,6 +248,7 @@ function subscribeGame(id) {
     if (generation !== gameGeneration) return;
     // Never drive timers/transitions using speculative writes or an old cached round.
     if (snap.metadata.hasPendingWrites || snap.metadata.fromCache) return;
+    lastContact = Date.now();
     if (!snap.exists()) {
       cancelDrag(); s.game = null;
       s.gameError = 'La partida ya no existe o quedó incompleta.';
@@ -223,6 +268,7 @@ function subscribeGame(id) {
     }
     lastPhase = s.game.phase;
     if (oldTurn !== s.game?.turn || s.game?.phase !== 'choosing') {
+      intentGeneration += 1;
       cancelDrag(); s.choice = null; pending = null; s.targeting = false;
       lastNudge = 0;
       message('');
@@ -238,6 +284,7 @@ function subscribeGame(id) {
   });
   intentOff = onSnapshot(doc(api.db, 'games', id, 'intents', api.uid), snap => {
     if (generation !== gameGeneration) return;
+    if (!snap.metadata?.fromCache) lastContact = Date.now();
     s.intent = snap.data() ?? null;
     render();
   }, error => {
@@ -251,12 +298,17 @@ function subscribeRoom(id) {
   if (!id) { render(); return; }
   roomOff = onSnapshot(doc(api.db, 'rooms', id), { includeMetadataChanges: true }, snap => {
     if (generation !== roomGeneration || snap.metadata.hasPendingWrites || snap.metadata.fromCache) return;
+    lastContact = Date.now();
     const room = snap.data();
     if (!room || room.status === 'closed' || !room.members?.[api.uid] || room.members[api.uid].left) {
       void resetRoomSession('Esa sala ya no está disponible. Podés crear otra o volver con un código.');
       return;
     }
+    const previousStatus = s.room?.status;
     s.room = { ...room, members: Object.fromEntries(Object.entries(room.members).map(([uid, m]) => [uid, { ...m, lastSeenAt: millis(m.lastSeenAt) }])) };
+    if (room.status === 'lobby' && previousStatus && previousStatus !== 'lobby') {
+      returningLobby = false; lastLobbyReturnAttempt = 0; message('');
+    }
     subscribeGame(room.gameId);
     render();
   }, error => {
@@ -281,7 +333,7 @@ async function heartbeat(force = false) {
   const generation = roomGeneration;
   lastHeartbeatAt = wallNow;
   heartbeatBusy = true;
-  try { await roomCommand('touch'); }
+  try { await boundedCall(roomCommand('touch'), 3200); }
   catch (error) {
     if (generation !== roomGeneration) return;
     if (error.code?.endsWith('not-found')) {
@@ -302,16 +354,29 @@ async function heartbeat(force = false) {
 }
 
 function canChoose() {
-  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && s.game?.phase === 'choosing'
+  return s.nameConfirmed && !s.updateRequired && !s.gameError && s.online && connectionFresh() && s.game?.phase === 'choosing'
     && Number.isFinite(phaseDeadline(s.game)) && now() < phaseDeadline(s.game)
     && !(s.game.protocolVersion === 2 && allMarked(s.game, 'chosen')) && s.game.players[api.uid]?.hair > 0;
 }
+function pendingIntentStillValid(intent) {
+  const deadline = phaseDeadline(s.game);
+  return Boolean(intent && s.nameConfirmed && !s.updateRequired && !s.gameError
+    && intent.gameId === s.gameId && intent.turn === s.game?.turn && s.game?.phase === 'choosing'
+    && Number.isFinite(deadline) && now() < deadline && s.game?.players?.[api.uid]?.hair > 0);
+}
 function accepted() { return s.intent?.turn === s.game?.turn ? s.intent : null; }
 function choose(action, target = null) {
+  if (s.online && !connectionFresh()) { message('Comprobando conexión con el servidor…'); return; }
   if (!canChoose()) { message('Ya no podés elegir en este turno.'); return; }
   if (action === 'blow' && (s.game.players[api.uid].breath < 1 || !validBlowTarget(target))) return;
   if (action === 'hide' && isHideLocked()) { message(`Solo podés esconderte ${hideLimit()} veces seguidas. Elegí otra acción.`); return; }
   if (action === 'grab' && (!freeCenterPickup() || target !== CENTER_ITEM_TARGET || !centerItemActive())) return;
+  const current = s.choice?.turn === s.game.turn ? s.choice : accepted();
+  if (current?.action === action && (current.target ?? null) === (target ?? null)) {
+    s.targeting = false;
+    render();
+    return;
+  }
   s.targeting = false;
   s.choice = { action, target, turn: s.game.turn };
   vibrate(action === 'blow' ? 16 : action === 'grab' ? [12, 20, 28] : 9);
@@ -319,29 +384,50 @@ function choose(action, target = null) {
   render(); void flushIntent();
 }
 async function flushIntent() {
-  if (sending) return;
-  sending = true;
-  while (pending) {
+  const generation = intentGeneration;
+  if (sending && sendingGeneration === generation) return;
+  sending = true; sendingGeneration = generation;
+  while (pending && generation === intentGeneration) {
     const next = pending; pending = null;
-    if (!canChoose() || next.gameId !== s.gameId || next.turn !== s.game.turn) continue;
+    if (!canChoose() || next.gameId !== s.gameId || next.turn !== s.game?.turn) {
+      if (!s.online && pendingIntentStillValid(next)) {
+        pending = next;
+        break;
+      }
+      if (!pending && s.choice?.turn === next.turn) s.choice = null;
+      continue;
+    }
     try {
-      const result = await call('submitIntent', { ...next, expectedRevision: accepted()?.revision ?? 0 });
+      const result = await boundedCall(
+        call('submitIntent', { ...next, expectedRevision: accepted()?.revision ?? 0 }),
+        3200,
+      );
+      if (generation !== intentGeneration) break;
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
         if (!s.intent || s.intent.turn !== result.turn || s.intent.revision <= result.revision) s.intent = result;
         if (!pending) s.choice = null;
         message('');
       }
     } catch (error) {
+      if (generation !== intentGeneration) break;
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
+        const transient = String(error.code || '').endsWith('unavailable');
+        if (transient && pendingIntentStillValid(next)) {
+          pending = pending ?? next;
+          message(s.online ? 'Conexión inestable · reintentando…' : 'Sin conexión · la jugada se enviará al volver.');
+          if (s.online) window.setTimeout(() => { void flushIntent(); }, 700);
+          break;
+        }
         if (!pending) s.choice = null;
         showError(error);
       }
     }
     render();
   }
-  sending = false; render();
+  if (sendingGeneration === generation) {
+    sending = false; sendingGeneration = -1; render();
+  }
 }
-
 
 function roundImpact(game) {
   const result = game?.lastResult;
@@ -511,6 +597,7 @@ function syncRevealTimeline(game) {
 function selectionText(choice) {
   if (s.targeting) return 'Tocá SOPLAR de nuevo para cancelar.';
   if (!choice) return 'Si no elegís a tiempo: Distraído';
+  if (s.choice && !s.online) return `Sin conexión · pendiente: ${esc(choiceName(choice))}`;
   if (choice.action === 'blow' && choice.target) {
     const label = esc(targetName(choice.target));
     return s.choice ? `Fijando objetivo: ${label}…` : `OBJETIVO FIJADO: ${label} · SOPLO preparado`;
@@ -758,7 +845,7 @@ function render() {
                 : game.phase === 'reveal' ? 'Resultado del turno'
                   : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.'
                     : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}${leaveMatchButton()}</section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -814,10 +901,17 @@ function bind() {
     } catch { message(`Código: ${code}`); }
   });
   document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => choose(button.dataset.action)));
+  const consumeSuppressedClick = () => {
+    if (!suppressClick) return false;
+    suppressClick = false;
+    return true;
+  };
   document.querySelectorAll('[data-player]').forEach(button => button.addEventListener('click', () => {
+    if (consumeSuppressedClick()) return;
     if (s.targeting) choose('blow', button.dataset.player);
   }));
   document.querySelector('[data-center-item]')?.addEventListener('click', event => {
+    if (consumeSuppressedClick()) return;
     const target = event.currentTarget.dataset.centerItem;
     if (freeCenterPickup() && !s.targeting) choose('grab', target);
     else if (!freeCenterPickup() && s.targeting) choose('blow', target);
@@ -825,12 +919,12 @@ function bind() {
   const blow = document.querySelector('#blow');
   if (!blow) return;
   blow.addEventListener('click', () => {
-    if (suppressClick) { suppressClick = false; return; }
+    if (consumeSuppressedClick()) return;
     if (!canChoose()) return;
     s.targeting = !s.targeting; render();
   });
   blow.addEventListener('pointerdown', event => {
-    if (!canChoose() || event.button !== 0) return;
+    if (drag || !canChoose() || event.button !== 0 || event.isPrimary === false) return;
     drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, target: null,
       gameId: s.gameId, turn: s.game.turn };
     blow.setPointerCapture(event.pointerId);
@@ -870,12 +964,20 @@ function bind() {
 }
 
 function tick() {
-  const checkingConnection = s.online && Boolean(lastContact && Date.now() - lastContact > 30000 && s.roomId);
+  const checkingConnection = s.online && Boolean(s.roomId && !connectionFresh());
   const connecting = s.online && !api;
   setText(connection, !s.online ? 'Sin conexión · reconectando al volver la señal' : checkingConnection ? 'Comprobando conexión con el servidor…' : api ? 'Conectado' : 'Conectando…');
   connection.classList.toggle('offline', !s.online);
   connection.classList.toggle('checking', checkingConnection);
   connection.classList.toggle('connecting', connecting);
+  if (!checkingConnection && notice.textContent === 'Comprobando conexión con el servidor…') message('');
+  if (s.game && checkingConnection !== lastCheckingConnection) {
+    lastCheckingConnection = checkingConnection;
+    if (checkingConnection) { cancelDrag(); s.targeting = false; }
+    render();
+    return;
+  }
+  lastCheckingConnection = checkingConnection;
   if (s.updateRequired) return;
   document.querySelectorAll('[data-presence]').forEach(el => {
     const online = memberOnline(el.dataset.presence);
@@ -899,7 +1001,7 @@ function tick() {
   if (game.phase === 'finished' && returnSeconds === 0 && !returningLobby && s.room?.hostId === api?.uid
     && s.online && Date.now() - lastLobbyReturnAttempt > 1500) {
     returningLobby = true; lastLobbyReturnAttempt = Date.now();
-    roomCommand('lobby').catch(showError).finally(() => { returningLobby = false; });
+    boundedCall(roomCommand('lobby'), 3500).catch(showInternalError).finally(() => { returningLobby = false; });
   }
   const deadline = phaseDeadline(game);
   const seconds = Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now()) / 1000)) : null;
@@ -912,6 +1014,7 @@ function tick() {
     timer.classList.toggle('urgent', game.phase === 'choosing' && seconds !== null && seconds <= 3);
   }
   const board = document.querySelector('.game');
+  board?.classList.toggle('connection-stale', checkingConnection);
   if (board && game.phase === 'choosing' && Number.isFinite(deadline)) {
     const duration = Number(game.rules?.turnMs) || 1;
     const remaining = Math.max(0, Math.min(duration, deadline - now()));
@@ -920,8 +1023,8 @@ function tick() {
   if (!acknowledging && Date.now() - lastAck > 1000 && s.nameConfirmed && !document.hidden && s.online && game.protocolVersion === 2
     && game.memberIds?.includes(api.uid) && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
     acknowledging = true; lastAck = Date.now();
-    call('acknowledgeRound', { gameId: s.gameId, turn: game.turn })
-      .catch(showError).finally(() => { acknowledging = false; });
+    boundedCall(call('acknowledgeRound', { gameId: s.gameId, turn: game.turn }), 3200)
+      .catch(showInternalError).finally(() => { acknowledging = false; });
   }
   if (s.game.phase === 'choosing' && seconds === 0) {
     const status = document.querySelector('#turn-status');
@@ -939,7 +1042,7 @@ function tick() {
     abandoning = true;
     const gameId = s.gameId;
     resetRoomSession('La partida venció por inactividad. Podés crear una sala nueva.');
-    void call('abandonGame', { gameId }).catch(() => {}).finally(() => { abandoning = false; });
+    void boundedCall(call('abandonGame', { gameId }), 4000).catch(() => {}).finally(() => { abandoning = false; });
     return;
   }
   // If the authority tab disappeared, an active participant claims host as soon as
@@ -953,8 +1056,8 @@ function tick() {
     || game.phase === 'choosing' && allMarked(game, 'chosen'));
   if (!advancing && s.room?.hostId === api?.uid && s.online && ['countdown', 'syncing', 'choosing', 'locked', 'reveal'].includes(game.phase) && (early || now() > deadline + 100) && Date.now() - lastNudge > 350) {
     lastNudge = Date.now(); advancing = true;
-    call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase })
-      .catch(showError).finally(() => { advancing = false; });
+    boundedCall(call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase }), 4000)
+      .catch(showInternalError).finally(() => { advancing = false; });
   }
 }
 
@@ -965,14 +1068,28 @@ document.querySelector('.brand')?.addEventListener('click', event => {
   vibrate(8);
 });
 
-window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
+window.addEventListener('offline', () => { cancelDrag(); s.targeting = false; s.online = false; render(); });
 const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
-window.addEventListener('online', () => { s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); });
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { cancelDrag(); return; }
-  resyncClock(); void heartbeat(true); tick(); void checkVersion();
+window.addEventListener('online', () => {
+  s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
 });
-window.addEventListener('pagehide', cancelDrag);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cancelDrag();
+    if (s.targeting) { s.targeting = false; render(); }
+    return;
+  }
+  resyncClock(); void heartbeat(true); tick(); void checkVersion(); void flushIntent();
+});
+window.addEventListener('pagehide', () => {
+  cancelDrag();
+  s.targeting = false;
+});
+window.addEventListener('pageshow', event => {
+  if (!event.persisted) return;
+  s.online = navigator.onLine;
+  resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
+});
 setInterval(tick, 200);
 setInterval(heartbeat, 2000);
 setInterval(checkVersion, 60000);

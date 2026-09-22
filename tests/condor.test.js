@@ -215,7 +215,7 @@ test('0.33 refuerza tactilidad y jerarquía de fase sin mover la geometría', as
     readFile('src/sound.js', 'utf8'),
     readFile('package.json', 'utf8').then(JSON.parse),
   ]);
-  assert.equal(packageInfo.version, '0.35.0');
+  assert.equal(packageInfo.version, '0.36.0');
   assert.match(js, /playCue\('gameTap'\)/);
   assert.match(js, /chosenInitialized/);
   assert.match(js, /condor-choice-locked/);
@@ -246,9 +246,9 @@ test('0.34 evita que el heartbeat del host bloquee su jugada y no confirma antes
   assert.match(main, /const choiceSaving = Boolean\(s\.choice\?\.turn === game\.turn\)/);
   assert.match(main, /actionControls\(canChoose\(\), me\.breath, s\.targeting, choice\?\.action, hideBlocked, choiceSaving\)/);
   assert.match(visuals, /GUARDANDO…/);
-  assert.equal(packageInfo.version, '0.35.0');
-  assert.equal(publicVersion.version, '0.35.0');
-  assert.match(sw, /pelaobolao-shell-0\.35\.0/);
+  assert.equal(packageInfo.version, '0.36.0');
+  assert.equal(publicVersion.version, '0.36.0');
+  assert.match(sw, /pelaobolao-shell-0\.36\.0/);
 });
 
 
@@ -270,7 +270,209 @@ test('0.35 endurece resolución y cubre stress multijugador', async () => {
   assert.match(integration, /Plan Cóndor stress: 2, 3, 4 y 6 jugadores/);
   assert.match(integration, /Promise\.allSettled/);
   assert.match(integration, /resolvedTurn, turn/);
-  assert.equal(packageInfo.version, '0.35.0');
-  assert.equal(publicVersion.version, '0.35.0');
-  assert.match(sw, /pelaobolao-shell-0\.35\.0/);
+  assert.equal(packageInfo.version, '0.36.0');
+  assert.equal(publicVersion.version, '0.36.0');
+  assert.match(sw, /pelaobolao-shell-0\.36\.0/);
+});
+
+
+test('el lote de pulido conserva una jugada pendiente durante una desconexión breve', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  const offlineStart = main.indexOf("window.addEventListener('offline'");
+  const onlineStart = main.indexOf("window.addEventListener('online'", offlineStart);
+  const offlineBlock = main.slice(offlineStart, onlineStart);
+  const onlineBlock = main.slice(onlineStart, main.indexOf("document.addEventListener('visibilitychange'", onlineStart));
+  const flushStart = main.indexOf('async function flushIntent');
+  const flushEnd = main.indexOf('function roundImpact', flushStart);
+  const flush = main.slice(flushStart, flushEnd);
+  assert.ok(offlineStart >= 0 && onlineStart > offlineStart);
+  assert.doesNotMatch(offlineBlock, /pending\s*=\s*null/);
+  assert.doesNotMatch(offlineBlock, /s\.choice\s*=\s*null/);
+  assert.match(onlineBlock, /flushIntent\(\)/);
+  assert.match(main, /function pendingIntentStillValid/);
+  assert.match(flush, /endsWith\('unavailable'\)/);
+  assert.match(flush, /Sin conexión · la jugada se enviará al volver/);
+  assert.match(main, /Sin conexión · pendiente:/);
+});
+
+test('el lote de pulido diferencia GUARDANDO de ELEGIDA también en feedback visual y sonoro', async () => {
+  const [visuals, css, condor, sound] = await Promise.all([
+    readFile('src/visuals.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+    readFile('src/condor.js', 'utf8'),
+    readFile('src/sound.js', 'utf8'),
+  ]);
+  assert.match(visuals, /saving \? 'saving-action' : 'chosen-action'/);
+  assert.match(css, /button\.saving-action/);
+  assert.match(css, /@keyframes condor-saving-pulse/);
+  assert.match(condor, /classList\.contains\('self'\)\) playCue\('confirm'\)/);
+  assert.match(sound, /confirm: \{ notes:/);
+});
+
+
+test('el lote de pulido: salida activa requiere una segunda intención visible', async () => {
+  const [main, css] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+  ]);
+  assert.match(main, /const matchStillRunning = \(\) =>/);
+  assert.match(main, /leaveArmedUntil = Date\.now\(\) \+ 2600/);
+  assert.match(main, /Tocá Confirmar salida para abandonar esta partida/);
+  assert.match(main, /Confirmar salida/);
+  assert.match(css, /#leave-room\.leave-armed/);
+});
+
+
+test('el lote de pulido: una cola de intención vieja no puede bloquear una sala nueva', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /intentGeneration = 0, sendingGeneration = -1/);
+  assert.match(main, /const generation = intentGeneration/);
+  assert.match(main, /sending && sendingGeneration === generation/);
+  assert.match(main, /if \(generation !== intentGeneration\) break/);
+  assert.match(main, /if \(sendingGeneration === generation\)/);
+  const detachStart = main.indexOf('function detachGame');
+  const resetStart = main.indexOf('function resetRoomSession', detachStart);
+  assert.match(main.slice(detachStart, resetStart), /intentGeneration \+= 1/);
+});
+
+
+test('el lote de pulido silencia feedback en background y recalcula geometría al volver', async () => {
+  const [main, condor, sound] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor.js', 'utf8'),
+    readFile('src/sound.js', 'utf8'),
+  ]);
+  assert.match(sound, /document !== 'undefined' && document\.hidden/);
+  assert.match(main, /!document\.hidden && typeof navigator\.vibrate/);
+  assert.match(condor, /window\.visualViewport\?\.addEventListener\('resize', scheduleEnhance/);
+  assert.match(condor, /document\.addEventListener\('visibilitychange', resumeEnhance/);
+  assert.match(condor, /window\.visualViewport\?\.removeEventListener\('resize', scheduleEnhance/);
+});
+
+
+test('el lote de pulido bloquea decisiones si el navegador dice online pero Firestore está stale', async () => {
+  const [main, css] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+  ]);
+  assert.match(main, /const connectionFresh = \(\) =>/);
+  assert.match(main, /s\.online && connectionFresh\(\) && s\.game\?\.phase === 'choosing'/);
+  assert.match(main, /Comprobando conexión con el servidor…/);
+  assert.match(main, /lastContact = Date\.now\(\)/);
+  assert.match(main, /classList\.toggle\('connection-stale', checkingConnection\)/);
+  assert.match(css, /\.game\.connection-stale \.controls/);
+});
+
+
+test('el lote de pulido reintenta una jugada que queda colgada antes de que venza el turno', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /async function boundedCall\(promise, ms\)/);
+  assert.match(main, /error\.code = 'unavailable'/);
+  assert.match(main, /Promise\.race\(\[promise, timeout\]\)/);
+  assert.match(main, /boundedCall\([\s\S]*?call\('submitIntent'/);
+  assert.match(main, /3200/);
+  assert.match(main, /pending = pending \?\? next/);
+});
+
+
+test('el lote de pulido: ningún request interno puede dejar congelado heartbeat o resolución', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /boundedCall\(roomCommand\('touch'\), 3200\)/);
+  assert.match(main, /boundedCall\(roomCommand\('lobby'\), 3500\)/);
+  assert.match(main, /boundedCall\(call\('acknowledgeRound'[\s\S]*?3200\)/);
+  assert.match(main, /boundedCall\(call\('advanceGame'[\s\S]*?4000\)/);
+  assert.match(main, /boundedCall\(call\('abandonGame'[\s\S]*?4000\)/);
+  assert.match(main, /finally\(\(\) => \{ abandoning = false; \}\)/);
+  assert.match(main, /finally\(\(\) => \{ advancing = false; \}\)/);
+  assert.match(main, /finally \{ heartbeatBusy = false; \}/);
+});
+
+
+test('el lote de pulido: la recuperación transitoria no deja avisos de error pegados', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /const showInternalError = error =>/);
+  assert.match(main, /code\.endsWith\('unavailable'\) \|\| code\.endsWith\('permission-denied'\)/);
+  assert.match(main, /catch\(showInternalError\)/);
+  assert.match(main, /notice\.textContent === 'Comprobando conexión con el servidor…'/);
+  assert.match(main, /message\(''\)/);
+});
+
+
+test('el lote de pulido ignora un segundo dedo mientras se arrastra Soplar', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /if \(drag \|\| !canChoose\(\) \|\| event\.button !== 0 \|\| event\.isPrimary === false\) return;/);
+  assert.match(main, /event\.pointerId !== drag\.pointerId/);
+  assert.match(main, /setPointerCapture\(event\.pointerId\)/);
+});
+
+
+test('el lote de pulido consume el click sintético posterior al drag sin duplicar Soplar', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /const consumeSuppressedClick = \(\) =>/);
+  assert.ok((main.match(/consumeSuppressedClick\(\)/g) || []).length >= 3);
+  assert.match(main, /if \(consumeSuppressedClick\(\)\) return;[\s\S]*?s\.targeting/);
+  assert.match(main, /if \(consumeSuppressedClick\(\)\) return;[\s\S]*?dataset\.centerItem/);
+});
+
+
+test('el lote de pulido respeta movimiento reducido también en la confirmación de salida', async () => {
+  const css = await readFile('src/condor.css', 'utf8');
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)[\s\S]*?#leave-room\.leave-armed[\s\S]*?animation:none!important/);
+});
+
+
+test('el lote de pulido desactiva controles al detectar contacto stale y evita falsos errores de takeover', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /lastCheckingConnection = false/);
+  assert.match(main, /checkingConnection !== lastCheckingConnection/);
+  assert.match(main, /if \(checkingConnection\) \{ cancelDrag\(\); s\.targeting = false; \}/);
+  assert.match(main, /render\(\);\n    return;/);
+  assert.match(main, /code\.endsWith\('permission-denied'\)/);
+  assert.match(main, /showInternalError/);
+});
+
+
+test('el lote de pulido: background cancela targeting no confirmado pero no una intención aceptada', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  const start = main.indexOf("document.addEventListener('visibilitychange'");
+  const end = main.indexOf("window.addEventListener('pagehide'", start);
+  const block = main.slice(start, end);
+  assert.match(block, /if \(document\.hidden\)/);
+  assert.match(block, /cancelDrag\(\)/);
+  assert.match(block, /if \(s\.targeting\) \{ s\.targeting = false; render\(\); \}/);
+  assert.doesNotMatch(block, /s\.intent\s*=\s*null/);
+});
+
+
+test('el lote de pulido ignora taps duplicados sobre la misma jugada local o aceptada', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /const current = s\.choice\?\.turn === s\.game\.turn \? s\.choice : accepted\(\)/);
+  assert.match(main, /current\?\.action === action/);
+  assert.match(main, /\(current\.target \?\? null\) === \(target \?\? null\)/);
+  assert.match(main, /s\.targeting = false;\n    render\(\);\n    return;/);
+});
+
+
+test('el lote de pulido restaura BFCache sin conservar targeting ni perder reintentos', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /window\.addEventListener\('pagehide', \(\) => \{/);
+  assert.match(main, /pagehide[\s\S]*?s\.targeting = false/);
+  assert.match(main, /window\.addEventListener\('pageshow', event => \{/);
+  assert.match(main, /if \(!event\.persisted\) return/);
+  assert.match(main, /s\.online = navigator\.onLine/);
+  assert.match(main, /resyncClock\(\); void heartbeat\(true\); void checkVersion\(\); render\(\); void flushIntent\(\)/);
+});
+
+
+test('cierre del lote 0.36 alinea versión y auditoría terminal', async () => {
+  const [integration, sw, packageInfo, publicVersion] = await Promise.all([
+    readFile('tests/integration.test.js', 'utf8'),
+    readFile('public/sw.js', 'utf8'),
+    readFile('package.json', 'utf8').then(JSON.parse),
+    readFile('public/version.json', 'utf8').then(JSON.parse),
+  ]);
+  assert.match(integration, /fin de partida no puede resolverse dos veces ni reabrir una ronda/);
+  assert.equal(packageInfo.version, '0.36.0');
+  assert.equal(publicVersion.version, '0.36.0');
+  assert.match(sw, /pelaobolao-shell-0\.36\.0/);
 });

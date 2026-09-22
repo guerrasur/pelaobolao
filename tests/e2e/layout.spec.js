@@ -17,7 +17,7 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
   await page.evaluate(()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}));
   let room;
   await env.withSecurityRulesDisabled(async ctx=>{room=(await getDoc(doc(ctx.firestore(),'rooms',code))).data();});
-  for(const count of [2,6]) {
+  for(const count of [2,3,4,5,6]) {
     const members={...room.members};
     for(let i=1;i<count;i++) members[`layout-${i}`]={name:`Rival largo número ${i}`,joinedAt:Date.now()+i,lastSeenAt:Timestamp.now(),left:false,ready:true};
     const game=newGame(code,members,Date.now());
@@ -73,6 +73,24 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
           return bad;
         });
         expect(failures,`${count} jugadores ${width}x${height} ${phase}`).toEqual([]);
+      }
+      if(count===6 && width===320 && height===568) {
+        await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+        await expect(page.locator('#connection')).toContainText('Sin conexión');
+        const offlineLayout = await page.evaluate(() => {
+          const game = document.querySelector('.game')?.getBoundingClientRect();
+          return {
+            pageScroll: document.documentElement.scrollHeight - innerHeight,
+            pageWidth: document.documentElement.scrollWidth - innerWidth,
+            gameTop: game?.top ?? -1,
+            gameBottom: game?.bottom ?? innerHeight + 1,
+          };
+        });
+        expect(offlineLayout.pageScroll).toBeLessThanOrEqual(1);
+        expect(offlineLayout.pageWidth).toBeLessThanOrEqual(1);
+        expect(offlineLayout.gameTop).toBeGreaterThanOrEqual(0);
+        expect(offlineLayout.gameBottom).toBeLessThanOrEqual(568);
+        await page.evaluate(() => window.dispatchEvent(new Event('online')));
       }
       if(count===6 && width===390 && height===664) await page.screenshot({path:'test-results/fullscreen-six-mobile.png'});
     }

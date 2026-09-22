@@ -255,3 +255,218 @@ test('cancelar compartir después de salir de la sala no rompe la app', async ({
   await expect(page.locator('#create-room')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+
+test('desconexión mientras apunta cancela el targeting y al volver deja elegir de nuevo', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { [`players.${room.hostId}.breath`]: 1, 'rules.turnMs': 60000 });
+    await expect(page.locator('#blow')).toBeEnabled();
+    await page.locator('#blow').click();
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting', 'true');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting', 'false');
+    await expect(page.locator('#blow')).toBeDisabled();
+    await expect(page.locator('#connection')).toContainText('Sin conexión');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect(page.locator('#blow')).toBeEnabled();
+    await page.getByRole('button', { name: 'Tomar aire', exact: true }).click();
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+  } finally {
+    await guestContext.close();
+  }
+});
+
+
+test('GUARDANDO es local y ELEGIDA requiere confirmación real del servidor', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { 'rules.turnMs': 60000 });
+    const immediate = await page.evaluate(() => {
+      document.querySelector('[data-action="air"]').click();
+      const currentButton = document.querySelector('[data-action="air"]');
+      return {
+        actionState: currentButton?.querySelector('.action-state')?.textContent ?? '',
+        actionClass: currentButton?.className ?? '',
+        selfStatus: document.querySelector('[data-player].self small')?.textContent ?? '',
+        selection: document.querySelector('#selection')?.textContent ?? '',
+      };
+    });
+    expect(immediate.actionState).toContain('GUARDANDO');
+    expect(immediate.actionClass).toContain('saving-action');
+    expect(immediate.actionClass).not.toContain('chosen-action');
+    expect(immediate.selfStatus).not.toContain('Ya eligió');
+    expect(immediate.selection).toContain('Guardando');
+
+    await expect(page.locator('[data-action="air"]')).toHaveClass(/chosen-action/);
+    await expect(page.locator('[data-action="air"]')).not.toHaveClass(/saving-action/);
+    await expect(page.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
+    await expect(page.locator('[data-player].self small')).toContainText('Ya eligió');
+    await expect(page.locator('#selection')).toContainText('Elegido: Tomar aire');
+    await expect.poll(async () => (await read(`games/${gameId}`)).chosen?.[room.hostId]).toBe(true);
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+  } finally {
+    await guestContext.close();
+  }
+});
+
+
+test('el timer vence sin quedarse clavado en 0 y avanza aunque falte una jugada', async ({ browser, page }) => {
+  const { guestContext, guest, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, {
+      'rules.turnMs': 1400,
+      'rules.revealMs': 1400,
+      deadline: Date.now() + 1400,
+      phaseStartedAt: Timestamp.now(),
+      lastProgressAt: Timestamp.now(),
+    });
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+
+    await expect(page.locator('.game')).toHaveAttribute('data-phase', /locked|reveal/, { timeout:5000 });
+    await expect(page.locator('.game')).toHaveAttribute('data-phase', 'reveal', { timeout:5000 });
+    const resolved = await read(`games/${gameId}`);
+    const guestId = resolved.memberIds.find(uid => uid !== room.hostId);
+    expect(resolved.lastResult.actions[guestId].action).toBe('distracted');
+
+    await expect(page.locator('.game')).toHaveAttribute('data-phase', 'choosing', { timeout:6000 });
+    await expect(page.getByRole('heading', { name:'Turno 2', exact:true })).toBeVisible();
+    await expect(page.locator('#timer')).not.toHaveText('00s');
+    await expect(guest.locator('.game')).toHaveAttribute('data-phase', 'choosing', { timeout:3000 });
+    const next = await read(`games/${gameId}`);
+    expect(next.turn).toBe(2);
+    expect(next.chosen).toEqual({});
+  } finally {
+    await guestContext.close();
+  }
+});
+
+
+test('salir de una partida activa requiere confirmación y recién el segundo toque la cierra', async ({ browser, page }) => {
+  const { guestContext, code, gameId } = await pair(browser, page);
+  try {
+    await page.getByRole('button', { name:'Salir de la partida', exact:true }).click();
+    await expect(page.getByRole('button', { name:'Confirmar salida', exact:true })).toBeVisible();
+    await expect(page.locator('#notice')).toContainText('Confirmar salida');
+    const stillOpen = await read(`rooms/${code}`);
+    const stillRunning = await read(`games/${gameId}`);
+    expect(stillOpen.status).toBe('playing');
+    expect(stillOpen.gameId).toBe(gameId);
+    expect(stillRunning.phase).not.toBe('abandoned');
+
+    await page.getByRole('button', { name:'Confirmar salida', exact:true }).click();
+    await expect(page.locator('#create-room')).toBeVisible();
+    await expect.poll(async () => (await read(`rooms/${code}`))?.status).toBe('closed');
+    await expect.poll(async () => (await read(`games/${gameId}`))?.phase).toBe('abandoned');
+  } finally {
+    await guestContext.close();
+  }
+});
+
+
+test('reconectar después de perderse una fase aterriza en el turno vigente sin repetir reveal', async ({ browser, page }) => {
+  const { guestContext, guest, room, gameId } = await pair(browser, page);
+  try {
+    await guest.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await expect(guest.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
+    await guestContext.setOffline(true);
+    await expect(guest.locator('#connection')).toContainText('Sin conexión');
+
+    const current = await read(`games/${gameId}`);
+    const actions = Object.fromEntries(current.memberIds.map(uid => [uid, { action:'air', target:null }]));
+    await patch(`games/${gameId}`, {
+      turn:2,
+      phase:'choosing',
+      resolvedTurn:1,
+      chosen:{},
+      ready:{},
+      deadline:Date.now()+60000,
+      nextTurnAt:null,
+      phaseStartedAt:Timestamp.now(),
+      lastProgressAt:Timestamp.now(),
+      lastResult:{ turn:1, actions, hits:[], losses:{}, heals:{}, item:null },
+    });
+
+    await guestContext.setOffline(false);
+    await expect(guest.getByRole('heading', { name:'Turno 2', exact:true })).toBeVisible({ timeout:6000 });
+    await expect(guest.locator('.game')).toHaveAttribute('data-phase', 'choosing');
+    await expect(guest.locator('.round-reveal-overlay')).toHaveCount(0);
+    await expect(guest.locator('.saving-action')).toHaveCount(0);
+    await expect(guest.locator('.chosen-action')).toHaveCount(0);
+    await expect(guest.locator('#selection')).toContainText('Si no elegís a tiempo');
+    await expect(guest.getByRole('button', { name:'Tomar aire', exact:true })).toBeEnabled();
+  } finally {
+    await guestContext.setOffline(false);
+    await guestContext.close();
+  }
+});
+
+
+test('cambiar de acción rápido conserva sólo la última elección y su revisión', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { 'rules.turnMs':60000 });
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await page.getByRole('button', { name:'Esconderse', exact:true }).click();
+
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('hide');
+    const intent = await read(`games/${gameId}/intents/${room.hostId}`);
+    expect(intent.turn).toBe(1);
+    expect(intent.revision).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('[data-action="hide"]')).toHaveClass(/chosen-action/);
+    await expect(page.locator('[data-action="hide"] .action-state')).toHaveText('ELEGIDA');
+    await expect(page.locator('[data-action="air"]')).not.toHaveClass(/chosen-action|saving-action/);
+    await expect(page.locator('#selection')).toContainText('Elegido: Esconderse');
+  } finally {
+    await guestContext.close();
+  }
+});
+
+
+test('mandar la app a segundo plano cancela un Soplo sin objetivo sin enviar una jugada', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { [`players.${room.hostId}.breath`]:1, 'rules.turnMs':60000 });
+    const intentPath = `games/${gameId}/intents/${room.hostId}`;
+    const before = await read(intentPath);
+    await page.locator('#blow').click();
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting','true');
+
+    await page.evaluate(() => {
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting','false');
+    expect((await read(intentPath))?.revision ?? 0).toBe(before?.revision ?? 0);
+
+    await page.evaluate(() => {
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('#blow')).toBeEnabled();
+  } finally {
+    await guestContext.close();
+  }
+});
+
+
+test('doble toque sobre la misma acción no crea una revisión extra', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { 'rules.turnMs':60000 });
+    const intentPath = `games/${gameId}/intents/${room.hostId}`;
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await expect(page.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
+    const first = await read(intentPath);
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await page.waitForTimeout(250);
+    const second = await read(intentPath);
+    expect(second.revision).toBe(first.revision);
+    expect(second.requestId).toBe(first.requestId);
+  } finally {
+    await guestContext.close();
+  }
+});

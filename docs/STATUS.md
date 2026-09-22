@@ -1,5 +1,36 @@
 # Estado del MVP Spark
 
+## 0.36.0 — Plan Cóndor: pulido pre-playtest
+
+- Las jugadas locales pendientes ya no se pierden ante una desconexión breve: se conservan mientras el turno siga vigente y se reintentan al volver la conexión.
+- El modo de apuntado se cancela limpiamente si cae la conexión, evitando quedar visualmente en un estado de ataque imposible.
+- El stress multijugador ahora mete tráfico de presencia de todos los jugadores, no sólo del host, mientras entran jugadas y se resuelven rondas.
+- Se agregan regresiones para: `GUARDANDO…` vs `ELEGIDA`, relevo de host durante `locked`, timeout con jugador distraído, timer sin quedarse en 0, reconexión durante targeting, layout 6 jugadores a 320×568 sin scroll y combinación mechón + ataque + límite de Esconderse.
+- Salir durante una partida activa ahora requiere una segunda confirmación breve; el primer toque no puede cerrar accidentalmente la partida de todos.
+- El enlace de invitación conserva `?s=` durante esa navegación: si un compañero recarga por accidente, el código vuelve a quedar precargado, pero nunca se reingresa automáticamente.
+- La revancha se prueba desde estado contaminado y debe reiniciar Pelo, Soplos, racha de Esconderse, ítem central, resultado, `chosen` y `ready` desde cero.
+- Las colas de intención ahora llevan generación propia: una escritura vieja que termine tarde después de salir/cambiar de ronda no puede bloquear ni consumir la primera jugada de la sala siguiente.
+- Audio y vibración quedan silenciados mientras la app está en segundo plano, evitando feedback fantasma de rondas que avanzan con el celular bloqueado.
+- Si el jugador deja un Soplo en modo apuntado y cambia de app/bloquea el celular, ese targeting sin confirmar se cancela; una intención ya aceptada por Firestore no se borra.
+- Al volver a primer plano o cambiar el `visualViewport`, se recalcula la geometría de targeting/FX para Safari y navegadores móviles.
+- Safari/BFCache también queda cubierto: `pagehide` limpia drag/targeting y un `pageshow` restaurado recalibra reloj, heartbeat, versión y cualquier intención pendiente antes de seguir.
+- Se agrega un escenario E2E donde un jugador pierde una transición completa estando offline y, al reconectar, aterriza directamente en el turno vigente sin repetir reveal ni conservar una elección vieja.
+- Si `navigator.onLine` sigue en `true` pero pasan más de 30 s sin confirmación real de Firestore, las acciones dejan de aceptarse hasta recuperar contacto; snapshots autoritativos de sala/partida/intención renuevan ese contacto.
+- Al cruzar ese umbral de conexión stale, el cliente re-renderiza el tablero de inmediato: cancela targeting/drag y deja los controles realmente deshabilitados, no sólo visualmente atenuados. Carreras internas de takeover con `permission-denied` ya no muestran un falso mensaje de expulsión al jugador.
+- Una escritura de jugada que queda colgada más de 3,2 s se trata como fallo transitorio y se reintenta con el mismo `requestId`, aprovechando la idempotencia de `submitIntent` sin duplicar la acción.
+- Heartbeat, `acknowledgeRound`, resolución de ronda, limpieza por inactividad y regreso automático al lobby también tienen límites de espera; un request colgado ya no puede dejar los flags `heartbeatBusy`, `acknowledging`, `advancing`, `abandoning` o `returningLobby` trabados indefinidamente.
+- Se agrega cobertura E2E para cambios rápidos de acción: si un jugador toca una acción y enseguida otra antes del lock, la intención final debe quedar en la última elección con revisión creciente, sin dejar `GUARDANDO` residual.
+- Tocar dos veces la misma acción ya elegida no genera otra revisión ni otra escritura: el segundo tap sólo cierra targeting si correspondía y conserva la intención aceptada.
+- El checkpoint rápido posterior a estos cambios vuelve a ejecutar `npm test` y build sobre la rama antes de seguir acumulando el lote.
+- La regresión de layout ahora recorre 2, 3, 4, 5 y 6 jugadores en todos los viewports ya definidos, incluyendo 320×568 y landscape.
+- El drag de `Soplar` ignora punteros secundarios: un segundo dedo accidental ya no puede reemplazar el gesto principal ni dejar el apuntado en un estado inconsistente.
+- El click sintético que algunos navegadores móviles disparan al terminar un drag se consume tanto en `Soplar` como en tarjetas/ítems, evitando una segunda selección accidental.
+- La nueva confirmación de salida también respeta `prefers-reduced-motion`; no introduce una animación obligatoria para usuarios que la desactivan.
+- Después del endurecimiento táctil se vuelve a correr el checkpoint rápido de tests y build antes de sumar más cambios.
+- El cierre de 0.36.0 usa el pipeline de `main`: unitarios + build + integración Firestore + E2E de navegador antes del deploy de Hosting, Rules e índices.
+- La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
+- La auditoría final fuerza carreras en la última ronda: una partida sólo puede finalizar una vez, sólo crea un documento de ronda y el regreso concurrente al lobby queda idempotente.
+
 ## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
 
 - Se agrega una prueba de estrés de integración con 2, 3, 4 y 6 jugadores, cuatro rondas consecutivas por tamaño de sala y elecciones simultáneas.
