@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.28.0 — Plan Cóndor: director de reveal estable
+
+- El número 3–2–1 deja de formar parte del HTML calculado por `render()`; `tick()` actualiza únicamente el nodo del contador. Un heartbeat o snapshot de presencia ya no reemplaza todo el tablero por haber cambiado el segundo visual.
+- Esto evita reinicios de animaciones y pequeños saltos de layout durante la fase de suspense, especialmente en celulares con latencia o varios snapshots seguidos.
+- La ráfaga de tiza se mueve del inicio de `reveal` al beat `actions`: ahora ocurre cuando las jugadas realmente aparecen, en vez de quedar tapada por el overlay oscuro.
+- El callout del resultado recibe un único énfasis al entrar al beat `impact`; no se añaden sonidos duplicados porque audio/hápticos siguen bajo la autoridad de la timeline principal.
+- Se elimina el sello central heredado “JUGADAS SELLADAS” de la fase `locked`, que podía aparecer apenas unas décimas y producir un flash redundante antes del 3–2–1.
+- Los overlays visuales del reveal pasan a ser decorativos para accesibilidad (`aria-hidden`); el estado legible sigue en el banner y `#turn-status`, evitando anunciar 3–2–1 como alertas repetidas.
+- Se agregan regresiones unitarias y E2E: una prueba fuerza un snapshot de presencia en medio del countdown y exige que el nodo del reveal sobreviva sin ser reemplazado; también valida que tiza y callout aparezcan en sus beats correctos.
+- Sin cambios en daño, Pelo, Soplos, frecuencia de ítems, límites de Esconderse, Firestore Rules ni autoridad del host.
+
 ## 0.27.0 — Plan Cóndor: reveal estable + teclado iOS
 
 - La revelación de partidas nuevas usa reglas v6 y una ventana de 4 s: 1,5 s para el 3–2–1, 1,2 s para leer las jugadas y 1,3 s para las consecuencias.
