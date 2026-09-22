@@ -337,3 +337,17 @@ test('el lote de pulido: una cola de intención vieja no puede bloquear una sala
   const resetStart = main.indexOf('function resetRoomSession', detachStart);
   assert.match(main.slice(detachStart, resetStart), /intentGeneration \+= 1/);
 });
+
+
+test('el lote de pulido silencia feedback en background y recalcula geometría al volver', async () => {
+  const [main, condor, sound] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor.js', 'utf8'),
+    readFile('src/sound.js', 'utf8'),
+  ]);
+  assert.match(sound, /document !== 'undefined' && document\.hidden/);
+  assert.match(main, /!document\.hidden && typeof navigator\.vibrate/);
+  assert.match(condor, /window\.visualViewport\?\.addEventListener\('resize', scheduleEnhance/);
+  assert.match(condor, /document\.addEventListener\('visibilitychange', resumeEnhance/);
+  assert.match(condor, /window\.visualViewport\?\.removeEventListener\('resize', scheduleEnhance/);
+});
