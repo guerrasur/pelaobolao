@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última actualización (0.30.0): Plan Cóndor limpia el menú principal y el lobby. Se retira el copy decorativo o sobreexplicativo sin reemplazarlo por nuevas frases; inicio y sala quedan centrados en las acciones y estados necesarios. La nueva capa estabiliza alturas, compacta el lobby, reduce trabajo de render y adapta el menú al teclado móvil sin tocar reglas de juego.
+Última actualización (0.32.0): Plan Cóndor mantiene la composición simple de entrada y lobby, recupera el resaltado amarillo exclusivamente para el código de sala y refuerza el layout del encabezado para anchos móviles chicos. Se agregan regresiones estáticas y de navegador para evitar que “SALA” quede resaltado o que código/Compartir desborden el viewport.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
@@ -16,7 +16,7 @@ Se conservan las reglas e interacción existentes: 2–6 jugadores, Pelo 3/4, So
 
 La versión visible se toma de `package.json`. `public/version.json` permite detectar despliegues nuevos: una versión desactualizada bloquea el juego y ofrece una actualización limpia, sin perder la identidad guardada; el reingreso a la sala requiere su código. Ambos números deben incrementarse juntos.
 
-Publicación: habilitá Auth anónima, Firestore y una Web App; configurá las variables públicas `VITE_FIREBASE_*`; ejecutá `npm ci`, `npm test`, `npm run build` y `npx firebase deploy --only firestore:rules,firestore:indexes,hosting --project TU_ID`. Actualmente el repositorio no contiene un workflow de GitHub Actions para Firebase, por lo que el push a `main` no implica por sí solo un deploy.
+Publicación: habilitá Auth anónima, Firestore y una Web App; configurá las variables públicas `VITE_FIREBASE_*`. El workflow `Test and deploy Firebase` verifica tests unitarios, integración y navegador antes de publicar Hosting, reglas e índices cuando `main` queda verde.
 
 Para probar: abrí el dominio en dos celulares, creá sala, compartí el código, uní el segundo e iniciá.
 

@@ -188,6 +188,21 @@ test('0.31 centra nombre, recompone el menú y limpia el código de sala', async
   assert.match(source, /No te quedes pelao/);
   assert.match(source, /lobby-room-label">SALA/);
   assert.match(css, /\.home-mascot\s*\{[\s\S]*?animation:pb-home-mascot-idle/);
-  assert.match(css, /\.lobby-heading \.code\s*\{[\s\S]*?background:transparent!important/);
+  assert.match(source, /lobby-room-label">SALA<\/span><span class="code"/);
   assert.doesNotMatch(source, /BUENAS PARTIDAS AQUÍ|ESTRATEGIA RISAS AMIGOS|MISMO JUEGO MÁS AMIGOS|QUE COMIENCE LA JUGADA/);
+});
+
+
+test('0.32 recupera el resaltado amarillo sólo para el código de sala', async () => {
+  const [source, css] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor30.css', 'utf8'),
+  ]);
+  assert.match(source, /lobby-room-label">SALA<\/span><span class="code"/);
+  assert.match(css, /\.lobby-heading \.code\s*\{[\s\S]*?border:2px dashed #202633!important;[\s\S]*?background:#ffdf4f!important;/);
+  assert.match(css, /@media\(max-width:340px\)[\s\S]*?\.lobby-heading \.code/);
+  const labelStart = css.indexOf('.lobby-room-label {');
+  const labelEnd = css.indexOf('}', labelStart);
+  const labelBlock = css.slice(labelStart, labelEnd + 1);
+  assert.doesNotMatch(labelBlock, /background:#ffdf4f|background:yellow/);
 });

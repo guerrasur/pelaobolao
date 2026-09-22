@@ -78,3 +78,41 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
     }
   }
 });
+
+
+test('el lobby mantiene SALA neutro y resalta sólo el código amarillo en mobile angosto', async ({ page }) => {
+  await page.setViewportSize({ width:320, height:568 });
+  await page.goto('/');
+  await page.locator('#player-name').fill('Lobby');
+  await page.locator('#profile-form button').click();
+  await page.locator('#create-room').click();
+
+  await expect(page.locator('.lobby-room-label')).toHaveText('SALA');
+  await expect(page.locator('.lobby-heading .code')).toHaveText(/^[A-Z2-9]{4}$/);
+
+  const layout = await page.evaluate(() => {
+    const heading = document.querySelector('.lobby-heading').getBoundingClientRect();
+    const label = document.querySelector('.lobby-room-label');
+    const code = document.querySelector('.lobby-heading .code');
+    const share = document.querySelector('#share-room').getBoundingClientRect();
+    const codeRect = code.getBoundingClientRect();
+    return {
+      headingRight: heading.right,
+      codeRight: codeRect.right,
+      shareRight: share.right,
+      viewport: innerWidth,
+      bodyScrollWidth: document.documentElement.scrollWidth,
+      codeBackground: getComputedStyle(code).backgroundColor,
+      labelBackground: getComputedStyle(label).backgroundColor,
+      codeBorderStyle: getComputedStyle(code).borderTopStyle,
+    };
+  });
+
+  expect(layout.codeBackground).toBe('rgb(255, 223, 79)');
+  expect(layout.labelBackground).not.toBe('rgb(255, 223, 79)');
+  expect(layout.codeBorderStyle).toBe('dashed');
+  expect(layout.headingRight).toBeLessThanOrEqual(layout.viewport + 1);
+  expect(layout.codeRight).toBeLessThanOrEqual(layout.viewport + 1);
+  expect(layout.shareRight).toBeLessThanOrEqual(layout.viewport + 1);
+  expect(layout.bodyScrollWidth).toBeLessThanOrEqual(layout.viewport + 1);
+});

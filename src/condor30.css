@@ -525,11 +525,12 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   50% { opacity:1; transform:translateX(4px); }
 }
 
-/* Lobby: "SALA" integra el código y el código deja de funcionar como resaltado amarillo. */
+/* Lobby: "SALA" queda separada; sólo el código conserva el resaltado amarillo. */
 .lobby-heading h1 {
   display:flex;
-  align-items:baseline;
+  align-items:center;
   gap:8px;
+  min-width:0;
 }
 .lobby-room-label {
   flex:0 0 auto;
@@ -540,11 +541,16 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   letter-spacing:2.2px;
 }
 .lobby-heading .code {
-  padding:0!important;
-  border:0!important;
-  background:transparent!important;
+  display:inline-block;
+  flex:0 0 auto;
+  padding:4px 10px 5px!important;
+  border:2px dashed #202633!important;
+  border-radius:8px;
+  background:#ffdf4f!important;
   color:#202633!important;
-  box-shadow:none!important;
+  box-shadow:1px 2px 0 #202633!important;
+  line-height:.92;
+  letter-spacing:4px;
 }
 
 @media(max-width:380px) {
@@ -566,6 +572,13 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   .home-title-mark strong { font-size:30px; }
   .home-title-mark span { margin-top:10px; font-size:11px; }
   .home-mascot { width:min(29vw,104px); right:3%; }
+  .lobby-heading { gap:7px; }
+  .lobby-heading h1 { gap:5px; }
+  .lobby-room-label { font-size:9px; letter-spacing:1.4px; }
+  .lobby-heading .code {
+    padding:3px 7px 4px!important;
+    letter-spacing:3px;
+  }
 }
 
 @media(max-width:519px) {
@@ -591,4 +604,26 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   .home-title-mark strong { font-size:29px; }
   .home-title-mark span { margin-top:8px; font-size:10px; }
   .home-mascot { width:min(25vw,92px); }
+}
+
+
+/* Plan Cóndor 0.32.0 — código de sala visible y lobby resistente a anchos chicos. */
+.lobby-heading > div {
+  flex:1 1 auto;
+  min-width:0;
+}
+.lobby-heading .code {
+  white-space:nowrap;
+  transform:translateZ(0);
+}
+@media(max-width:340px) {
+  .compact-button { min-width:74px; padding-inline:6px; }
+  .lobby-heading { gap:5px; }
+  .lobby-heading h1 { gap:4px; }
+  .lobby-room-label { font-size:8px; letter-spacing:1px; }
+  .lobby-heading .code {
+    padding:3px 6px 4px!important;
+    font-size:20px;
+    letter-spacing:2.5px;
+  }
 }

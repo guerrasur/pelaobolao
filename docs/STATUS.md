@@ -1,5 +1,15 @@
 # Estado del MVP Spark
 
+## 0.32.0 — Plan Cóndor: código de sala + regresión de lobby
+
+- Se recupera el resaltado amarillo del código de sala tal como estaba antes, pero el rótulo “SALA” permanece neutro y fuera del bloque resaltado.
+- El código vuelve a usar placa amarilla, borde punteado oscuro y sombra corta; no se agregan textos decorativos de tiza.
+- El encabezado del lobby se endurece para 320–340 px: código y botón Compartir reducen padding/espaciado sin desplazarse fuera del viewport.
+- Se agrega una regresión E2E a 320×568 que comprueba color, borde, separación de “SALA” y ausencia de overflow horizontal.
+- Se corrige documentación desactualizada sobre CI/deploy: `main` sí usa el workflow automático de Firebase.
+- No se modifican Pelo, Soplos, daño, ítems, sincronización, Firestore Rules ni autoridad del host.
+- Código, caché PWA y versión pública quedan alineados en v0.32.0.
+
 ## 0.30.0 — Plan Cóndor: menú y lobby sin ruido
 
 - El menú principal elimina slogans, saludos, subtítulos, aclaraciones y microcopy auxiliar sin reemplazarlos por nuevas frases: quedan la identidad visual y las acciones Crear sala / Entrar.
