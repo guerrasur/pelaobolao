@@ -28,6 +28,7 @@ let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = f
 let operationGeneration = 0;
 let renderedHtml;
 let lastRevealStageKey = null;
+let lastRevealCountdown = null;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
 const now = () => api?.now() ?? Date.now();
 const setText = (node, value) => {
@@ -215,6 +216,7 @@ function subscribeGame(id) {
       if (s.game.phase === 'choosing') playCue('start');
       if (['reveal', 'finished'].includes(s.game.phase)) {
         lastRevealStageKey = null;
+        lastRevealCountdown = null;
         if (Number(s.game.rules?.version ?? 0) < 5) playImpactCue(s.game);
       }
       if (s.game.phase === 'abandoned') playCue('end');
@@ -367,7 +369,9 @@ function playerEffects(game, uid, stage = 'impact') {
   const loss = Number(result.losses?.[uid] || 0);
   const healed = Number(result.heals?.[uid] || 0);
   return {
-    action,
+    // Staged reveals already animated the choice in the previous beat.
+    // Do not replay the same body/action animation when damage lands.
+    action: Number(game.rules?.version ?? 0) >= 5 ? null : action,
     loss,
     healed,
     hit: loss > 0,
@@ -457,25 +461,49 @@ function syncRevealTimeline(game) {
     && Number(game.rules?.version ?? 0) >= 5;
   if (!staged) {
     lastRevealStageKey = null;
+    lastRevealCountdown = null;
     return false;
   }
+
   const stage = revealStage(game, now());
   const key = `${s.gameId || 'game'}:${game.turn}:${game.phase}:${stage}`;
-  const countdown = document.querySelector('[data-reveal-countdown]');
-  if (countdown) setText(countdown, revealCountdown(game, now()) ?? '');
-  drawRevealAttackLines(game, stage);
+
+  if (stage === 'suspense') {
+    const value = revealCountdown(game, now());
+    const countdown = document.querySelector('[data-reveal-countdown]');
+    if (countdown && value !== lastRevealCountdown) {
+      lastRevealCountdown = value;
+      setText(countdown, value ?? '');
+      try {
+        countdown.animate?.(
+          [{ opacity:.45, transform:'scale(.78)' }, { opacity:1, transform:'scale(1)' }],
+          { duration:240, easing:'cubic-bezier(.2,.9,.3,1.18)' }
+        );
+      } catch {}
+      if (value && value < 3) playCue('tick');
+    }
+  }
+
   if (key === lastRevealStageKey) return false;
   lastRevealStageKey = key;
+
   if (stage === 'suspense') {
+    lastRevealCountdown = revealCountdown(game, now());
     playCue('lock');
     return false;
   }
   if (stage === 'actions') {
+    lastRevealCountdown = null;
     playCue('reveal');
     vibrate(8);
     render();
+    // Build arrows once after the action-stage DOM exists. Recreating them every
+    // 200 ms restarted their CSS animation and made the reveal flicker.
+    drawRevealAttackLines(game, stage);
     return true;
   }
+
+  lastRevealCountdown = null;
   playImpactCue(game);
   render();
   return true;
@@ -750,7 +778,7 @@ function render() {
                 : game.phase === 'reveal' ? 'Resultado del turno'
                   : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.'
                     : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${['actions','impact'].includes(revealStep) && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${['actions','impact'].includes(revealStep) && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
