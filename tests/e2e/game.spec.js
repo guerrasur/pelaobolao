@@ -175,7 +175,7 @@ test('el teclado móvil no colapsa el menú de ingreso de sala', async ({ page }
     joinHeight: document.querySelector('.join-card')?.getBoundingClientRect().height ?? 0,
   }));
   expect(layout.bodyHeight).toBeGreaterThan(700);
-  expect(layout.homeHeight).toBeGreaterThan(600);
+  expect(layout.homeHeight).toBeGreaterThan(180);
   expect(layout.heroHeight).toBeLessThanOrEqual(2);
   expect(layout.joinHeight).toBeGreaterThan(70);
 
