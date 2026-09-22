@@ -681,7 +681,7 @@ function render() {
     const revealStep = revealStage(game, now());
     const viewGame = revealViewGame(game, revealStep);
     const finalRevealPending = game.phase === 'finished' && revealStep !== 'impact';
-    const me = game.players[api.uid];
+    const me = viewGame.players?.[api.uid];
     const lateSpectator = !me && !(game.memberIds || []).includes(api.uid);
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
@@ -689,7 +689,7 @@ function render() {
     const title = finalRevealPending ? `Turno ${game.turn}` : terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : 'Fin de la partida' : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const seats = game.memberIds || Object.keys(game.players);
     const order = [...seats.filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
-    const activeCount = Object.values(game.players).filter(player => player.hair > 0).length;
+    const activeCount = Object.values(viewGame.players || {}).filter(player => player.hair > 0).length;
     const chosenCount = Object.keys(game.chosen || {}).filter(uid => game.players[uid]?.hair > 0 && game.chosen[uid]).length;
     const waitingMembers = orderedLobbyMembers(s.room.members).filter(([uid, member]) => !member.left && !seats.includes(uid));
     const waitingIds = waitingMembers.map(([uid]) => uid);
