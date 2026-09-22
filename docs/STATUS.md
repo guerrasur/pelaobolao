@@ -11,6 +11,7 @@
 - La revancha se prueba desde estado contaminado y debe reiniciar Pelo, Soplos, racha de Esconderse, ítem central, resultado, `chosen` y `ready` desde cero.
 - Las colas de intención ahora llevan generación propia: una escritura vieja que termine tarde después de salir/cambiar de ronda no puede bloquear ni consumir la primera jugada de la sala siguiente.
 - Audio y vibración quedan silenciados mientras la app está en segundo plano, evitando feedback fantasma de rondas que avanzan con el celular bloqueado.
+- Si el jugador deja un Soplo en modo apuntado y cambia de app/bloquea el celular, ese targeting sin confirmar se cancela; una intención ya aceptada por Firestore no se borra.
 - Al volver a primer plano o cambiar el `visualViewport`, se recalcula la geometría de targeting/FX para Safari y navegadores móviles.
 - Se agrega un escenario E2E donde un jugador pierde una transición completa estando offline y, al reconectar, aterriza directamente en el turno vigente sin repetir reveal ni conservar una elección vieja.
 - Si `navigator.onLine` sigue en `true` pero pasan más de 30 s sin confirmación real de Firestore, las acciones dejan de aceptarse hasta recuperar contacto; snapshots autoritativos de sala/partida/intención renuevan ese contacto.
