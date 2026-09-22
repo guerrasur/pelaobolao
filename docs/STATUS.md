@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.30.0 — Plan Cóndor: menú y lobby sin ruido
+
+- El menú principal elimina slogans, saludos, subtítulos, aclaraciones y microcopy auxiliar sin reemplazarlos por nuevas frases: quedan la identidad visual y las acciones Crear sala / Entrar.
+- El lobby elimina “Sala de espera”, el encabezado redundante de jugadores y los párrafos de ayuda. Código, compartir, orden de jugadores, estado Listo/No listo, host y progreso siguen visibles.
+- La presencia por jugador pasa de texto repetido a un indicador puntual; la información de bloqueo sigue estando representada por estado visual y botones deshabilitados.
+- El lobby usa una superficie flexible sin scroll con filas de altura acotada, conservando el orden fijo de ingreso.
+- Al abrir el teclado en mobile, el hero del inicio se repliega en vez de comprimirse junto al formulario; el perfil también reduce decoración durante la escritura.
+- El observador de la capa de entrada agrupa mutaciones con `requestAnimationFrame`, reduciendo renders y reflows redundantes.
+- Las animaciones de entrada evitan blur y filtros costosos, priorizando opacidad/transform para una respuesta más fluida en celulares.
+- Se agrega una regresión estática para la nueva capa `condor30.css`. No se modifican reglas de juego, Firestore Rules ni autoridad del host.
+- Código y metadatos quedan en v0.30.0. El deploy a Firebase Hosting no se da por realizado: `main` no contiene actualmente un workflow automático y este entorno no dispone de una conexión Firebase para ejecutar el CLI.
 ## 0.29.1 — Plan Cóndor: sólo el mechón
 
 - Se elimina el aviso textual separado del +1 Pelo. Durante la elección ya no aparece ningún bloque explicativo, título o CTA asociado al objeto.
