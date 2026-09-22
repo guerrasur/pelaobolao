@@ -215,7 +215,7 @@ test('0.33 refuerza tactilidad y jerarquía de fase sin mover la geometría', as
     readFile('src/sound.js', 'utf8'),
     readFile('package.json', 'utf8').then(JSON.parse),
   ]);
-  assert.equal(packageInfo.version, '0.33.0');
+  assert.equal(packageInfo.version, '0.34.0');
   assert.match(js, /playCue\('gameTap'\)/);
   assert.match(js, /chosenInitialized/);
   assert.match(js, /condor-choice-locked/);
@@ -225,4 +225,28 @@ test('0.33 refuerza tactilidad y jerarquía de fase sin mover la geometría', as
   assert.match(css, /condor33-seat-stamp/);
   assert.match(css, /prefers-reduced-motion:reduce/);
   assert.match(sound, /gameTap: \{ notes:/);
+});
+
+
+test('0.34 evita que el heartbeat del host bloquee su jugada y no confirma antes del servidor', async () => {
+  const [client, main, visuals, sw, packageInfo, publicVersion] = await Promise.all([
+    readFile('src/client.js', 'utf8'),
+    readFile('src/main.js', 'utf8'),
+    readFile('src/visuals.js', 'utf8'),
+    readFile('public/sw.js', 'utf8'),
+    readFile('package.json', 'utf8').then(JSON.parse),
+    readFile('public/version.json', 'utf8').then(JSON.parse),
+  ]);
+  const start = client.indexOf('async function submitIntent');
+  const end = client.indexOf('async function acknowledgeRound', start);
+  const submitIntent = client.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.doesNotMatch(submitIntent, /tx\.get\(doc\(db, 'rooms'/);
+  assert.match(submitIntent, /maxAttempts:\s*10/);
+  assert.match(main, /const choiceSaving = Boolean\(s\.choice\?\.turn === game\.turn\)/);
+  assert.match(main, /actionControls\(canChoose\(\), me\.breath, s\.targeting, choice\?\.action, hideBlocked, choiceSaving\)/);
+  assert.match(visuals, /GUARDANDO…/);
+  assert.equal(packageInfo.version, '0.34.0');
+  assert.equal(publicVersion.version, '0.34.0');
+  assert.match(sw, /pelaobolao-shell-0\.34\.0/);
 });
