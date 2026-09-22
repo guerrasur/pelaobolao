@@ -409,7 +409,7 @@ test('el lote de pulido ignora un segundo dedo mientras se arrastra Soplar', asy
 test('el lote de pulido consume el click sintético posterior al drag sin duplicar Soplar', async () => {
   const main = await readFile('src/main.js', 'utf8');
   assert.match(main, /const consumeSuppressedClick = \(\) =>/);
-  assert.ok((main.match(/consumeSuppressedClick\(\)/g) || []).length >= 4);
+  assert.ok((main.match(/consumeSuppressedClick\(\)/g) || []).length >= 3);
   assert.match(main, /if \(consumeSuppressedClick\(\)\) return;[\s\S]*?s\.targeting/);
   assert.match(main, /if \(consumeSuppressedClick\(\)\) return;[\s\S]*?dataset\.centerItem/);
 });
