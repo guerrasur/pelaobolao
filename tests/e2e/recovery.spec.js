@@ -278,3 +278,31 @@ test('desconexión mientras apunta cancela el targeting y al volver deja elegir 
     await guestContext.close();
   }
 });
+
+
+test('GUARDANDO es local y ELEGIDA requiere confirmación real del servidor', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { 'rules.turnMs': 60000 });
+    const immediate = await page.evaluate(() => {
+      const button = document.querySelector('[data-action="air"]');
+      button.click();
+      return {
+        actionState: button.querySelector('.action-state')?.textContent ?? '',
+        selfStatus: document.querySelector('[data-player].self small')?.textContent ?? '',
+        selection: document.querySelector('#selection')?.textContent ?? '',
+      };
+    });
+    expect(immediate.actionState).toContain('GUARDANDO');
+    expect(immediate.selfStatus).not.toContain('Ya eligió');
+    expect(immediate.selection).toContain('Guardando');
+
+    await expect(page.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
+    await expect(page.locator('[data-player].self small')).toContainText('Ya eligió');
+    await expect(page.locator('#selection')).toContainText('Elegido: Tomar aire');
+    await expect.poll(async () => (await read(`games/${gameId}`)).chosen?.[room.hostId]).toBe(true);
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+  } finally {
+    await guestContext.close();
+  }
+});
