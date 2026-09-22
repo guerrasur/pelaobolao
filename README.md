@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última actualización (0.27.0): Plan Cóndor estabiliza la revelación de ronda y el menú móvil. La cuenta 3–2–1 ahora tiene ritmo legible, las acciones se animan una sola vez antes del impacto, las flechas de Soplo dejan de reiniciarse y el timer normal ya no compite visualmente con la revelación. En iPhone, abrir el teclado para ingresar nombre o código ya no achica el layout al `visualViewport` del teclado.
+Última actualización (0.28.0): Plan Cóndor afina el director visual de la resolución. El 3–2–1 ya no forma parte del HTML que se re-renderiza con snapshots de presencia, por lo que no reinicia la escena; la ráfaga de tiza aparece exactamente cuando se muestran las jugadas, el resultado recibe un único golpe visual al llegar el impacto y se elimina el sello central redundante de “JUGADAS SELLADAS”.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
