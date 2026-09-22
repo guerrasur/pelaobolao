@@ -215,7 +215,7 @@ test('0.33 refuerza tactilidad y jerarquía de fase sin mover la geometría', as
     readFile('src/sound.js', 'utf8'),
     readFile('package.json', 'utf8').then(JSON.parse),
   ]);
-  assert.equal(packageInfo.version, '0.36.0');
+  assert.match(packageInfo.version, /^\d+\.\d+\.\d+$/);
   assert.match(js, /playCue\('gameTap'\)/);
   assert.match(js, /chosenInitialized/);
   assert.match(js, /condor-choice-locked/);
@@ -246,9 +246,8 @@ test('0.34 evita que el heartbeat del host bloquee su jugada y no confirma antes
   assert.match(main, /const choiceSaving = Boolean\(s\.choice\?\.turn === game\.turn\)/);
   assert.match(main, /actionControls\(canChoose\(\), me\.breath, s\.targeting, choice\?\.action, hideBlocked, choiceSaving\)/);
   assert.match(visuals, /GUARDANDO…/);
-  assert.equal(packageInfo.version, '0.36.0');
-  assert.equal(publicVersion.version, '0.36.0');
-  assert.match(sw, /pelaobolao-shell-0\.36\.0/);
+  assert.equal(packageInfo.version, publicVersion.version);
+  assert.match(sw, new RegExp(`pelaobolao-shell-${packageInfo.version.replaceAll('.', '\\.')}`));
 });
 
 
@@ -270,9 +269,8 @@ test('0.35 endurece resolución y cubre stress multijugador', async () => {
   assert.match(integration, /Plan Cóndor stress: 2, 3, 4 y 6 jugadores/);
   assert.match(integration, /Promise\.allSettled/);
   assert.match(integration, /resolvedTurn, turn/);
-  assert.equal(packageInfo.version, '0.36.0');
-  assert.equal(publicVersion.version, '0.36.0');
-  assert.match(sw, /pelaobolao-shell-0\.36\.0/);
+  assert.equal(packageInfo.version, publicVersion.version);
+  assert.match(sw, new RegExp(`pelaobolao-shell-${packageInfo.version.replaceAll('.', '\\.')}`));
 });
 
 
