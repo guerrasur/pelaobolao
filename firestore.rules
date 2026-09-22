@@ -225,7 +225,9 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/games/$(id)).data.chosen.get(uid, false) == true))
             && d.keys().hasOnly(['turn','action','target','requestId','revision','submittedAt'])
             && d.turn == g.turn && d.requestId is string && d.revision is int && d.submittedAt == request.time
-            && ((d.action in ['air','hide'] && d.target == null)
+            && ((d.action == 'air' && d.target == null)
+              || (d.action == 'hide' && d.target == null
+                && actor.get('hideStreak', 0) < g.get('rules', {}).get('maxConsecutiveHides', 3))
               || (d.action == 'blow' && d.target is string && d.target != uid && actor.get('breath', 0) > 0
                 && ((d.target in g.memberIds && g.players.get(d.target, {}).get('hair', 0) > 0)
                   || (g.get('rules', {}).get('version', 0) < 3 && d.target == '__center_item__'
