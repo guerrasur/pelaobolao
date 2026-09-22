@@ -273,7 +273,7 @@ async function roomCommand(command, extra = {}) {
   if (generation === roomGeneration && command !== 'touch') subscribeRoom(result.roomId);
 }
 async function heartbeat(force = false) {
-  if (!api || !s.roomId || !s.online || document.hidden || s.updateRequired || heartbeatBusy) return;
+  if (!api || !s.roomId || !s.online || document.hidden || s.updateRequired || heartbeatBusy || advancing) return;
   const wallNow = Date.now();
   const activeHost = s.room?.hostId === api.uid && ['playing', 'finished'].includes(s.room?.status);
   const interval = activeHost ? ACTIVE_HOST_HEARTBEAT_MS : PASSIVE_HEARTBEAT_MS;
