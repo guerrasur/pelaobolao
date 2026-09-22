@@ -101,6 +101,27 @@ test('denegación de acceso a la partida vuelve al inicio aun si falla limpiar s
   assert.match(ui.nodes.get('#app').innerHTML, /id="create-room"/);
 });
 
+test('un rechazo transitorio al tomar autoridad no expulsa al jugador de la sala', async () => {
+  const ui = await setup(async (name, data) => {
+    if (name === 'roomCommand' && data.command === 'touch') {
+      throw Object.assign(new Error('lease todavía vigente'), { code: 'permission-denied' });
+    }
+    return {};
+  });
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = {
+    code:'ABCD', status:'playing', hostId:'other',
+    members:{
+      me:{name:'Ana',ready:true,lastSeenAt:now},
+      other:{name:'Beto',ready:true,lastSeenAt:now - GAME_HOST_LEASE_MS - 1000},
+    },
+  };
+  await ui.heartbeat(true);
+  assert.equal(ui.s.roomId, 'ABCD');
+  assert.equal(ui.calls.some(call => call.name === 'clearRoomSession'), false);
+});
+
 test('volver de otra pestaña conserva la sala actual', async () => {
   const ui = await setup();
   ui.subscribeRoom('ABCD');

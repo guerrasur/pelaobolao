@@ -22,6 +22,8 @@ const s = { profile: undefined, room: null, roomId: null, game: null, gameId: nu
 let api, roomOff, gameOff, intentOff, heartbeatBusy = false, lastContact = 0, lastHeartbeatAt = 0;
 const ACTIVE_HOST_HEARTBEAT_MS = 1800;
 const PASSIVE_HEARTBEAT_MS = 9000;
+const HOST_TAKEOVER_GRACE_MS = 750;
+const HOST_TAKEOVER_RETRY_MS = 1200;
 let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = false, abandoning = false, returningLobby = false, lastAck = 0, lastAbandonAttempt = 0, lastLobbyReturnAttempt = 0, lastPhase;
 let operationGeneration = 0;
 let renderedHtml;
@@ -279,12 +281,21 @@ async function heartbeat(force = false) {
   heartbeatBusy = true;
   try { await roomCommand('touch'); }
   catch (error) {
-    lastHeartbeatAt = 0;
     if (generation !== roomGeneration) return;
-    if (error.code?.endsWith('permission-denied') || error.code?.endsWith('not-found')) {
+    if (error.code?.endsWith('not-found')) {
+      lastHeartbeatAt = 0;
       showError(error);
       void resetRoomSession('La sala dejó de estar disponible. Ya podés volver a entrar.');
+      return;
     }
+    if (error.code?.endsWith('permission-denied')) {
+      // A takeover can race the server-side 5 s lease by a few milliseconds even
+      // with a calibrated clock. Keep the local room and let the authoritative
+      // room snapshot decide whether access was actually revoked.
+      lastHeartbeatAt = Date.now();
+      return;
+    }
+    lastHeartbeatAt = 0;
   } finally { heartbeatBusy = false; }
 }
 
@@ -925,7 +936,8 @@ function tick() {
   // the short gameplay lease expires instead of waiting for the next heartbeat tick.
   const hostMember = s.room?.members?.[s.room?.hostId];
   if (s.room?.hostId && s.room.hostId !== api?.uid && hostMember
-    && now() - hostMember.lastSeenAt > GAME_HOST_LEASE_MS && s.online) void heartbeat(true);
+    && now() - hostMember.lastSeenAt > GAME_HOST_LEASE_MS + HOST_TAKEOVER_GRACE_MS
+    && Date.now() - lastHeartbeatAt > HOST_TAKEOVER_RETRY_MS && s.online) void heartbeat(true);
   const early = game.protocolVersion === 2 && (game.phase === 'locked'
     || game.phase === 'syncing' && allMarked(game, 'ready')
     || game.phase === 'choosing' && allMarked(game, 'chosen'));
