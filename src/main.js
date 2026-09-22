@@ -57,7 +57,7 @@ const orderedLobbyMembers = members => Object.entries(members ?? {}).sort(([uidA
   const joinedA = millis(a?.joinedAt), joinedB = millis(b?.joinedAt);
   return joinedA - joinedB || uidA.localeCompare(uidB);
 });
-const vibrate = pattern => { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
+const vibrate = pattern => { try { if (!document.hidden && typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
 const matchStillRunning = () => s.room?.status === 'playing' && s.game && !['finished', 'abandoned'].includes(s.game.phase);
 function clearInviteParam(roomId) {
   try {
