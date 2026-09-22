@@ -108,7 +108,7 @@
   border-radius: 999px;
   background: #ef3340;
   box-shadow: 0 0 0 2px #202633, 0 0 12px rgba(239,51,64,.55);
-  animation: aguila-line-in .32s cubic-bezier(.2,.86,.3,1);
+  animation: aguila-line-in .32s cubic-bezier(.2,.86,.3,1) both;
 }
 .reveal-attack-line::after {
   content: "";
