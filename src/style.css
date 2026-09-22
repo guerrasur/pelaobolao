@@ -2994,3 +2994,151 @@ header { min-height:48px; }
     opacity:.5!important;
   }
 }
+
+
+/* Plan Cóndor 0.29.0 — mechón puro: sin tarjeta, texto ni placa visual. */
+.center-item.hair-item {
+  width:clamp(66px,18vw,84px);
+  height:clamp(66px,18vw,84px);
+  min-width:0!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:transparent!important;
+  color:transparent!important;
+  box-shadow:none!important;
+  outline:0!important;
+  transform:none!important;
+  overflow:visible!important;
+  isolation:isolate;
+  -webkit-tap-highlight-color:transparent;
+}
+.center-item.hair-item::before {
+  content:''!important;
+  position:absolute!important;
+  z-index:0;
+  inset:10%!important;
+  width:auto!important;
+  height:auto!important;
+  top:auto!important;
+  left:auto!important;
+  transform:none!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:radial-gradient(circle,#ffe66a70 0 28%,#ffd43f45 42%,#ffc92a1c 58%,transparent 72%)!important;
+  box-shadow:0 0 13px #ffd84f80,0 0 25px #ffd84f42!important;
+  opacity:.82;
+  filter:blur(.2px);
+  pointer-events:none;
+}
+.center-item.hair-item::after {
+  content:''!important;
+  position:absolute;
+  z-index:2;
+  inset:8px;
+  border:2px solid #ffe56b99;
+  border-radius:50%;
+  background:transparent;
+  box-shadow:0 0 7px #ffd84f8c, inset 0 0 7px #ffd84f47;
+  opacity:.58;
+  pointer-events:none;
+}
+.center-item.hair-item small,
+.center-item.hair-item .item-label,
+.center-item.hair-item > span,
+.center-item.hair-item .item-new-badge,
+.item-notice {
+  display:none!important;
+}
+.center-item.hair-item .hair-tuft {
+  position:relative;
+  z-index:3;
+  display:block;
+  width:52px;
+  height:40px;
+  margin:0;
+  transform:rotate(-7deg);
+  filter:
+    drop-shadow(0 1px 0 #fff4b8)
+    drop-shadow(0 0 4px #ffe35f)
+    drop-shadow(0 0 9px #ffd33d);
+  pointer-events:none;
+  animation:pb-tuft-float 1.45s ease-in-out infinite alternate;
+}
+.center-item.hair-item .hair-tuft b {
+  bottom:2px;
+  width:20px;
+  height:34px;
+  border-left-width:7px;
+  border-left-color:#3d241d;
+  border-radius:80% 0 0 30%;
+  box-shadow:-1px 0 0 #6b3c28;
+}
+.center-item.hair-item .hair-tuft b:nth-child(1) {
+  left:4px;
+  height:29px;
+  transform:rotate(-27deg) skewY(-8deg);
+}
+.center-item.hair-item .hair-tuft b:nth-child(2) {
+  left:16px;
+  height:38px;
+  transform:rotate(0deg) skewY(-11deg);
+}
+.center-item.hair-item .hair-tuft b:nth-child(3) {
+  left:29px;
+  height:30px;
+  transform:rotate(27deg) skewY(-7deg);
+}
+.center-item.hair-item.targetable::before {
+  opacity:1;
+  box-shadow:0 0 16px #ffe66aa8,0 0 31px #ffd84f63!important;
+}
+.center-item.hair-item.targetable::after {
+  opacity:.82;
+  border-color:#fff09f;
+}
+.center-item.hair-item.selected-grab::after {
+  opacity:1;
+  border-color:#6dde8e;
+  box-shadow:0 0 8px #5fdc849c,0 0 18px #5fdc8459,inset 0 0 7px #5fdc844d;
+}
+.center-item.hair-item.selected-target::after,
+.center-item.hair-item.drag-target::after {
+  opacity:1;
+  border-color:#ff4968;
+  box-shadow:0 0 8px #ff4968a8,0 0 18px #ff49685e,inset 0 0 7px #ff49684d;
+}
+.center-item.hair-item.drag-target {
+  box-shadow:none!important;
+  outline:0!important;
+  transform:none!important;
+}
+.center-item.hair-item.is-new::before {
+  animation:pb-hair-arrive .8s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes pb-hair-arrive {
+  0% { opacity:0; transform:scale(.45)!important; }
+  55% { opacity:1; transform:scale(1.16)!important; }
+  100% { opacity:.82; transform:scale(1)!important; }
+}
+@media(max-width:380px), (max-height:600px) {
+  .center-item.hair-item {
+    width:60px;
+    height:60px;
+    padding:0!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+  .center-item.hair-item .hair-tuft {
+    width:44px;
+    height:34px;
+    transform:rotate(-7deg) scale(.9);
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .center-item.hair-item .hair-tuft,
+  .center-item.hair-item.is-new::before {
+    animation:none!important;
+  }
+}
