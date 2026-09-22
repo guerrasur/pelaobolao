@@ -787,7 +787,8 @@
   .game[data-phase="choosing"] .player.condor-choice-locked .player-name,
   .player.action-air .breath-resource b,
   .player.took-hit .hair-resource b,
-  .player.healed-hair .hair-resource b {
+  .player.healed-hair .hair-resource b,
+  .game #leave-room.leave-armed {
     animation:none!important;
     transition:none!important;
   }
