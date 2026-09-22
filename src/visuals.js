@@ -82,10 +82,11 @@ const icons = {
 export function actionControls(enabled, breath, aiming, selectedAction = null, hideLocked = false, saving = false) {
   const state = action => selectedAction === action ? `<small class="action-state">${saving ? 'GUARDANDO…' : 'ELEGIDA'}</small>` : '';
   const pressed = action => selectedAction === action ? 'true' : 'false';
+  const selectedClass = action => selectedAction === action ? (saving ? 'saving-action' : 'chosen-action') : '';
   const hideState = hideLocked ? '<small class="action-state action-limit">LÍMITE 3</small>' : state('hide');
   return `<div class="controls" aria-label="Elegí tu acción">
-    <button id="blow" class="${aiming ? 'aiming ' : ''}${selectedAction === 'blow' ? 'chosen-action' : ''}" aria-pressed="${pressed('blow')}" ${!enabled || breath < 1 ? 'disabled' : ''}>${icons.blow}<span>Soplar</span>${state('blow')}</button>
-    <button data-action="air" class="${selectedAction === 'air' ? 'chosen-action' : ''}" aria-pressed="${pressed('air')}" ${!enabled ? 'disabled' : ''}>${icons.air}<span>Tomar aire</span>${state('air')}</button>
-    <button data-action="hide" class="${hideLocked ? 'hide-locked ' : ''}${selectedAction === 'hide' ? 'chosen-action' : ''}" aria-pressed="${pressed('hide')}" ${!enabled || hideLocked ? 'disabled' : ''}>${icons.hide}<span>Esconderse</span>${hideState}</button>
+    <button id="blow" class="${aiming ? 'aiming ' : ''}${selectedClass('blow')}" aria-pressed="${pressed('blow')}" ${!enabled || breath < 1 ? 'disabled' : ''}>${icons.blow}<span>Soplar</span>${state('blow')}</button>
+    <button data-action="air" class="${selectedClass('air')}" aria-pressed="${pressed('air')}" ${!enabled ? 'disabled' : ''}>${icons.air}<span>Tomar aire</span>${state('air')}</button>
+    <button data-action="hide" class="${hideLocked ? 'hide-locked ' : ''}${selectedClass('hide')}" aria-pressed="${pressed('hide')}" ${!enabled || hideLocked ? 'disabled' : ''}>${icons.hide}<span>Esconderse</span>${hideState}</button>
   </div>`;
 }
