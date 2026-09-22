@@ -293,6 +293,7 @@ test('si nadie agarra el mechón, parpadea en su tercera ronda y desaparece para
   assert.equal(result.result.item.ageRounds, 3);
   assert.equal(result.centerItem, null);
 
+  state.centerItem = result.centerItem;
   state.lastResult = result.result;
   state.lastItemSpawnTurn = 4;
   assert.equal(scheduleCenterItem(state, 7).centerItem, null);
