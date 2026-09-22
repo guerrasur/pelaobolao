@@ -424,3 +424,30 @@ test('cambiar de acción rápido conserva sólo la última elección y su revisi
     await guestContext.close();
   }
 });
+
+
+test('mandar la app a segundo plano cancela un Soplo sin objetivo sin enviar una jugada', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { [`players.${room.hostId}.breath`]:1, 'rules.turnMs':60000 });
+    const intentPath = `games/${gameId}/intents/${room.hostId}`;
+    const before = await read(intentPath);
+    await page.locator('#blow').click();
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting','true');
+
+    await page.evaluate(() => {
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting','false');
+    expect((await read(intentPath))?.revision ?? 0).toBe(before?.revision ?? 0);
+
+    await page.evaluate(() => {
+      Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('#blow')).toBeEnabled();
+  } finally {
+    await guestContext.close();
+  }
+});
