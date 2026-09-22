@@ -893,10 +893,17 @@ function bind() {
     } catch { message(`Código: ${code}`); }
   });
   document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => choose(button.dataset.action)));
+  const consumeSuppressedClick = () => {
+    if (!suppressClick) return false;
+    suppressClick = false;
+    return true;
+  };
   document.querySelectorAll('[data-player]').forEach(button => button.addEventListener('click', () => {
+    if (consumeSuppressedClick()) return;
     if (s.targeting) choose('blow', button.dataset.player);
   }));
   document.querySelector('[data-center-item]')?.addEventListener('click', event => {
+    if (consumeSuppressedClick()) return;
     const target = event.currentTarget.dataset.centerItem;
     if (freeCenterPickup() && !s.targeting) choose('grab', target);
     else if (!freeCenterPickup() && s.targeting) choose('blow', target);
@@ -904,7 +911,7 @@ function bind() {
   const blow = document.querySelector('#blow');
   if (!blow) return;
   blow.addEventListener('click', () => {
-    if (suppressClick) { suppressClick = false; return; }
+    if (consumeSuppressedClick()) return;
     if (!canChoose()) return;
     s.targeting = !s.targeting; render();
   });
