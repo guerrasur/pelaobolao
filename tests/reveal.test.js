@@ -7,7 +7,7 @@ function game(overrides = {}) {
   return {
     phase: 'reveal',
     phaseStartedAt: 1000,
-    rules: { version: 6, maxHair: 4, revealMs: 4600 },
+    rules: { version: 6, maxHair: 4, revealMs: 4000 },
     players: {
       a: { name:'Ana', hair:1, breath:0 },
       b: { name:'Beto', hair:3, breath:1 },
