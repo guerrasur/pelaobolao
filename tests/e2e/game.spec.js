@@ -154,6 +154,35 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await contextB.close();
 });
 
+test('el teclado móvil no colapsa el menú de ingreso de sala', async ({ page }) => {
+  await page.goto('http://127.0.0.1:5173');
+  await page.getByLabel('Nombre del jugador', { exact:true }).fill('Teclado');
+  await page.getByRole('button', { name:'Entrar al aula' }).click();
+  await expect(page.locator('.home-screen')).toBeVisible();
+
+  const input = page.getByLabel('Código de sala');
+  await input.focus();
+  await expect(page.locator('body')).toHaveAttribute('data-keyboard-open', 'true');
+
+  // Reproduce the value Safari reports while its virtual keyboard is open.
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--pb-viewport-height', '360px');
+  });
+  const layout = await page.evaluate(() => ({
+    bodyHeight: document.body.getBoundingClientRect().height,
+    homeHeight: document.querySelector('.home-screen')?.getBoundingClientRect().height ?? 0,
+    heroHeight: document.querySelector('.home-hero')?.getBoundingClientRect().height ?? 0,
+    joinHeight: document.querySelector('.join-card')?.getBoundingClientRect().height ?? 0,
+  }));
+  expect(layout.bodyHeight).toBeGreaterThan(700);
+  expect(layout.homeHeight).toBeGreaterThan(600);
+  expect(layout.heroHeight).toBeGreaterThan(80);
+  expect(layout.joinHeight).toBeGreaterThan(70);
+
+  await input.blur();
+  await expect(page.locator('body')).toHaveAttribute('data-keyboard-open', 'false');
+});
+
 test('una versión nueva bloquea el juego hasta actualizar', async ({ page }) => {
   await page.route('**/version.json*', route => route.fulfill({
     status: 200,
