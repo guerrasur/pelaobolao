@@ -31,8 +31,9 @@ test('el bloqueo de actualización sólo acepta versiones realmente más nuevas'
 });
 
 
-test('0.24 se instala como app móvil y mantiene fresco el gate de versión', async () => {
+test('la versión actual se instala como app móvil y mantiene fresco el gate de versión', async () => {
   const html = await readFile('index.html', 'utf8');
+  const packageInfo = JSON.parse(await readFile('package.json', 'utf8'));
   const manifest = JSON.parse(await readFile('public/manifest.webmanifest', 'utf8'));
   const worker = await readFile('public/sw.js', 'utf8');
   const encodedIcon = (await readFile('assets/pwa/icon-192.b64', 'utf8')).trim();
@@ -46,7 +47,7 @@ test('0.24 se instala como app móvil y mantiene fresco el gate de versión', as
   assert.equal(manifest.scope, '/');
   assert.ok(manifest.icons.some(icon => icon.sizes === '192x192' && icon.src === '/icon-192.png'));
   assert.ok(manifest.icons.some(icon => icon.sizes === 'any' && icon.src === '/icon.svg'));
-  assert.match(worker, /pelaobolao-shell-0\.24\.0/);
+  assert.ok(worker.includes(`pelaobolao-shell-${packageInfo.version}`));
   assert.match(worker, /skipWaiting/);
   assert.match(worker, /url\.pathname === '\/version\.json'/);
   const icon = Buffer.from(encodedIcon, 'base64');
