@@ -159,3 +159,19 @@ test('0.29.1 elimina el aviso textual separado del mechón', async () => {
   assert.match(noticeSource, /return '';/);
   assert.doesNotMatch(noticeSource, /MECHÓN|ÚLTIMA RONDA|No cuesta Soplos|item-notice/);
 });
+
+
+test('0.30 limpia el menú y estabiliza el lobby sin copy auxiliar', async () => {
+  const [entrance, css] = await Promise.all([
+    readFile('src/entrance.js', 'utf8'),
+    readFile('src/condor30.css', 'utf8'),
+  ]);
+  assert.match(entrance, /function trimMenuCopy\(\)/);
+  assert.match(entrance, /'\.home-copy'/);
+  assert.match(entrance, /'\.lobby-help'/);
+  assert.match(entrance, /new MutationObserver\(scheduleRefresh\)/);
+  assert.match(css, /body\[data-keyboard-open="true"\]\[data-ui-screen="home"\]/);
+  assert.match(css, /#app > \.lobby-screen/);
+  assert.match(css, /\.presence-text\s*\{[\s\S]*?font-size:0!important/);
+  assert.match(css, /@keyframes entry-surface-in/);
+});
