@@ -13,6 +13,7 @@
 - Audio y vibración quedan silenciados mientras la app está en segundo plano, evitando feedback fantasma de rondas que avanzan con el celular bloqueado.
 - Si el jugador deja un Soplo en modo apuntado y cambia de app/bloquea el celular, ese targeting sin confirmar se cancela; una intención ya aceptada por Firestore no se borra.
 - Al volver a primer plano o cambiar el `visualViewport`, se recalcula la geometría de targeting/FX para Safari y navegadores móviles.
+- Safari/BFCache también queda cubierto: `pagehide` limpia drag/targeting y un `pageshow` restaurado recalibra reloj, heartbeat, versión y cualquier intención pendiente antes de seguir.
 - Se agrega un escenario E2E donde un jugador pierde una transición completa estando offline y, al reconectar, aterriza directamente en el turno vigente sin repetir reveal ni conservar una elección vieja.
 - Si `navigator.onLine` sigue en `true` pero pasan más de 30 s sin confirmación real de Firestore, las acciones dejan de aceptarse hasta recuperar contacto; snapshots autoritativos de sala/partida/intención renuevan ese contacto.
 - Al cruzar ese umbral de conexión stale, el cliente re-renderiza el tablero de inmediato: cancela targeting/drag y deja los controles realmente deshabilitados, no sólo visualmente atenuados. Carreras internas de takeover con `permission-denied` ya no muestran un falso mensaje de expulsión al jugador.
