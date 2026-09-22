@@ -5,9 +5,6 @@
 .game.condor-enter-locked .phase-banner {
   animation:condor-surface-in .5s ease-out both;
 }
-.game.condor-enter-reveal .result-callout {
-  animation:condor-surface-in .58s ease-out both;
-}
 .game.condor-enter-finished .outcome-card {
   animation:condor-outcome-in .58s cubic-bezier(.2,.9,.25,1.25) both;
 }
@@ -154,12 +151,13 @@
 @media(prefers-reduced-motion:reduce) {
   .game.condor-enter-choosing .phase-banner,
   .game.condor-enter-locked .phase-banner,
-  .game.condor-enter-reveal .result-callout,
   .game.condor-enter-finished .outcome-card,
   .game[data-condor-tick] #timer,
   .condor-chalk-burst i,
   .condor-ripple,
-  .game[data-targeting="true"] .player.targetable {
+  .game[data-targeting="true"] .player.targetable,
+  .phase-banner.condor-reveal-actions,
+  .result-callout.condor-impact-pop {
     animation:none!important;
   }
   .condor-chalk-burst,.condor-ripple { display:none!important; }
