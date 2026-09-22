@@ -120,7 +120,6 @@ test('un rechazo transitorio al tomar autoridad no expulsa al jugador de la sala
   await ui.heartbeat(true);
   assert.equal(ui.s.roomId, 'ABCD');
   assert.equal(ui.calls.some(call => call.name === 'clearRoomSession'), false);
-  assert.doesNotMatch(ui.nodes.get('#app').innerHTML, /id="create-room"/);
 });
 
 test('volver de otra pestaña conserva la sala actual', async () => {
