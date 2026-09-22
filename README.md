@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última actualización (0.29.1): Plan Cóndor termina de limpiar el ítem central. Además de quitar la tarjeta y el copy dentro del objeto, desaparece el aviso textual separado: durante la ronda el centro muestra únicamente el mechón con halo. La mecánica y el vencimiento siguen disponibles en el aria-label, y la tercera ronda mantiene el parpadeo.
+Última actualización (0.30.0): Plan Cóndor limpia el menú principal y el lobby. Se retira el copy decorativo o sobreexplicativo sin reemplazarlo por nuevas frases; inicio y sala quedan centrados en las acciones y estados necesarios. La nueva capa estabiliza alturas, compacta el lobby, reduce trabajo de render y adapta el menú al teclado móvil sin tocar reglas de juego.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
@@ -16,7 +16,7 @@ Se conservan las reglas e interacción existentes: 2–6 jugadores, Pelo 3/4, So
 
 La versión visible se toma de `package.json`. `public/version.json` permite detectar despliegues nuevos: una versión desactualizada bloquea el juego y ofrece una actualización limpia, sin perder la identidad guardada; el reingreso a la sala requiere su código. Ambos números deben incrementarse juntos.
 
-Publicación: habilitá Auth anónima, Firestore y una Web App; configurá las variables públicas `VITE_FIREBASE_*`; ejecutá `npm ci`, `npm run build` y `npx firebase deploy --only firestore:rules,firestore:indexes,hosting --project TU_ID`. El workflow de GitHub despliega Hosting, reglas e índices usando el secret `FIREBASE_SERVICE_ACCOUNT_PELAOBOLAO`; no usa Functions, Tasks ni servicios pagos.
+Publicación: habilitá Auth anónima, Firestore y una Web App; configurá las variables públicas `VITE_FIREBASE_*`; ejecutá `npm ci`, `npm test`, `npm run build` y `npx firebase deploy --only firestore:rules,firestore:indexes,hosting --project TU_ID`. Actualmente el repositorio no contiene un workflow de GitHub Actions para Firebase, por lo que el push a `main` no implica por sí solo un deploy.
 
 Para probar: abrí el dominio en dos celulares, creá sala, compartí el código, uní el segundo e iniciá.
 
