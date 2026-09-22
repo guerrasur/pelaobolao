@@ -1,4 +1,5 @@
 import './style.css';
+import './reveal.css';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { connect } from './firebase.js';
 import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, GAME_HOST_LEASE_MS, ABANDON_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND } from './game.js';
@@ -6,6 +7,7 @@ import { playerCard, actionControls } from './visuals.js';
 import { playCue } from './sound.js';
 import { isNewerVersion } from './version.js';
 import { dragGuideGeometry, shouldHoldRenderForDrag } from './condor-core.js';
+import { revealStage, revealCountdown, revealViewGame } from './reveal.js';
 import packageInfo from '../package.json';
 
 const app = document.querySelector('#app');
@@ -23,6 +25,7 @@ const PASSIVE_HEARTBEAT_MS = 9000;
 let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = false, abandoning = false, returningLobby = false, lastAck = 0, lastAbandonAttempt = 0, lastLobbyReturnAttempt = 0, lastPhase;
 let operationGeneration = 0;
 let renderedHtml;
+let lastRevealStageKey = null;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
 const now = () => api?.now() ?? Date.now();
 const setText = (node, value) => {
@@ -208,29 +211,11 @@ function subscribeGame(id) {
     s.game = snap.data();
     if (oldPhase && oldPhase !== s.game.phase) {
       if (s.game.phase === 'choosing') playCue('start');
-      if (s.game.phase === 'reveal') {
-        const impact = roundImpact(s.game);
-        const cue = {
-          hit: 'hit', block: 'block', heal: 'heal', swing: 'swing',
-          'item-clash': 'itemClash', 'item-claim': 'itemClaim',
-        }[impact] || 'reveal';
-        playCue(cue);
-        const mine = playerEffects(s.game, api.uid);
-        const itemResult = s.game.lastResult?.item;
-        const itemAttempted = itemResult?.attempts?.includes?.(api.uid);
-        if (mine.hit && mine.healed) vibrate([42, 22, 20, 22, 38]);
-        else if (mine.hit) vibrate([38, 28, 62]);
-        else if (mine.healed) vibrate([18, 24, 18]);
-        else if (itemResult?.outcome === 'contested' && itemAttempted) vibrate([16, 18, 16]);
-        else if (itemResult?.outcome === 'claimed' && itemResult.winnerId === api.uid) vibrate([16, 22, 38]);
-        else if (mine.blockedDefense) vibrate([22, 32, 22]);
-        else if (mine.blockedAttack) vibrate(18);
+      if (['reveal', 'finished'].includes(s.game.phase)) {
+        lastRevealStageKey = null;
+        if (Number(s.game.rules?.version ?? 0) < 5) playImpactCue(s.game);
       }
-      if (s.game.phase === 'finished') {
-        const outcome = outcomeKind(s.game, api.uid);
-        playCue(outcome === 'win' ? 'win' : outcome === 'lose' ? 'lose' : 'end');
-        vibrate(outcome === 'win' ? [24, 35, 24, 35, 70] : outcome === 'lose' ? [70, 32, 95] : 30);
-      } else if (s.game.phase === 'abandoned') playCue('end');
+      if (s.game.phase === 'abandoned') playCue('end');
     }
     lastPhase = s.game.phase;
     if (oldTurn !== s.game?.turn || s.game?.phase !== 'choosing') {
@@ -360,10 +345,12 @@ function roundImpact(game) {
   return 'reveal';
 }
 
-function playerEffects(game, uid) {
+function playerEffects(game, uid, stage = 'impact') {
   const result = game.lastResult;
   if (!result || !['reveal', 'finished'].includes(game.phase)) return {};
   const action = result.actions?.[uid]?.action;
+  if (stage === 'suspense') return {};
+  if (stage === 'actions') return { action };
   const incoming = (result.hits || []).filter(hit => hit.to === uid);
   const outgoing = (result.hits || []).find(hit => hit.from === uid);
   const loss = Number(result.losses?.[uid] || 0);
@@ -376,6 +363,111 @@ function playerEffects(game, uid) {
     blockedDefense: incoming.some(hit => hit.blocked),
     blockedAttack: outgoing?.blocked === true,
   };
+}
+
+
+function revealOverlayHtml(game, stage) {
+  if (!game?.lastResult || !['reveal', 'finished'].includes(game.phase) || Number(game.rules?.version ?? 0) < 5 || stage === 'impact') return '';
+  if (stage === 'suspense') {
+    const count = revealCountdown(game, now()) ?? 1;
+    return `<div class="round-reveal-overlay suspense" aria-live="assertive"><div><small>JUGADAS SELLADAS</small><strong data-reveal-countdown>${count}</strong><span>Nadie puede cambiar ahora</span></div></div>`;
+  }
+  return '<div class="round-reveal-overlay actions" aria-live="assertive"><div><strong>¡JUGADAS!</strong><span>Todos muestran qué hicieron</span></div></div>';
+}
+
+function drawRevealAttackLines(game, stage) {
+  const layer = document.querySelector('.reveal-attack-lines');
+  if (!layer || !['actions', 'impact'].includes(stage) || !game?.lastResult) return;
+  layer.innerHTML = '';
+  const board = document.querySelector('.players');
+  const boardRect = board?.getBoundingClientRect?.();
+  if (!boardRect) return;
+  const cards = [...document.querySelectorAll('[data-player]')];
+  const byId = id => cards.find(node => node.dataset.player === id);
+  for (const [uid, action] of Object.entries(game.lastResult.actions || {})) {
+    if (action.action !== 'blow' || !action.target || action.target === CENTER_ITEM_TARGET) continue;
+    const from = byId(uid)?.querySelector?.('.avatar-wrap') ?? byId(uid);
+    const to = byId(action.target)?.querySelector?.('.avatar-wrap') ?? byId(action.target);
+    const fromRect = from?.getBoundingClientRect?.();
+    const toRect = to?.getBoundingClientRect?.();
+    if (!fromRect || !toRect) continue;
+    const x1 = fromRect.left + fromRect.width / 2 - boardRect.left;
+    const y1 = fromRect.top + fromRect.height / 2 - boardRect.top;
+    const x2 = toRect.left + toRect.width / 2 - boardRect.left;
+    const y2 = toRect.top + toRect.height / 2 - boardRect.top;
+    const dx = x2 - x1, dy = y2 - y1;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 24) continue;
+    const stopShort = Math.min(48, Math.max(26, toRect.width * .3));
+    const line = document.createElement('span');
+    line.className = 'reveal-attack-line';
+    if ((game.lastResult.hits || []).some(hit => hit.from === uid && hit.to === action.target && hit.blocked)) {
+      line.classList.add('is-blocked');
+    }
+    line.style.left = `${x1}px`;
+    line.style.top = `${y1}px`;
+    line.style.width = `${Math.max(18, distance - stopShort)}px`;
+    line.style.setProperty('--line-rotate', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`);
+    layer.append(line);
+  }
+}
+
+function playImpactCue(game) {
+  const impact = roundImpact(game);
+  const cue = {
+    hit: 'hit', block: 'block', heal: 'heal', swing: 'swing',
+    'item-clash': 'itemClash', 'item-claim': 'itemClaim',
+  }[impact] || 'reveal';
+  playCue(cue);
+  const mine = playerEffects(game, api.uid, 'impact');
+  const itemResult = game.lastResult?.item;
+  const itemAttempted = itemResult?.attempts?.includes?.(api.uid);
+  if (mine.hit && mine.healed) vibrate([42, 22, 20, 22, 38]);
+  else if (mine.hit) vibrate([38, 28, 62]);
+  else if (mine.healed) vibrate([18, 24, 18]);
+  else if (itemResult?.outcome === 'contested' && itemAttempted) vibrate([16, 18, 16]);
+  else if (itemResult?.outcome === 'claimed' && itemResult.winnerId === api.uid) vibrate([16, 22, 38]);
+  else if (mine.blockedDefense) vibrate([22, 32, 22]);
+  else if (mine.blockedAttack) vibrate(18);
+
+  if (game.phase === 'finished') {
+    const outcome = outcomeKind(game, api.uid);
+    const gameId = s.gameId, turn = game.turn;
+    setTimeout(() => {
+      if (s.gameId !== gameId || s.game?.turn !== turn || s.game?.phase !== 'finished') return;
+      playCue(outcome === 'win' ? 'win' : outcome === 'lose' ? 'lose' : 'end');
+      vibrate(outcome === 'win' ? [24, 35, 24, 35, 70] : outcome === 'lose' ? [70, 32, 95] : 30);
+    }, 420);
+  }
+}
+
+function syncRevealTimeline(game) {
+  const staged = Boolean(game?.lastResult) && ['reveal', 'finished'].includes(game.phase)
+    && Number(game.rules?.version ?? 0) >= 5;
+  if (!staged) {
+    lastRevealStageKey = null;
+    return false;
+  }
+  const stage = revealStage(game, now());
+  const key = `${s.gameId || 'game'}:${game.turn}:${game.phase}:${stage}`;
+  const countdown = document.querySelector('[data-reveal-countdown]');
+  if (countdown) setText(countdown, revealCountdown(game, now()) ?? '');
+  drawRevealAttackLines(game, stage);
+  if (key === lastRevealStageKey) return false;
+  lastRevealStageKey = key;
+  if (stage === 'suspense') {
+    playCue('lock');
+    return false;
+  }
+  if (stage === 'actions') {
+    playCue('reveal');
+    vibrate(8);
+    render();
+    return true;
+  }
+  playImpactCue(game);
+  render();
+  return true;
 }
 
 function selectionText(choice) {
@@ -398,7 +490,8 @@ function sealedChoiceHtml(game, choice, me) {
 }
 
 function centerItemHtml(game, choice) {
-  if (game.centerItem?.kind !== HAIR_ITEM_KIND || !['choosing', 'locked', 'reveal'].includes(game.phase)) return '';
+  const stagedFinalReveal = game.phase === 'finished' && revealStage(game, now()) !== 'impact';
+  if (game.centerItem?.kind !== HAIR_ITEM_KIND || !(['choosing', 'locked', 'reveal'].includes(game.phase) || stagedFinalReveal)) return '';
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
   const selectedGrab = freePickup && choice?.action === 'grab' && choice.target === CENTER_ITEM_TARGET;
   const selectedLegacyTarget = !freePickup && choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
@@ -585,15 +678,18 @@ function render() {
     html = `<section class="state"><div class="spinner" aria-hidden="true"></div><h1>${s.gameError ? esc(s.gameError) : 'Cargando la partida…'}</h1><button id="leave-room" class="quiet">Salir de la sala</button><button id="reset-session" class="quiet">Volver al inicio</button></section>`;
   } else {
     const game = s.game;
-    const me = game.players[api.uid];
+    const revealStep = revealStage(game, now());
+    const viewGame = revealViewGame(game, revealStep);
+    const finalRevealPending = game.phase === 'finished' && revealStep !== 'impact';
+    const me = viewGame.players?.[api.uid];
     const lateSpectator = !me && !(game.memberIds || []).includes(api.uid);
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
-    const outcome = terminal && game.phase === 'finished' ? outcomeKind(game, api.uid) : null;
-    const title = terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : 'Fin de la partida' : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
+    const outcome = terminal && game.phase === 'finished' && !finalRevealPending ? outcomeKind(game, api.uid) : null;
+    const title = finalRevealPending ? `Turno ${game.turn}` : terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : 'Fin de la partida' : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const seats = game.memberIds || Object.keys(game.players);
     const order = [...seats.filter(uid => uid !== api.uid), api.uid].filter(uid => game.players[uid]);
-    const activeCount = Object.values(game.players).filter(player => player.hair > 0).length;
+    const activeCount = Object.values(viewGame.players || {}).filter(player => player.hair > 0).length;
     const chosenCount = Object.keys(game.chosen || {}).filter(uid => game.players[uid]?.hair > 0 && game.chosen[uid]).length;
     const waitingMembers = orderedLobbyMembers(s.room.members).filter(([uid, member]) => !member.left && !seats.includes(uid));
     const waitingIds = waitingMembers.map(([uid]) => uid);
@@ -621,13 +717,29 @@ function render() {
       ? `${baseActionHint} · Esconderse bloqueado: ya van 3 seguidas.`
       : baseActionHint;
     const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action, hideBlocked)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
-    const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
-    const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
+    const stagedReveal = ['reveal', 'finished'].includes(game.phase) && Number(game.rules?.version ?? 0) >= 5;
+    const phaseLabel = stagedReveal
+      ? revealStep === 'suspense' ? 'JUGADAS SELLADAS' : revealStep === 'actions' ? '¡JUGADAS!' : game.phase === 'finished' ? 'PARTIDA TERMINADA' : 'RESULTADO'
+      : ({ countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA');
+    const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : stagedReveal ? revealStep === 'suspense' ? '3 · 2 · 1' : revealStep === 'actions' ? 'Todos muestran su jugada' : 'Ahora, las consecuencias' : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     const countdownSplash = game.phase === 'countdown' ? '<div class="countdown-splash" aria-hidden="true"><strong data-countdown-splash>3</strong><span>¡PREPARATE!</span></div>' : '';
+    const revealOverlay = revealOverlayHtml(game, revealStep);
     const lobbyReturn = game.phase === 'finished' ? '<div class="lobby-return-countdown" data-lobby-return hidden aria-live="polite"></div>' : '';
-    const centerItem = centerItemHtml(game, choice);
-    const itemNotice = centerItemNotice(game, me);
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${roundImpact(game)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${endCelebrationHtml(game, api.uid)}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${game.phase === 'countdown' ? 'La partida empieza en…' : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…' : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.' : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.' : game.phase === 'reveal' ? 'Resultado del turno' : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.' : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.'}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: game.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: terminal && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid) })).join('')}${centerItem}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${game.phase === 'reveal' || terminal ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    const centerItem = centerItemHtml(viewGame, choice);
+    const itemNotice = centerItemNotice(viewGame, viewGame.players?.[api.uid] ?? me);
+    const showResult = game.phase === 'abandoned' || (['reveal', 'finished'].includes(game.phase) && revealStep === 'impact');
+    const turnStatus = stagedReveal && revealStep === 'suspense'
+      ? 'Jugadas selladas. Nadie puede cambiar su acción.'
+      : stagedReveal && revealStep === 'actions'
+        ? 'Todos muestran su jugada al mismo tiempo.'
+        : game.phase === 'countdown' ? 'La partida empieza en…'
+          : game.phase === 'syncing' ? 'Preparando el turno en todos los celulares…'
+            : game.phase === 'locked' ? 'Todos eligieron. Las jugadas están congeladas.'
+              : terminal ? game.phase === 'abandoned' ? 'La partida se cerró por abandono.' : 'La partida terminó. La próxima partida empieza desde cero.'
+                : game.phase === 'reveal' ? 'Resultado del turno'
+                  : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.'
+                    : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.';
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${!terminal ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${['actions','impact'].includes(revealStep) && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -754,6 +866,7 @@ function tick() {
   });
   if (!s.game || document.hidden) return;
   const game = s.game;
+  if (syncRevealTimeline(game)) return;
   const returnSeconds = lobbyReturnSeconds(game, now());
   const lobbyReturn = document.querySelector('[data-lobby-return]');
   if (lobbyReturn) {

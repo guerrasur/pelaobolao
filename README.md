@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última corrección (0.22.0): Plan Cóndor elimina el guard global de render que todavía podía saltarse la lógica selectiva del drag y reduce escrituras DOM redundantes del timer, conexión y feedback de apuntado para bajar repaints durante la ronda, especialmente en móviles.
+Última actualización (0.26.0): Plan Águila convierte la resolución simultánea en una secuencia de tensión → revelación de jugadas → consecuencias. Las acciones aparecen antes que el daño, los Soplos dibujan su dirección hacia el rival y la ronda final respeta la misma puesta en escena antes de mostrar victoria o derrota.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 

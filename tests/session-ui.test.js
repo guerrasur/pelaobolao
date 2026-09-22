@@ -6,6 +6,7 @@ import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABA
 import { playerCard as renderPlayerCard, actionControls as renderActionControls } from '../src/visuals.js';
 import { isNewerVersion } from '../src/version.js';
 import { dragGuideGeometry, shouldHoldRenderForDrag } from '../src/condor-core.js';
+import { revealStage, revealCountdown, revealViewGame } from '../src/reveal.js';
 
 // Execute the real UI controller with a minimal DOM and controllable network.
 // No Firebase permissions or emulator behavior is simulated by these tests.
@@ -22,7 +23,7 @@ async function setup(handler = async () => ({})) {
       addEventListener: (event, fn) => { events[event] = fn; } },
     window: { addEventListener: (event, fn) => { events[event] = fn; } },
     navigator: { onLine: true }, location: { search: '', href: 'http://test/', origin: 'http://test' },
-    HTMLInputElement: class {}, URL, URLSearchParams, setInterval: () => {},
+    HTMLInputElement: class {}, URL, URLSearchParams, setInterval: () => {}, setTimeout: fn => { fn(); return 0; },
     fetch: async () => ({ ok: false }),
     doc: (_db, ...parts) => parts.join('/'),
     onSnapshot: (path, ...args) => {
@@ -30,7 +31,7 @@ async function setup(handler = async () => ({})) {
       const sub = { path, next, error, active: true }; subscriptions.push(sub);
       return () => { sub.active = false; };
     },
-    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND, isNewerVersion, dragGuideGeometry, shouldHoldRenderForDrag,
+    connect: async () => api, millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND, isNewerVersion, dragGuideGeometry, shouldHoldRenderForDrag, revealStage, revealCountdown, revealViewGame,
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');

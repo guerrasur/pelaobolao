@@ -1,5 +1,16 @@
 # Estado del MVP Spark
 
+## 0.26.0 — Plan Águila: revelación de ronda
+
+- La resolución simultánea ahora se presenta en tres momentos sincronizados por `phaseStartedAt`: una cuenta 3–2–1 breve, la revelación de las jugadas y recién después las consecuencias.
+- Durante la etapa de jugadas se muestran las expresiones/acciones de los personajes sin adelantar pérdida o recuperación de Pelo. El Pelo previo se reconstruye localmente hasta el impacto.
+- Los ataques dibujan una flecha desde el personaje que Sopla hasta su objetivo; los Soplos bloqueados se diferencian visualmente.
+- El mechón permanece visible durante la revelación de acciones y sólo desaparece al mostrar la consecuencia de haber sido agarrado, disputado o vencido.
+- La ronda final usa la misma secuencia antes de habilitar `¡GANASTE!` / `PERDISTE`.
+- La ventana de revelación sube de 2,5 s a 3,2 s para conservar ritmo sin comprimir las tres etapas.
+- Las partidas ya iniciadas con reglas v4 o anteriores mantienen la revelación anterior; el cambio se aplica a partidas nuevas con reglas v5.
+- Se agregan pruebas puras para los límites temporales, compatibilidad hacia atrás y reconstrucción visual del estado previo.
+
 ## 0.22.0 — Plan Cóndor: render crítico + HUD más liviano
 
 - Se elimina el guard heredado `if (drag) return` al inicio de `render()`. La protección del gesto queda centralizada en `shouldHoldRenderForDrag`: snapshots inocuos conservan pointer capture, pero cambios críticos pueden renderizar y limpiar el estado transitorio.
