@@ -306,3 +306,35 @@ test('GUARDANDO es local y ELEGIDA requiere confirmación real del servidor', as
     await guestContext.close();
   }
 });
+
+
+test('el timer vence sin quedarse clavado en 0 y avanza aunque falte una jugada', async ({ browser, page }) => {
+  const { guestContext, guest, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, {
+      'rules.turnMs': 1400,
+      'rules.revealMs': 1400,
+      deadline: Date.now() + 1400,
+      phaseStartedAt: Timestamp.now(),
+      lastProgressAt: Timestamp.now(),
+    });
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+
+    await expect(page.locator('.game')).toHaveAttribute('data-phase', /locked|reveal/, { timeout:5000 });
+    await expect(page.locator('.game')).toHaveAttribute('data-phase', 'reveal', { timeout:5000 });
+    const resolved = await read(`games/${gameId}`);
+    const guestId = resolved.memberIds.find(uid => uid !== room.hostId);
+    expect(resolved.lastResult.actions[guestId].action).toBe('distracted');
+
+    await expect(page.locator('.game')).toHaveAttribute('data-phase', 'choosing', { timeout:6000 });
+    await expect(page.getByRole('heading', { name:'Turno 2', exact:true })).toBeVisible();
+    await expect(page.locator('#timer')).not.toHaveText('00s');
+    await expect(guest.locator('.game')).toHaveAttribute('data-phase', 'choosing', { timeout:3000 });
+    const next = await read(`games/${gameId}`);
+    expect(next.turn).toBe(2);
+    expect(next.chosen).toEqual({});
+  } finally {
+    await guestContext.close();
+  }
+});
