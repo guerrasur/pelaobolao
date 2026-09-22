@@ -149,3 +149,13 @@ test('0.29 deja el item central como mechón sin tarjeta ni copy visible', async
   assert.match(itemCss, /drop-shadow/);
   assert.match(itemCss, /\.center-item\.drag-target::after\s*\{[\s\S]*?content:none!important;/);
 });
+
+
+test('0.29.1 elimina el aviso textual separado del mechón', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  const start = source.indexOf('function centerItemNotice');
+  const end = source.indexOf('function outcomeKind', start);
+  const noticeSource = source.slice(start, end);
+  assert.match(noticeSource, /return '';/);
+  assert.doesNotMatch(noticeSource, /MECHÓN|ÚLTIMA RONDA|No cuesta Soplos|item-notice/);
+});
