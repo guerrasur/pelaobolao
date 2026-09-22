@@ -19,6 +19,7 @@
 - Una escritura de jugada que queda colgada más de 3,2 s se trata como fallo transitorio y se reintenta con el mismo `requestId`, aprovechando la idempotencia de `submitIntent` sin duplicar la acción.
 - Heartbeat, `acknowledgeRound`, resolución de ronda, limpieza por inactividad y regreso automático al lobby también tienen límites de espera; un request colgado ya no puede dejar los flags `heartbeatBusy`, `acknowledging`, `advancing`, `abandoning` o `returningLobby` trabados indefinidamente.
 - Se agrega cobertura E2E para cambios rápidos de acción: si un jugador toca una acción y enseguida otra antes del lock, la intención final debe quedar en la última elección con revisión creciente, sin dejar `GUARDANDO` residual.
+- Tocar dos veces la misma acción ya elegida no genera otra revisión ni otra escritura: el segundo tap sólo cierra targeting si correspondía y conserva la intención aceptada.
 - El checkpoint rápido posterior a estos cambios vuelve a ejecutar `npm test` y build sobre la rama antes de seguir acumulando el lote.
 - La regresión de layout ahora recorre 2, 3, 4, 5 y 6 jugadores en todos los viewports ya definidos, incluyendo 320×568 y landscape.
 - El drag de `Soplar` ignora punteros secundarios: un segundo dedo accidental ya no puede reemplazar el gesto principal ni dejar el apuntado en un estado inconsistente.
