@@ -202,6 +202,7 @@ export function startCondor(root = document) {
         const card = [...board.querySelectorAll('.player.has-chosen[data-player]')]
           .find(node => node.dataset.player === uid);
         pulseClass(card, 'condor-choice-locked', 520);
+        if (card?.classList.contains('self')) playCue('confirm');
       }
     }
     chosenIds = nextChosenIds;
