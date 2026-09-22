@@ -6,6 +6,9 @@
 - El modo de apuntado se cancela limpiamente si cae la conexión, evitando quedar visualmente en un estado de ataque imposible.
 - El stress multijugador ahora mete tráfico de presencia de todos los jugadores, no sólo del host, mientras entran jugadas y se resuelven rondas.
 - Se agregan regresiones para: `GUARDANDO…` vs `ELEGIDA`, relevo de host durante `locked`, timeout con jugador distraído, timer sin quedarse en 0, reconexión durante targeting, layout 6 jugadores a 320×568 sin scroll y combinación mechón + ataque + límite de Esconderse.
+- Salir durante una partida activa ahora requiere una segunda confirmación breve; el primer toque no puede cerrar accidentalmente la partida de todos.
+- Al entrar mediante un enlace de invitación, el parámetro `?s=` se limpia del navegador una vez confirmada la sala, evitando reingresos accidentales después de salir.
+- La revancha se prueba desde estado contaminado y debe reiniciar Pelo, Soplos, racha de Esconderse, ítem central, resultado, `chosen` y `ready` desde cero.
 - Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
 
 ## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
