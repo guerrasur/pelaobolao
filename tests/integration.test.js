@@ -685,3 +685,43 @@ test('si el host cae al terminar, el relevo puede devolver la sala al lobby', as
   assert.ok(lobby.members[players[2].uid]);
   assert.ok(Object.values(lobby.members).every(member => member.ready === false));
 });
+
+
+test('fin de partida no puede resolverse dos veces ni reabrir una ronda', async () => {
+  const { a, b, players, gameId, roomId } = await started(2);
+  await patch(`games/${gameId}`, {
+    [`players.${a.uid}.hair`]:1,
+    [`players.${b.uid}.hair`]:1,
+    [`players.${a.uid}.breath`]:1,
+    [`players.${b.uid}.breath`]:1,
+  });
+  await choose(a, gameId, 1, 'blow', b.uid);
+  await choose(b, gameId, 1, 'blow', a.uid);
+
+  const race = await Promise.allSettled([
+    a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' }),
+    a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' }),
+    a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' }),
+  ]);
+  const winners = race.filter(result => result.status === 'fulfilled' && result.value.advanced);
+  assert.equal(winners.length, 1);
+
+  const finished = await read(a.db, `games/${gameId}`);
+  assert.equal(finished.phase, 'finished');
+  assert.equal(finished.draw, true);
+  assert.equal(finished.resolvedTurn, 1);
+  assert.equal((await getDocs(collection(a.db, `games/${gameId}/rounds`))).size, 1);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'locked' })).advanced, false);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'reveal' })).advanced, false);
+
+  const roomFinished = await read(a.db, `rooms/${roomId}`);
+  assert.equal(roomFinished.status, 'finished');
+  await Promise.all([
+    a.client.call('roomCommand', { command:'lobby', roomId }),
+    a.client.call('roomCommand', { command:'lobby', roomId }),
+  ]);
+  const lobby = await read(a.db, `rooms/${roomId}`);
+  assert.equal(lobby.status, 'lobby');
+  assert.equal(lobby.gameId, null);
+  assert.ok(Object.values(lobby.members).every(member => member.ready === false));
+});
