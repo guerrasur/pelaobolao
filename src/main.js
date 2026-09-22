@@ -29,7 +29,7 @@ let operationGeneration = 0;
 let renderedHtml;
 let lastRevealStageKey = null;
 let lastRevealCountdown = null;
-let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
+let pending = null, sending = false, intentGeneration = 0, sendingGeneration = -1, drag = null, suppressClick = false, lastNudge = 0;
 let leaveArmedUntil = 0, leaveArmTimer = 0;
 const now = () => api?.now() ?? Date.now();
 const setText = (node, value) => {
@@ -80,6 +80,7 @@ async function checkVersion() {
     const latest = (await response.json()).version;
     if (typeof latest === 'string' && isNewerVersion(latest, APP_VERSION)) {
       s.updateRequired = latest;
+      intentGeneration += 1;
       cancelDrag(); pending = null; s.choice = null; s.targeting = false;
       render();
     }
@@ -184,6 +185,7 @@ function detachGame() {
   window.clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   gameOff?.(); intentOff?.(); gameOff = null; intentOff = null;
   s.gameId = null; s.game = null; s.intent = null; s.gameError = null;
+  intentGeneration += 1;
   s.choice = null; pending = null; s.targeting = false;
 }
 function resetRoomSession(text = '') {
@@ -251,6 +253,7 @@ function subscribeGame(id) {
     }
     lastPhase = s.game.phase;
     if (oldTurn !== s.game?.turn || s.game?.phase !== 'choosing') {
+      intentGeneration += 1;
       cancelDrag(); s.choice = null; pending = null; s.targeting = false;
       lastNudge = 0;
       message('');
@@ -358,9 +361,10 @@ function choose(action, target = null) {
   render(); void flushIntent();
 }
 async function flushIntent() {
-  if (sending) return;
-  sending = true;
-  while (pending) {
+  const generation = intentGeneration;
+  if (sending && sendingGeneration === generation) return;
+  sending = true; sendingGeneration = generation;
+  while (pending && generation === intentGeneration) {
     const next = pending; pending = null;
     if (!canChoose() || next.gameId !== s.gameId || next.turn !== s.game?.turn) {
       if (!s.online && pendingIntentStillValid(next)) {
@@ -372,12 +376,14 @@ async function flushIntent() {
     }
     try {
       const result = await call('submitIntent', { ...next, expectedRevision: accepted()?.revision ?? 0 });
+      if (generation !== intentGeneration) break;
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
         if (!s.intent || s.intent.turn !== result.turn || s.intent.revision <= result.revision) s.intent = result;
         if (!pending) s.choice = null;
         message('');
       }
     } catch (error) {
+      if (generation !== intentGeneration) break;
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
         const transient = String(error.code || '').endsWith('unavailable');
         if (transient && pendingIntentStillValid(next)) {
@@ -392,9 +398,10 @@ async function flushIntent() {
     }
     render();
   }
-  sending = false; render();
+  if (sendingGeneration === generation) {
+    sending = false; sendingGeneration = -1; render();
+  }
 }
-
 
 function roundImpact(game) {
   const result = game?.lastResult;
