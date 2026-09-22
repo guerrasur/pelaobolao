@@ -306,6 +306,12 @@ function canChoose() {
     && Number.isFinite(phaseDeadline(s.game)) && now() < phaseDeadline(s.game)
     && !(s.game.protocolVersion === 2 && allMarked(s.game, 'chosen')) && s.game.players[api.uid]?.hair > 0;
 }
+function pendingIntentStillValid(intent) {
+  const deadline = phaseDeadline(s.game);
+  return Boolean(intent && s.nameConfirmed && !s.updateRequired && !s.gameError
+    && intent.gameId === s.gameId && intent.turn === s.game?.turn && s.game?.phase === 'choosing'
+    && Number.isFinite(deadline) && now() < deadline && s.game?.players?.[api.uid]?.hair > 0);
+}
 function accepted() { return s.intent?.turn === s.game?.turn ? s.intent : null; }
 function choose(action, target = null) {
   if (!canChoose()) { message('Ya no podés elegir en este turno.'); return; }
@@ -323,7 +329,14 @@ async function flushIntent() {
   sending = true;
   while (pending) {
     const next = pending; pending = null;
-    if (!canChoose() || next.gameId !== s.gameId || next.turn !== s.game.turn) continue;
+    if (!canChoose() || next.gameId !== s.gameId || next.turn !== s.game?.turn) {
+      if (!s.online && pendingIntentStillValid(next)) {
+        pending = next;
+        break;
+      }
+      if (!pending && s.choice?.turn === next.turn) s.choice = null;
+      continue;
+    }
     try {
       const result = await call('submitIntent', { ...next, expectedRevision: accepted()?.revision ?? 0 });
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
@@ -333,6 +346,13 @@ async function flushIntent() {
       }
     } catch (error) {
       if (next.gameId === s.gameId && next.turn === s.game?.turn) {
+        const transient = String(error.code || '').endsWith('unavailable');
+        if (transient && pendingIntentStillValid(next)) {
+          pending = pending ?? next;
+          message(s.online ? 'Conexión inestable · reintentando…' : 'Sin conexión · la jugada se enviará al volver.');
+          if (s.online) window.setTimeout(() => { void flushIntent(); }, 700);
+          break;
+        }
         if (!pending) s.choice = null;
         showError(error);
       }
@@ -511,6 +531,7 @@ function syncRevealTimeline(game) {
 function selectionText(choice) {
   if (s.targeting) return 'Tocá SOPLAR de nuevo para cancelar.';
   if (!choice) return 'Si no elegís a tiempo: Distraído';
+  if (s.choice && !s.online) return `Sin conexión · pendiente: ${esc(choiceName(choice))}`;
   if (choice.action === 'blow' && choice.target) {
     const label = esc(targetName(choice.target));
     return s.choice ? `Fijando objetivo: ${label}…` : `OBJETIVO FIJADO: ${label} · SOPLO preparado`;
@@ -965,12 +986,14 @@ document.querySelector('.brand')?.addEventListener('click', event => {
   vibrate(8);
 });
 
-window.addEventListener('offline', () => { cancelDrag(); s.online = false; pending = null; s.choice = null; render(); });
+window.addEventListener('offline', () => { cancelDrag(); s.online = false; render(); });
 const resyncClock = () => { if (api && s.online && !document.hidden) void api.syncClock().then(tick).catch(() => {}); };
-window.addEventListener('online', () => { s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); });
+window.addEventListener('online', () => {
+  s.online = true; resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
+});
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { cancelDrag(); return; }
-  resyncClock(); void heartbeat(true); tick(); void checkVersion();
+  resyncClock(); void heartbeat(true); tick(); void checkVersion(); void flushIntent();
 });
 window.addEventListener('pagehide', cancelDrag);
 setInterval(tick, 200);
