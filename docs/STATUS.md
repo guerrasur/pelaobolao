@@ -1,5 +1,14 @@
 # Estado del MVP Spark
 
+## 0.38.0 — Plan Águila: ilustración original en el menú
+
+- La mascota construida con CSS del menú principal se reemplaza por el dibujo entregado para Pelao Bolao, recortado y optimizado como WebP liviano para móvil.
+- El asset se integra sobre el pizarrón con mezcla multiply: el fondo blanco desaparece visualmente y el trazo se siente dibujado sobre la superficie sin alterar el archivo original.
+- Se conserva la composición vigente: marca a la izquierda, ilustración a la derecha y acciones debajo.
+- La ilustración tiene un movimiento mínimo de reposo, respeta reduced motion y se oculta junto con el hero al abrir el teclado para no reintroducir el bug de viewport móvil.
+- El Service Worker precarga el asset y la versión pública, paquete, lockfile y caché quedan alineados en v0.38.0.
+- Se agrega una regresión que exige el asset real, elimina la mascota CSS del DOM y verifica caché, reduced motion y versión.
+
 ## 0.37.0 — Plan Águila: contador de victorias de sala
 
 - Después de completar la primera partida, cada jugador muestra en el lobby una insignia compacta de victorias de esa sala (`★ N VICT.`); antes de jugar no aparece ningún contador.

@@ -473,3 +473,22 @@ test('cierre del lote 0.36 alinea versión y auditoría terminal', async () => {
   assert.equal(packageInfo.version, publicVersion.version);
   assert.match(sw, new RegExp(`pelaobolao-shell-${packageInfo.version.replaceAll('.', '\\.')}`));
 });
+
+
+test('0.38 integra el asset ilustrado real en el menú sin depender de la mascota CSS', async () => {
+  const [main, css, sw, packageInfo, publicVersion] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor30.css', 'utf8'),
+    readFile('public/sw.js', 'utf8'),
+    readFile('package.json', 'utf8').then(JSON.parse),
+    readFile('public/version.json', 'utf8').then(JSON.parse),
+  ]);
+  assert.match(main, /class="home-art"/);
+  assert.match(main, /\/assets\/menu-hero\.webp/);
+  assert.doesNotMatch(main, /class="home-mascot"/);
+  assert.match(css, /mix-blend-mode:multiply/);
+  assert.match(css, /prefers-reduced-motion:reduce/);
+  assert.match(sw, /\/assets\/menu-hero\.webp/);
+  assert.equal(packageInfo.version, '0.38.0');
+  assert.equal(publicVersion.version, '0.38.0');
+});

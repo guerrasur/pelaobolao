@@ -627,3 +627,54 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
     letter-spacing:2.5px;
   }
 }
+
+
+/* Plan Águila 0.38.0 — asset ilustrado original en el menú principal. */
+.home-hero {
+  isolation:isolate;
+}
+.home-title-mark {
+  max-width:45%;
+}
+.home-art {
+  position:absolute;
+  z-index:2;
+  right:-2.5%;
+  bottom:-1%;
+  width:min(58%,250px);
+  margin:0;
+  pointer-events:none;
+  transform:rotate(1deg);
+  transform-origin:58% 88%;
+  animation:pb-home-art-idle 4.8s ease-in-out infinite;
+}
+.home-art img {
+  display:block;
+  width:100%;
+  height:auto;
+  mix-blend-mode:multiply;
+  filter:contrast(1.06);
+}
+@keyframes pb-home-art-idle {
+  0%,100% { transform:translateY(0) rotate(1deg); }
+  50% { transform:translateY(-3px) rotate(.2deg); }
+}
+@media(max-width:380px) {
+  .home-title-mark { max-width:44%; }
+  .home-art {
+    right:-4%;
+    bottom:1%;
+    width:min(59%,210px);
+  }
+}
+@media(max-height:620px) {
+  .home-art { width:min(55%,195px); }
+}
+@media(max-width:519px) {
+  body[data-keyboard-open="true"][data-ui-screen="home"] .home-art {
+    display:none;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  .home-art { animation:none!important; }
+}
