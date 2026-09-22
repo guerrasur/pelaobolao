@@ -255,3 +255,26 @@ test('cancelar compartir después de salir de la sala no rompe la app', async ({
   await expect(page.locator('#create-room')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+
+test('desconexión mientras apunta cancela el targeting y al volver deja elegir de nuevo', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { [`players.${room.hostId}.breath`]: 1, 'rules.turnMs': 60000 });
+    await expect(page.locator('#blow')).toBeEnabled();
+    await page.locator('#blow').click();
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting', 'true');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await expect(page.locator('.game')).toHaveAttribute('data-targeting', 'false');
+    await expect(page.locator('#blow')).toBeDisabled();
+    await expect(page.locator('#connection')).toContainText('Sin conexión');
+
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect(page.locator('#blow')).toBeEnabled();
+    await page.getByRole('button', { name: 'Tomar aire', exact: true }).click();
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+  } finally {
+    await guestContext.close();
+  }
+});
