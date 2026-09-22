@@ -90,3 +90,22 @@ test('0.24 viste la entrada como una experiencia de juego y respeta movimiento r
   assert.match(sound, /menuTap: \{ notes:/);
   assert.match(sound, /menuEnter: \{ notes:/);
 });
+
+
+test('0.30 limpia el menú y el lobby sin copy redundante', async () => {
+  const [main, condor20, condor30] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor20.js', 'utf8'),
+    readFile('src/condor30.css', 'utf8'),
+  ]);
+  assert.match(condor20, /import '\.\/condor30\.css';/);
+  assert.doesNotMatch(main, /Que no te vuelen/);
+  assert.doesNotMatch(main, /Partidas rápidas/);
+  assert.doesNotMatch(main, /Todos listos y conectados/);
+  assert.doesNotMatch(main, /Acomodando bancos/);
+  assert.doesNotMatch(main, /Buscando tu banco/);
+  assert.match(main, /Entrar con código/);
+  assert.match(condor30, /data-keyboard-open="true"/);
+  assert.match(condor30, /#app > \.lobby-screen/);
+  assert.match(condor30, /prefers-reduced-motion:reduce/);
+});
