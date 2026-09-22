@@ -397,3 +397,11 @@ test('el lote de pulido: la recuperación transitoria no deja avisos de error pe
   assert.match(main, /notice\.textContent === 'Comprobando conexión con el servidor…'/);
   assert.match(main, /message\(''\)/);
 });
+
+
+test('el lote de pulido ignora un segundo dedo mientras se arrastra Soplar', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /if \(drag \|\| !canChoose\(\) \|\| event\.button !== 0 \|\| event\.isPrimary === false\) return;/);
+  assert.match(main, /event\.pointerId !== drag\.pointerId/);
+  assert.match(main, /setPointerCapture\(event\.pointerId\)/);
+});
