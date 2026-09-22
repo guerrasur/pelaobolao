@@ -130,3 +130,17 @@ test('0.28 dispara tiza y énfasis cuando las jugadas son visibles, no debajo de
   assert.match(css, /condor-reveal-actions/);
   assert.match(css, /condor-impact-pop/);
 });
+
+
+test('0.29 deja visible sólo el mechón y su halo en el centro', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  const css = await readFile('src/style.css', 'utf8');
+  const start = source.indexOf('function centerItemHtml');
+  const end = source.indexOf('function centerItemNotice', start);
+  const itemSource = source.slice(start, end);
+  assert.match(itemSource, /class="hair-tuft"/);
+  assert.doesNotMatch(itemSource, /item-new-badge|<small|item-label|<span>/);
+  assert.match(css, /Plan Cóndor 0\.29\.0 — mechón puro/);
+  assert.match(css, /\.center-item\.hair-item\s*\{[\s\S]*?border:0!important;[\s\S]*?background:transparent!important;/);
+  assert.match(css, /\.item-notice\s*\{[\s\S]*?display:none!important;/);
+});
