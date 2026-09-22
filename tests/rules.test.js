@@ -47,6 +47,8 @@ test('propietario cambia solo intención propia válida; no estado ni resultados
   await assertFails(setDoc(doc(b,'games',gameId,'rounds','1'),{turn:1}));
   await assertFails(updateDoc(doc(b,'rooms',roomId),{hostId:'bob',updatedAt:serverTimestamp()}));
   await assertFails(updateDoc(doc(b,'rooms',roomId),{'members.alice.left':true,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(b,'rooms',roomId),{'wins.bob':99,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(b,'rooms',roomId),{matchCount:99,updatedAt:serverTimestamp()}));
 });
 test('intención de Agarrar acepta el mechón sin Soplos y bloquea Soplarlo en reglas v3',async()=>{
   await env.withSecurityRulesDisabled(async ctx=>{

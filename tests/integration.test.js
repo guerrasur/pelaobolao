@@ -118,14 +118,36 @@ test('partida completa, ganador, revancha y perfil persistente intacto',async()=
   const g=await read(a.db,`games/${gameId}`);
   assert.equal(g.winnerId,a.uid);assert.equal(g.phase,'finished');
   assert.deepEqual(await read(a.db,`profiles/${a.uid}`),old);
+  const finishedRoom=await read(a.db,`rooms/${roomId}`);
+  assert.equal(finishedRoom.matchCount,1);
+  assert.equal(finishedRoom.wins[a.uid],1);
+  assert.equal(finishedRoom.wins[b.uid] ?? 0,0);
+  assert.equal((await a.client.call('advanceGame',{gameId,turn:6,phase:'choosing'})).advanced,false);
+  assert.equal((await read(a.db,`rooms/${roomId}`)).wins[a.uid],1);
   await a.client.call('roomCommand',{command:'lobby',roomId});
   const rematchLobby=await read(a.db,`rooms/${roomId}`);
+  assert.equal(rematchLobby.matchCount,1);
+  assert.equal(rematchLobby.wins[a.uid],1);
   assert.ok(Object.values(rematchLobby.members).every(member=>member.ready===false));
   await assert.rejects(a.client.call('roomCommand',{command:'start',roomId}));
   for(const player of [a,b]) await player.client.call('roomCommand',{command:'ready',roomId,ready:true});
   await a.client.call('roomCommand',{command:'start',roomId});
   assert.notEqual((await read(a.db,`rooms/${roomId}`)).gameId,gameId);
 });
+test('un empate cuenta la partida pero no inventa una victoria',async()=>{
+  const {a,b,gameId,roomId}=await started();
+  await patch(`games/${gameId}`,{
+    [`players.${a.uid}.hair`]:1,[`players.${b.uid}.hair`]:1,
+    [`players.${a.uid}.breath`]:1,[`players.${b.uid}.breath`]:1,
+  });
+  await choose(a,gameId,1,'blow',b.uid);
+  await choose(b,gameId,1,'blow',a.uid);
+  await a.client.call('advanceGame',{gameId,turn:1,phase:'choosing'});
+  const game=await read(a.db,`games/${gameId}`),room=await read(a.db,`rooms/${roomId}`);
+  assert.equal(game.phase,'finished');assert.equal(game.draw,true);assert.equal(game.winnerId,null);
+  assert.equal(room.matchCount,1);assert.deepEqual(room.wins,{});
+});
+
 test('al terminar, un jugador puede relevar al host caído con el lease corto',async()=>{
   const {a,b,gameId,roomId}=await started();
   await patch(`games/${gameId}`,{phase:'finished',finishedAt:Date.now()-6000,lastProgressAt:Timestamp.fromMillis(Date.now()),winnerId:a.uid});

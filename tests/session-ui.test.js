@@ -164,6 +164,28 @@ test('el lobby expone progreso de listos y presencia sin revelar acciones', asyn
   assert.doesNotMatch(html, /Soplar →/);
 });
 
+test('el lobby muestra victorias sólo después de la primera partida sin mover jugadores', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = {
+    code:'ABCD', status:'lobby', hostId:'me', matchCount:0, wins:{me:2,other:0},
+    members:{
+      me:{name:'Ana',ready:false,joinedAt:100,lastSeenAt:now},
+      other:{name:'Beto',ready:false,joinedAt:200,lastSeenAt:now},
+    },
+  };
+  ui.render();
+  assert.doesNotMatch(ui.nodes.get('#app').innerHTML, /lobby-win-count/);
+
+  ui.s.room = { ...ui.s.room, matchCount:1 };
+  ui.render();
+  const html = ui.nodes.get('#app').innerHTML;
+  assert.match(html, /class="lobby-win-count" data-wins="2" aria-label="2 victorias en esta sala"/);
+  assert.match(html, /class="lobby-win-count" data-wins="0" aria-label="0 victorias en esta sala"/);
+  assert.ok(html.indexOf('Ana') < html.indexOf('Beto'));
+});
+
 test('el lobby conserva el orden de ingreso aunque cambien Listo y presencia', async () => {
   const ui = await setup();
   const now = Date.now();

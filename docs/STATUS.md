@@ -1,5 +1,19 @@
 # Estado del MVP Spark
 
+## 0.37.0 — Plan Águila: contador de victorias de sala
+
+- Después de completar la primera partida, cada jugador muestra en el lobby una insignia compacta de victorias de esa sala (`★ N VICT.`); antes de jugar no aparece ningún contador.
+- El marcador conserva el orden original de ingreso del lobby: las victorias no reordenan jugadores ni interfieren con `Listo`, presencia o rol de host.
+- `matchCount` y `wins` viven en el documento de sala y sobreviven a las revanchas mientras exista esa sala. Un jugador que vuelve con la misma identidad recupera su cuenta de esa sesión.
+- La victoria se suma en la misma transacción autoritativa que cierra la partida. Reintentos, doble resolución o carreras del host no pueden duplicar el punto.
+- Un empate incrementa el número de partidas jugadas pero no adjudica una victoria; después de un primer empate el lobby muestra `0` para todos.
+- La insignia amarilla con estrella queda subordinada al nombre y a la presencia, se compacta a `★ N` en pantallas de hasta 360 px y respeta `prefers-reduced-motion`.
+- Firestore Rules aceptan el marcador nuevo manteniendo compatibilidad con salas schema 3 creadas por versiones anteriores.
+- Se agregan pruebas de integración y UI para persistencia, idempotencia, empates, visibilidad sólo después de la primera partida y estabilidad del orden del lobby.
+- La pasada Cóndor suma regresión E2E de 6 jugadores a 320 px para impedir overflow horizontal del marcador y eleva el CI de pull requests a unitarios + integración Firestore + E2E + build antes de permitir el merge.
+- Versión pública, paquete, lockfile y caché del Service Worker quedan alineados en v0.37.0.
+
+
 ## 0.36.0 — Plan Cóndor: pulido pre-playtest
 
 - Las jugadas locales pendientes ya no se pierden ante una desconexión breve: se conservan mientras el turno siga vigente y se reintentan al volver la conexión.

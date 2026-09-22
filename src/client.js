@@ -74,6 +74,7 @@ export function createClient(db, uid, clock = Date.now) {
             requireThat(!old, 'CODE_COLLISION');
             tx.set(ref, { schemaVersion: 3, code: id, hostId: uid, status: 'lobby', gameId: null,
               members: { [uid]: { name: profile.name, joinedAt: time, lastSeenAt: serverTimestamp(), left: false, ready: false } },
+              wins: {}, matchCount: 0,
               createdAt: time, updatedAt: serverTimestamp() });
             tx.set(sessionRef, { roomId: id, updatedAt: serverTimestamp() }, { merge: true });
             return { roomId: id };
@@ -288,7 +289,11 @@ export function createClient(db, uid, clock = Date.now) {
           nextTurnAt: result.finished ? null : time + game.rules.revealMs,
           lastProgressAt: serverTimestamp(), ...(synchronized ? { phaseStartedAt: serverTimestamp() } : {}),
           ...(result.finished ? { finishedAt: time } : {}) });
-        if (result.finished) tx.update(roomRef, { status: 'finished', updatedAt: serverTimestamp() });
+        if (result.finished) {
+          const wins = { ...(room.wins ?? {}) };
+          if (result.winnerId) wins[result.winnerId] = Number(wins[result.winnerId] || 0) + 1;
+          tx.update(roomRef, { status: 'finished', wins, matchCount: Number(room.matchCount || 0) + 1, updatedAt: serverTimestamp() });
+        }
       }
       return { advanced: true };
     }, { maxAttempts: 10 });
