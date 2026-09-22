@@ -351,3 +351,17 @@ test('el lote de pulido silencia feedback en background y recalcula geometría a
   assert.match(condor, /document\.addEventListener\('visibilitychange', resumeEnhance/);
   assert.match(condor, /window\.visualViewport\?\.removeEventListener\('resize', scheduleEnhance/);
 });
+
+
+test('el lote de pulido bloquea decisiones si el navegador dice online pero Firestore está stale', async () => {
+  const [main, css] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor.css', 'utf8'),
+  ]);
+  assert.match(main, /const connectionFresh = \(\) =>/);
+  assert.match(main, /s\.online && connectionFresh\(\) && s\.game\?\.phase === 'choosing'/);
+  assert.match(main, /Comprobando conexión con el servidor…/);
+  assert.match(main, /lastContact = Date\.now\(\)/);
+  assert.match(main, /classList\.toggle\('connection-stale', checkingConnection\)/);
+  assert.match(css, /\.game\.connection-stale \.controls/);
+});
