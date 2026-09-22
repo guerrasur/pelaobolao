@@ -1,6 +1,6 @@
 # Pelao Bolao · MVP Spark
 
-Última actualización (0.32.0): Plan Cóndor mantiene la composición simple de entrada y lobby, recupera el resaltado amarillo exclusivamente para el código de sala y refuerza el layout del encabezado para anchos móviles chicos. Se agregan regresiones estáticas y de navegador para evitar que “SALA” quede resaltado o que código/Compartir desborden el viewport.
+Última actualización (0.33.0): Plan Cóndor refuerza estética y game feel sin cambiar reglas: los botones de acción tienen respuesta física más marcada, la elección queda visualmente hundida, sólo el jugador que acaba de fijar jugada recibe el sello de confirmación y el tablero cambia sutilmente de iluminación según la fase. Se agregó un cue corto de audio para las acciones y se conserva el modo de movimiento reducido.
 
 Juego web para 2 a 6 celulares con Authentication anónima, Firestore y Hosting. Funciona en Spark: no contiene Functions, Tasks, Compute Engine ni cuentas de servicio.
 
