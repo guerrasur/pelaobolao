@@ -343,3 +343,25 @@ test('el timer vence sin quedarse clavado en 0 y avanza aunque falte una jugada'
     await guestContext.close();
   }
 });
+
+
+test('salir de una partida activa requiere confirmación y recién el segundo toque la cierra', async ({ browser, page }) => {
+  const { guestContext, code, gameId } = await pair(browser, page);
+  try {
+    await page.getByRole('button', { name:'Salir de la partida', exact:true }).click();
+    await expect(page.getByRole('button', { name:'Confirmar salida', exact:true })).toBeVisible();
+    await expect(page.locator('#notice')).toContainText('Confirmar salida');
+    const stillOpen = await read(`rooms/${code}`);
+    const stillRunning = await read(`games/${gameId}`);
+    expect(stillOpen.status).toBe('playing');
+    expect(stillOpen.gameId).toBe(gameId);
+    expect(stillRunning.phase).not.toBe('abandoned');
+
+    await page.getByRole('button', { name:'Confirmar salida', exact:true }).click();
+    await expect(page.locator('#create-room')).toBeVisible();
+    await expect.poll(async () => (await read(`rooms/${code}`))?.status).toBe('closed');
+    await expect.poll(async () => (await read(`games/${gameId}`))?.phase).toBe('abandoned');
+  } finally {
+    await guestContext.close();
+  }
+});
