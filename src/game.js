@@ -3,9 +3,10 @@ export const CENTER_ITEM_TARGET = '__center_item__';
 export const HAIR_ITEM_KIND = 'hair_plus_1';
 
 export const RULES = Object.freeze({
-  version: 3, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
+  version: 4, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
   minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 2500,
   countdownMs: 3000,
+  maxConsecutiveHides: 3,
   centerItems: true,
   itemFirstTurn: 4,
   itemMinGap: 4,
@@ -80,7 +81,7 @@ export function scheduleCenterItem(game, nextTurn) {
   const current = game?.centerItem ?? null;
   const lastItemSpawnTurn = Number.isInteger(game?.lastItemSpawnTurn) ? game.lastItemSpawnTurn : 0;
   const itemOutcome = game?.lastResult?.item?.outcome;
-  const consumedTurn = ['claimed', 'contested'].includes(itemOutcome) && Number.isInteger(game?.turn) ? game.turn : 0;
+  const consumedTurn = ['claimed', 'contested', 'expired'].includes(itemOutcome) && Number.isInteger(game?.turn) ? game.turn : 0;
   // If an item lingered for several rounds, its cooldown starts when it leaves the desk.
   // Otherwise the old spawn turn can immediately trigger pity/random replacement next round.
   const cooldownTurn = Math.max(lastItemSpawnTurn, consumedTurn);
@@ -136,6 +137,11 @@ export function validateIntent(game, uid, intent, now) {
     const playerTarget = intent.target !== uid && game.players[intent.target]?.hair > 0;
     const legacyItemTarget = !freePickup && intent.target === CENTER_ITEM_TARGET && game.centerItem?.kind === HAIR_ITEM_KIND;
     requireThat(playerTarget || legacyItemTarget, 'Elegí otro jugador activo.');
+  } else if (intent.action === 'hide') {
+    const limit = Number(game.rules?.maxConsecutiveHides ?? 3);
+    requireThat(Number(game.players[uid].hideStreak || 0) < limit,
+      `Solo podés esconderte ${limit} veces seguidas. Elegí otra acción.`, 'failed-precondition');
+    requireThat(intent.target === null, 'Esta acción no tiene objetivo.', 'invalid-argument');
   } else if (intent.action === 'grab') {
     requireThat(freePickup, 'Esta partida usa la interacción anterior del objeto.', 'failed-precondition');
     requireThat(intent.target === CENTER_ITEM_TARGET && game.centerItem?.kind === HAIR_ITEM_KIND,
@@ -151,7 +157,7 @@ export function newGame(roomId, members, now, rules = RULES) {
   return {
     schemaVersion: 3, protocolVersion: 2, ready: {}, chosen: {}, resolvedTurn: 0, roomId, memberIds: ids, rules: { ...rules },
     players: Object.fromEntries(ids.map(uid => [uid, {
-      name: members[uid].name, hair: rules.initialHair, breath: rules.initialBreath,
+      name: members[uid].name, hair: rules.initialHair, breath: rules.initialBreath, hideStreak: 0,
     }])),
     centerItem: null,
     lastItemSpawnTurn: 0,
@@ -175,6 +181,12 @@ export function resolveRound(game, intents) {
       validateIntent(game, uid, intent, phaseDeadline(game) - 1);
       actions[uid] = { action: intent.action, target: intent.target };
     } catch { actions[uid] = { action: 'distracted', target: null }; }
+  }
+
+  for (const [uid, intent] of Object.entries(actions)) {
+    players[uid].hideStreak = intent.action === 'hide'
+      ? Number(game.players[uid].hideStreak || 0) + 1
+      : 0;
   }
 
   const hits = [];
@@ -203,7 +215,17 @@ export function resolveRound(game, intents) {
 
   if (centerItem) {
     if (itemAttempts.length === 0) {
-      item = { kind: centerItem.kind, outcome: 'stayed', attempts: [], winnerId: null, healed: 0, spawnedTurn: centerItem.spawnedTurn };
+      const ageRounds = Number.isInteger(centerItem.spawnedTurn)
+        ? Math.max(1, game.turn - centerItem.spawnedTurn + 1)
+        : 1;
+      if (ageRounds >= 3) {
+        item = { kind: centerItem.kind, outcome: 'expired', attempts: [], winnerId: null, healed: 0,
+          spawnedTurn: centerItem.spawnedTurn, ageRounds };
+        centerItem = null;
+      } else {
+        item = { kind: centerItem.kind, outcome: 'stayed', attempts: [], winnerId: null, healed: 0,
+          spawnedTurn: centerItem.spawnedTurn, ageRounds };
+      }
     } else if (itemAttempts.length === 1) {
       const winnerId = itemAttempts[0];
       const before = players[winnerId].hair;

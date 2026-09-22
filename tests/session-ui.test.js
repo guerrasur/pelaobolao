@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 import { millis, phaseDeadline, allMarked, lobbyReturnSeconds, SYNC_WAIT_MS, ABANDON_MS, GAME_HOST_LEASE_MS, CENTER_ITEM_TARGET, HAIR_ITEM_KIND } from '../src/game.js';
-import { playerCard as renderPlayerCard } from '../src/visuals.js';
+import { playerCard as renderPlayerCard, actionControls as renderActionControls } from '../src/visuals.js';
 import { isNewerVersion } from '../src/version.js';
 import { dragGuideGeometry, shouldHoldRenderForDrag } from '../src/condor-core.js';
 
@@ -421,6 +421,54 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   assert.match(html,/AGARRAR/);
   assert.match(html,/gratis; al hacerlo quedás expuesto/);
   assert.doesNotMatch(html,/1 SOPLO/);
+});
+
+test('Plan Condor 0.25: el mechón parpadea en su tercera ronda y avisa que va a desaparecer', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:6,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other'],chosen:{},ready:{},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'random'},
+    players:{me:{name:'Ana',hair:2,breath:0,hideStreak:0},other:{name:'Beto',hair:3,breath:0,hideStreak:0}},
+    rules:{version:4,maxHair:4,maxBreath:2,maxConsecutiveHides:3,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/center-item hair-item free-pickup targetable[^"]*is-expiring/);
+  assert.match(html,/data-item-age="3"/);
+  assert.match(html,/ÚLTIMA RONDA/);
+  assert.match(html,/si nadie lo agarra ahora, desaparece/);
+});
+
+test('Plan Condor 0.25: Esconderse queda bloqueado después de tres defensas seguidas', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:7,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other'],chosen:{},ready:{},centerItem:null,
+    players:{me:{name:'Ana',hair:2,breath:1,hideStreak:3},other:{name:'Beto',hair:3,breath:0,hideStreak:0}},
+    rules:{version:4,maxHair:4,maxBreath:2,maxConsecutiveHides:3,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/Esconderse bloqueado: ya van 3 seguidas/);
+  const controls = renderActionControls(true, 1, false, null, true);
+  assert.match(controls,/data-action="hide" class="hide-locked /);
+  assert.match(controls,/LÍMITE 3/);
+  assert.match(controls,/data-action="hide"[^>]*disabled/);
 });
 
 test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar deshabilita el mechón', async () => {

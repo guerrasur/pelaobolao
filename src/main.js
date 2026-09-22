@@ -36,6 +36,8 @@ const message = text => { setText(notice, text); };
 const actionName = action => ({ air: 'Tomar aire', hide: 'Esconderse', blow: 'Soplar', grab: 'Agarrar +1 Pelo', distracted: 'Distraído' }[action] ?? 'Sin elegir');
 const centerItemActive = () => s.game?.centerItem?.kind === HAIR_ITEM_KIND;
 const freeCenterPickup = () => Number(s.game?.rules?.version ?? 0) >= 3;
+const hideLimit = () => Number(s.game?.rules?.maxConsecutiveHides ?? 3);
+const isHideLocked = () => Number(s.game?.players?.[api?.uid]?.hideStreak || 0) >= hideLimit();
 const targetName = target => target === CENTER_ITEM_TARGET ? '+1 Pelo' : s.game?.players?.[target]?.name ?? 'jugador';
 const validBlowTarget = target => target === CENTER_ITEM_TARGET
   ? (!freeCenterPickup() && centerItemActive())
@@ -310,6 +312,7 @@ function accepted() { return s.intent?.turn === s.game?.turn ? s.intent : null; 
 function choose(action, target = null) {
   if (!canChoose()) { message('Ya no podés elegir en este turno.'); return; }
   if (action === 'blow' && (s.game.players[api.uid].breath < 1 || !validBlowTarget(target))) return;
+  if (action === 'hide' && isHideLocked()) { message(`Solo podés esconderte ${hideLimit()} veces seguidas. Elegí otra acción.`); return; }
   if (action === 'grab' && (!freeCenterPickup() || target !== CENTER_ITEM_TARGET || !centerItemActive())) return;
   s.targeting = false;
   s.choice = { action, target, turn: s.game.turn };
@@ -353,6 +356,7 @@ function roundImpact(game) {
   if (healed) return 'heal';
   if (result.item?.outcome === 'contested') return 'item-clash';
   if (result.item?.outcome === 'claimed') return 'item-claim';
+  if (result.item?.outcome === 'expired') return 'item-expire';
   return 'reveal';
 }
 
@@ -400,10 +404,16 @@ function centerItemHtml(game, choice) {
   const selectedLegacyTarget = !freePickup && choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
   // A free pickup is contextual: while aiming a Soplo the item stops acting like a control.
   const targetable = Boolean(canChoose() && (freePickup ? !s.targeting : s.targeting));
-  const isNew = game.phase === 'choosing' && game.centerItem.spawnedTurn === game.turn;
-  const label = freePickup ? '+1 Pelo. Agarrar no cuesta Soplos, pero te deja expuesto.' : '+1 Pelo, cuesta 1 Soplo';
-  return `<button type="button" class="center-item hair-item ${freePickup ? 'free-pickup' : 'legacy-blow-item'} ${targetable ? 'targetable' : ''} ${selectedGrab ? 'selected-grab' : ''} ${selectedLegacyTarget ? 'selected-target' : ''} ${isNew ? 'is-new' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" aria-disabled="${targetable ? 'false' : 'true'}" aria-pressed="${selectedGrab || selectedLegacyTarget ? 'true' : 'false'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
-    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>OBJETO EN EL AULA</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${selectedGrab ? 'YENDO…' : freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
+  const itemAgeRounds = Number.isInteger(game.centerItem.spawnedTurn)
+    ? Math.max(1, game.turn - game.centerItem.spawnedTurn + 1)
+    : 1;
+  const isNew = game.phase === 'choosing' && itemAgeRounds === 1;
+  const isExpiring = itemAgeRounds >= 3;
+  const label = freePickup
+    ? `+1 Pelo. Agarrar no cuesta Soplos, pero te deja expuesto.${isExpiring ? ' Última ronda antes de desaparecer.' : ''}`
+    : `+1 Pelo, cuesta 1 Soplo.${isExpiring ? ' Última ronda antes de desaparecer.' : ''}`;
+  return `<button type="button" class="center-item hair-item ${freePickup ? 'free-pickup' : 'legacy-blow-item'} ${targetable ? 'targetable' : ''} ${selectedGrab ? 'selected-grab' : ''} ${selectedLegacyTarget ? 'selected-target' : ''} ${isNew ? 'is-new' : ''} ${isExpiring ? 'is-expiring' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" data-item-age="${itemAgeRounds}" aria-disabled="${targetable ? 'false' : 'true'}" aria-pressed="${selectedGrab || selectedLegacyTarget ? 'true' : 'false'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
+    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>${isExpiring ? 'ÚLTIMA RONDA' : 'OBJETO EN EL AULA'}</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${selectedGrab ? 'YENDO…' : freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
   </button>`;
 }
 
@@ -411,6 +421,10 @@ function centerItemNotice(game, me) {
   if (game.phase !== 'choosing' || game.centerItem?.kind !== HAIR_ITEM_KIND) return '';
   const maxHair = Number(game.rules?.maxHair || 4);
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
+  const itemAgeRounds = Number.isInteger(game.centerItem.spawnedTurn)
+    ? Math.max(1, game.turn - game.centerItem.spawnedTurn + 1)
+    : 1;
+  const expiring = itemAgeRounds >= 3;
   if (!freePickup) {
     const detail = !me || me.hair <= 0
       ? 'Los jugadores pueden disputarlo con 1 Soplo.'
@@ -419,14 +433,14 @@ function centerItemNotice(game, me) {
         : me.hair >= maxHair
           ? 'Tenés Pelo al máximo: todavía podés disputarlo para negárselo a otro.'
           : 'Cuesta 1 Soplo. Si van 2 o más, nadie se lo lleva.';
-    return `<div class="item-notice" role="status"><b>+1 PELO EN JUEGO</b><span>${detail}</span></div>`;
+    return `<div class="item-notice ${expiring ? 'item-notice-expiring' : ''}" role="status"><b>${expiring ? 'ÚLTIMA RONDA DEL MECHÓN' : '+1 PELO EN JUEGO'}</b><span>${detail}${expiring ? ' Si nadie lo agarra ahora, desaparece.' : ''}</span></div>`;
   }
   const detail = !me || me.hair <= 0
     ? 'No cuesta Soplos. Quien lo intente queda expuesto a ataques.'
     : me.hair >= maxHair
       ? 'No cuesta Soplos: podés negárselo a otro, pero quedás expuesto.'
       : 'Tocalo para agarrarlo gratis. No te escondés: si te Soplan, recibís el golpe.';
-  return `<div class="item-notice item-notice-free" role="status"><b>MECHÓN +1</b><span>${detail} Si van 2 o más, nadie se lo lleva.</span></div>`;
+  return `<div class="item-notice item-notice-free ${expiring ? 'item-notice-expiring' : ''}" role="status"><b>${expiring ? 'ÚLTIMA RONDA DEL MECHÓN' : 'MECHÓN +1'}</b><span>${detail} Si van 2 o más, nadie se lo lleva.${expiring ? ' Está parpadeando: si nadie lo agarra ahora, desaparece.' : ''}</span></div>`;
 }
 
 function outcomeKind(game, uid) {
@@ -485,6 +499,7 @@ function roundCallout(game) {
   if (result.item?.outcome === 'claimed' && result.item.claimantAlive === false) return 'LLEGÓ TARDE';
   if (result.item?.outcome === 'claimed') return 'SE LO NEGÓ';
   if (result.item?.outcome === 'contested') return 'NADIE SE LO LLEVA';
+  if (result.item?.outcome === 'expired') return 'EL MECHÓN SE FUE';
   return 'RONDA TRANQUILA';
 }
 
@@ -508,7 +523,9 @@ function resultHtml(game) {
       ? `<div class="item-result contested"><b>OBJETO DISPUTADO</b><span>${itemResult.attempts.length} fueron por él · nadie se lo llevó</span></div>`
       : itemResult?.outcome === 'stayed'
         ? '<div class="item-result stayed"><b>+1 PELO SIGUE AHÍ</b><span>Nadie intentó llevárselo</span></div>'
-        : '';
+        : itemResult?.outcome === 'expired'
+          ? '<div class="item-result stayed expired"><b>EL MECHÓN DESAPARECIÓ</b><span>Nadie lo agarró en tres rondas</span></div>'
+          : '';
   return `<section class="result" aria-label="Resultado actual">
     <div class="result-callout">${roundCallout(game)}</div>
     ${itemSummary}
@@ -591,15 +608,19 @@ function render() {
     const spectatorStrip = lateSpectator && !terminal
       ? `<div class="spectator-strip is-waiting"><strong>ESPECTADOR · PRÓXIMA PARTIDA</strong><span>${waitingPosition >= 0 ? `Lugar ${waitingPosition + 1} de ${waitingMembers.length} · ` : ''}Entrás cuando vuelvan al lobby</span></div>`
       : spectating ? `<div class="spectator-strip"><strong>PELADO · MIRANDO</strong><span>${activeCount} siguen con Pelo</span></div>` : '';
+    const hideBlocked = Number(me?.hideStreak || 0) >= Number(game.rules?.maxConsecutiveHides ?? 3);
     const actionPrompt = s.targeting ? '¡APUNTÁ!' : centerItemActive() && freeCenterPickup() ? '¡MECHÓN!' : me?.breath < 1 ? '¡TOMÁ AIRE!' : '¡ELEGÍ!';
-    const actionHint = s.targeting
+    const baseActionHint = s.targeting
       ? centerItemActive() && !freeCenterPickup() ? 'Tocá un rival o el +1 Pelo del centro.' : 'Tocá un rival o soltá el Soplo encima.'
       : centerItemActive() && freeCenterPickup()
         ? 'Tocá el mechón para intentar +1 Pelo gratis; al hacerlo quedás expuesto.'
         : me?.breath < 1
           ? centerItemActive() ? 'No tenés Soplos para atacar; el objeto de esta partida usa la regla anterior.' : 'No tenés Soplos para atacar.'
           : centerItemActive() ? 'Podés atacar a un rival o disputar el +1 Pelo.' : 'Soplá, tomá aire o escondete.';
-    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
+    const actionHint = hideBlocked && !s.targeting
+      ? `${baseActionHint} · Esconderse bloqueado: ya van 3 seguidas.`
+      : baseActionHint;
+    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action, hideBlocked)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
     const phaseLabel = { countdown:'PREPARADOS', syncing:'SINCRONIZANDO', choosing:'ELEGÍ TU JUGADA', locked:'ACCIONES SELLADAS', reveal:'REVELANDO RESULTADOS', finished:'PARTIDA TERMINADA', abandoned:'PARTIDA CERRADA' }[game.phase] || 'PARTIDA';
     const phaseDetail = game.phase === 'choosing' ? `${chosenCount}/${activeCount} eligieron` : game.phase === 'reveal' ? 'Mirá qué pasó' : game.phase === 'locked' ? 'Resolviendo…' : game.phase === 'countdown' ? 'Todos atentos' : '';
     const countdownSplash = game.phase === 'countdown' ? '<div class="countdown-splash" aria-hidden="true"><strong data-countdown-splash>3</strong><span>¡PREPARATE!</span></div>' : '';

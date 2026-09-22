@@ -62,6 +62,19 @@ test('esconderse bloquea todos los ataques, pero los atacantes gastan soplo', ()
   assert.equal(result.players['1'].breath, 0);
   assert.ok(result.result.hits.every(hit => hit.blocked));
 });
+test('un jugador no puede esconderse más de tres rondas seguidas', () => {
+  const state = game();
+  state.players['0'].hideStreak = 2;
+  let result = resolveRound(state, { 0: choice('hide'), 1: choice('air') });
+  assert.equal(result.players['0'].hideStreak, 3);
+  state.players = result.players;
+  assert.throws(() => validateIntent(state, '0', choice('hide'), 1001), /3 veces seguidas/);
+  assert.doesNotThrow(() => validateIntent(state, '0', choice('air'), 1001));
+  result = resolveRound(state, { 0: choice('air'), 1: choice('air') });
+  assert.equal(result.players['0'].hideStreak, 0);
+  state.players = result.players;
+  assert.doesNotThrow(() => validateIntent(state, '0', choice('hide'), 1001));
+});
 test('dos ataques mutuos se ejecutan incluso si ambos quedan eliminados', () => {
   const state = game();
   for (const p of Object.values(state.players)) { p.hair = 1; p.breath = 1; }
@@ -256,6 +269,35 @@ test('si nadie intenta obtenerlo, el +1 Pelo permanece para el turno siguiente',
   const result = resolveRound(state, { 0: choice('air'), 1: choice('hide') });
   assert.deepEqual(result.centerItem, state.centerItem);
   assert.equal(result.result.item.outcome, 'stayed');
+});
+
+test('si nadie agarra el mechón, parpadea en su tercera ronda y desaparece para la cuarta', () => {
+  const state = game();
+  state.turn = 4;
+  state.centerItem = { kind: HAIR_ITEM_KIND, spawnedTurn: 4, source: 'random' };
+
+  let result = resolveRound(state, { 0: choice('air', null, 4), 1: choice('air', null, 4) });
+  assert.equal(result.result.item.outcome, 'stayed');
+  assert.equal(result.result.item.ageRounds, 1);
+  assert.ok(result.centerItem);
+
+  state.players = result.players; state.centerItem = result.centerItem; state.turn = 5;
+  result = resolveRound(state, { 0: choice('air', null, 5), 1: choice('air', null, 5) });
+  assert.equal(result.result.item.outcome, 'stayed');
+  assert.equal(result.result.item.ageRounds, 2);
+  assert.ok(result.centerItem);
+
+  state.players = result.players; state.centerItem = result.centerItem; state.turn = 6;
+  result = resolveRound(state, { 0: choice('air', null, 6), 1: choice('air', null, 6) });
+  assert.equal(result.result.item.outcome, 'expired');
+  assert.equal(result.result.item.ageRounds, 3);
+  assert.equal(result.centerItem, null);
+
+  state.centerItem = result.centerItem;
+  state.lastResult = result.result;
+  state.lastItemSpawnTurn = 4;
+  assert.equal(scheduleCenterItem(state, 7).centerItem, null);
+  assert.equal(scheduleCenterItem(state, 7).lastItemSpawnTurn, 6);
 });
 
 test('agarrar deja vulnerable: el daño ocurre antes de la curación y llegar a 0 no revive', () => {
