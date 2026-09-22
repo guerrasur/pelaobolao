@@ -670,7 +670,7 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   }
   .home-title-mark strong { font-size:clamp(27px,8vw,36px); }
   .home-artwork {
-    right:-5%;
+    right:0;
     bottom:4%;
     width:61%;
   }
