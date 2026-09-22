@@ -130,3 +130,22 @@ test('0.28 dispara tiza y énfasis cuando las jugadas son visibles, no debajo de
   assert.match(css, /condor-reveal-actions/);
   assert.match(css, /condor-impact-pop/);
 });
+
+
+test('0.29 deja el item central como mechón sin tarjeta ni copy visible', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  const start = source.indexOf('function centerItemHtml');
+  const end = source.indexOf('function centerItemNotice', start);
+  const itemSource = source.slice(start, end);
+  assert.match(itemSource, /class="hair-tuft"/);
+  assert.doesNotMatch(itemSource, /item-new-badge|item-label|OBJETO EN EL AULA|AGARRAR<\/span>|1 SOPLO<\/span>/);
+
+  const css = await readFile('src/style.css', 'utf8');
+  const marker = css.indexOf('Plan Cóndor 0.29.0');
+  const itemCss = css.slice(marker);
+  assert.ok(marker >= 0);
+  assert.match(itemCss, /background:transparent!important;/);
+  assert.match(itemCss, /radial-gradient\(circle/);
+  assert.match(itemCss, /drop-shadow/);
+  assert.match(itemCss, /\.center-item\.drag-target::after\s*\{[\s\S]*?content:none!important;/);
+});
