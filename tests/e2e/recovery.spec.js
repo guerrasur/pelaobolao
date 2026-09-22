@@ -403,3 +403,24 @@ test('reconectar después de perderse una fase aterriza en el turno vigente sin 
     await guestContext.close();
   }
 });
+
+
+test('cambiar de acción rápido conserva sólo la última elección y su revisión', async ({ browser, page }) => {
+  const { guestContext, room, gameId } = await pair(browser, page);
+  try {
+    await patch(`games/${gameId}`, { 'rules.turnMs':60000 });
+    await page.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await page.getByRole('button', { name:'Esconderse', exact:true }).click();
+
+    await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('hide');
+    const intent = await read(`games/${gameId}/intents/${room.hostId}`);
+    expect(intent.turn).toBe(1);
+    expect(intent.revision).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('[data-action="hide"]')).toHaveClass(/chosen-action/);
+    await expect(page.locator('[data-action="hide"] .action-state')).toHaveText('ELEGIDA');
+    await expect(page.locator('[data-action="air"]')).not.toHaveClass(/chosen-action|saving-action/);
+    await expect(page.locator('#selection')).toContainText('Elegido: Esconderse');
+  } finally {
+    await guestContext.close();
+  }
+});
