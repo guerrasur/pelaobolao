@@ -13,6 +13,7 @@
 - Audio y vibración quedan silenciados mientras la app está en segundo plano, evitando feedback fantasma de rondas que avanzan con el celular bloqueado.
 - Al volver a primer plano o cambiar el `visualViewport`, se recalcula la geometría de targeting/FX para Safari y navegadores móviles.
 - Se agrega un escenario E2E donde un jugador pierde una transición completa estando offline y, al reconectar, aterriza directamente en el turno vigente sin repetir reveal ni conservar una elección vieja.
+- Si `navigator.onLine` sigue en `true` pero pasan más de 30 s sin confirmación real de Firestore, las acciones dejan de aceptarse hasta recuperar contacto; snapshots autoritativos de sala/partida/intención renuevan ese contacto.
 - Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
 - Checkpoint rápido del lote: `npm test` + build se ejecutan sobre la rama; integración/E2E/Firebase quedan reservados para el cierre.
 - La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
