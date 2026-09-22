@@ -105,5 +105,5 @@ test('0.27 no reinicia flechas de reveal en cada tick', async () => {
   const syncEnd = source.indexOf('function selectionText', syncStart);
   const syncSource = source.slice(syncStart, syncEnd);
   assert.doesNotMatch(syncSource, /drawRevealAttackLines\(game, stage\);\s*if \(key === lastRevealStageKey\)/);
-  assert.match(syncSource, /render\(\);[\s\S]*drawRevealAttackLines\(game, stage\)/);
+  assert.match(source, /if \(s\.game && revealStage\(s\.game, now\(\)\) === 'actions'\) drawRevealAttackLines\(s\.game, 'actions'\)/);
 });
