@@ -442,3 +442,12 @@ test('el lote de pulido: background cancela targeting no confirmado pero no una 
   assert.match(block, /if \(s\.targeting\) \{ s\.targeting = false; render\(\); \}/);
   assert.doesNotMatch(block, /s\.intent\s*=\s*null/);
 });
+
+
+test('el lote de pulido ignora taps duplicados sobre la misma jugada local o aceptada', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /const current = s\.choice\?\.turn === s\.game\.turn \? s\.choice : accepted\(\)/);
+  assert.match(main, /current\?\.action === action/);
+  assert.match(main, /\(current\.target \?\? null\) === \(target \?\? null\)/);
+  assert.match(main, /s\.targeting = false;\n    render\(\);\n    return;/);
+});
