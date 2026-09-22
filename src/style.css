@@ -2466,7 +2466,7 @@ header { min-height:48px; }
     repeating-linear-gradient(0deg,#f8f1d7 0 10px,#d6e2e7 11px 12px)!important;
   color:#202633!important;
   box-shadow:3px 4px 0 #202633,0 0 0 5px #fff9e988!important;
-  opacity:1!important;
+  opacity:1;
   filter:none!important;
   pointer-events:auto;
   animation:pb-item-float 1.35s ease-in-out infinite alternate;
@@ -2513,7 +2513,7 @@ header { min-height:48px; }
   line-height:1;
   font-weight:1000;
 }
-.center-item:disabled {
+.center-item:disabled:not(.is-expiring) {
   opacity:1!important;
   cursor:default;
 }
@@ -2959,3 +2959,38 @@ header { min-height:48px; }
   .center-item.free-pickup .hair-tuft { animation:none!important; }
 }
 
+
+
+/* Plan Cóndor 0.25.0 — el mechón avisa su última ronda y la defensa comunica su límite. */
+@keyframes pb-item-expiring {
+  0%,100% { opacity:1; }
+  50% { opacity:.32; }
+}
+.center-item.is-expiring {
+  animation:pb-item-expiring 2.2s ease-in-out infinite!important;
+  will-change:opacity;
+}
+.item-notice-expiring {
+  border-color:#b64b2d!important;
+  background:#fff1d5!important;
+}
+.item-notice-expiring b { color:#9a2d1b!important; }
+.controls .hide-locked {
+  filter:grayscale(.15) saturate(.42)!important;
+  box-shadow:inset 0 0 0 3px #ffffff55,inset 0 -5px 0 #0002,0 4px 0 #202633!important;
+}
+.action-limit {
+  background:#fff0ae!important;
+  color:#4d0716!important;
+  text-shadow:none!important;
+}
+.item-result.expired {
+  border-style:dashed;
+  opacity:.82;
+}
+@media (prefers-reduced-motion: reduce) {
+  .center-item.is-expiring {
+    animation:none!important;
+    opacity:.5!important;
+  }
+}
