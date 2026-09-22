@@ -513,7 +513,8 @@ test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar desh
   let html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/selected-grab/);
   assert.match(html,/aria-pressed="true"/);
-  assert.match(html,/>YENDO…<\/span>/);
+  assert.match(html,/class="hair-tuft"/);
+  assert.doesNotMatch(html,/>YENDO…<\/span>|item-label|item-new-badge/);
   assert.doesNotMatch(html,/selected-target/);
 
   ui.s.choice=null;
