@@ -918,7 +918,7 @@ function bind() {
     s.targeting = !s.targeting; render();
   });
   blow.addEventListener('pointerdown', event => {
-    if (!canChoose() || event.button !== 0) return;
+    if (drag || !canChoose() || event.button !== 0 || event.isPrimary === false) return;
     drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false, target: null,
       gameId: s.gameId, turn: s.game.turn };
     blow.setPointerCapture(event.pointerId);
