@@ -94,6 +94,7 @@ export function startCondor(root = document) {
   if (!app || typeof MutationObserver === 'undefined') return () => {};
 
   let lastPhase = null;
+  let lastRevealStage = null;
   let lastTickKey = null;
   let lastBoard = null;
   let lastTargetUid = null;
@@ -140,6 +141,7 @@ export function startCondor(root = document) {
       lastBoard?.querySelector('.condor-aim-guide')?.remove();
       lastBoard = null;
       lastPhase = null;
+      lastRevealStage = null;
       lastTickKey = null;
       lastTargetUid = null;
       waitingInitialized = false;
@@ -154,13 +156,25 @@ export function startCondor(root = document) {
     lobbyInitialized = false;
     lobbyState = new Map();
     const phase = board.dataset.phase || '';
+    const revealStage = board.dataset.revealStage || '';
     const phaseChanged = phase !== lastPhase;
+    const revealStageChanged = revealStage !== lastRevealStage;
     if (phaseChanged) {
       lastPhase = phase;
       lastTickKey = null;
       pulseEntrance(board, phase);
-      if (phase === 'locked') playCue('lock');
-      if (phase === 'reveal') chalkBurst(board);
+    }
+    if (revealStageChanged) {
+      lastRevealStage = revealStage;
+      if (['reveal', 'finished'].includes(phase) && revealStage === 'actions') {
+        // The burst belongs to the moment the choices become visible. Previously
+        // it fired as soon as reveal started, underneath the suspense overlay.
+        chalkBurst(board);
+        pulseClass(board.querySelector('.phase-banner'), 'condor-reveal-actions', 620);
+      }
+      if (['reveal', 'finished'].includes(phase) && revealStage === 'impact') {
+        pulseClass(board.querySelector('.result-callout'), 'condor-impact-pop', 720);
+      }
     }
     lastBoard = board;
 
