@@ -1,5 +1,15 @@
 # Estado del MVP Spark
 
+## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
+
+- Se agrega una prueba de estrés de integración con 2, 3, 4 y 6 jugadores, cuatro rondas consecutivas por tamaño de sala y elecciones simultáneas.
+- La prueba fuerza además heartbeats del host mientras entran las jugadas y carreras de varias resoluciones del mismo turno, verificando que sólo una resolución gane, que exista un único documento de ronda y que el turno siguiente arranque limpio.
+- Cada ronda valida que todos los jugadores activos queden realmente marcados como elegidos, que cada intención propia corresponda al turno correcto y que Pelo/Soplos permanezcan dentro de sus límites.
+- Las dos transacciones críticas de `advanceGame` pasan a admitir hasta 10 reintentos, reduciendo el riesgo de que una actualización concurrente de presencia haga fallar el cierre o la resolución del turno.
+- El cliente host evita iniciar su heartbeat mientras está resolviendo una ronda, eliminando contención autogenerada entre presencia y autoridad de juego.
+- Se mantienen intactas las reglas de combate, el ritmo de 8 s, el mechón y la autoridad temporal del host.
+- Código, versión pública, lockfile y Service Worker quedan alineados en v0.35.0.
+
 ## 0.34.0 — Plan Cóndor: jugadas del host confiables
 
 - Se corrige un bloqueo específico del host al guardar una jugada: `submitIntent` ya no lee el documento de sala dentro de la misma transacción. El heartbeat activo del host actualiza esa sala cada ~1,8 s y podía invalidar/reintentar la transacción repetidamente hasta que vencía el turno.
