@@ -5,9 +5,6 @@
 .game.condor-enter-locked .phase-banner {
   animation:condor-surface-in .5s ease-out both;
 }
-.game.condor-enter-reveal .result-callout {
-  animation:condor-surface-in .58s ease-out both;
-}
 .game.condor-enter-finished .outcome-card {
   animation:condor-outcome-in .58s cubic-bezier(.2,.9,.25,1.25) both;
 }
@@ -95,24 +92,17 @@
   transform:rotate(-1deg);
 }
 
-.game[data-phase="locked"] .players::after {
-  content:'JUGADAS SELLADAS';
-  position:absolute;
-  z-index:12;
-  left:50%;
-  top:50%;
-  transform:translate(-50%,-50%) rotate(-2deg);
-  padding:5px 10px;
-  border:2px solid #202633;
-  border-radius:6px;
-  background:#d8c6ff;
-  color:#36214e;
-  box-shadow:3px 3px 0 #202633;
-  font-size:clamp(9px,2.3vw,13px);
-  font-weight:1000;
-  letter-spacing:.45px;
-  white-space:nowrap;
-  animation:condor-lock-badge-in .52s cubic-bezier(.2,.9,.3,1.2) both;
+
+/* 0.28: stage-aware reveal director. These classes are applied once when the
+   visible beat changes; they never compete with the avatar action animations. */
+.phase-banner.condor-reveal-actions {
+  animation:condor-reveal-actions .56s cubic-bezier(.18,.88,.28,1.14) both;
+}
+.result-callout.condor-impact-pop {
+  animation:condor-impact-pop .62s cubic-bezier(.18,.9,.26,1.2) both;
+}
+.game[data-reveal-stage="actions"] .players {
+  filter:none;
 }
 
 @keyframes condor-surface-in {
@@ -120,10 +110,15 @@
   58% { opacity:1; filter:brightness(1.08) saturate(1.08); }
   100% { opacity:1; filter:none; }
 }
-@keyframes condor-lock-badge-in {
-  0% { opacity:0; transform:translate(-50%,-50%) rotate(-2deg) scale(1.18); filter:blur(2px); }
-  55% { opacity:1; transform:translate(-50%,-50%) rotate(-2deg) scale(.96); filter:none; }
-  100% { opacity:1; transform:translate(-50%,-50%) rotate(-2deg); filter:none; }
+@keyframes condor-reveal-actions {
+  0% { transform:translateY(-5px) scale(.97); filter:brightness(1.18); }
+  55% { transform:translateY(1px) scale(1.015); filter:brightness(1.05); }
+  100% { transform:none; filter:none; }
+}
+@keyframes condor-impact-pop {
+  0% { opacity:.35; transform:translateY(5px) rotate(-1deg) scale(.92); }
+  58% { opacity:1; transform:translateY(-1px) rotate(-1deg) scale(1.06); }
+  100% { opacity:1; transform:rotate(-1deg) scale(1); }
 }
 @keyframes condor-outcome-in {
   0% { opacity:0; filter:blur(2px) brightness(1.28); }
@@ -150,20 +145,19 @@
 }
 
 @media(max-height:520px) and (min-width:600px) {
-  .game[data-phase="locked"] .players::after { font-size:9px; padding:3px 6px; }
   .result-callout { font-size:8px; padding:2px 5px; }
 }
 
 @media(prefers-reduced-motion:reduce) {
   .game.condor-enter-choosing .phase-banner,
   .game.condor-enter-locked .phase-banner,
-  .game.condor-enter-reveal .result-callout,
   .game.condor-enter-finished .outcome-card,
   .game[data-condor-tick] #timer,
   .condor-chalk-burst i,
   .condor-ripple,
   .game[data-targeting="true"] .player.targetable,
-  .game[data-phase="locked"] .players::after {
+  .phase-banner.condor-reveal-actions,
+  .result-callout.condor-impact-pop {
     animation:none!important;
   }
   .condor-chalk-burst,.condor-ripple { display:none!important; }

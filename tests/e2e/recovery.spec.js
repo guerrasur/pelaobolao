@@ -139,6 +139,38 @@ test('Plan Condor 0.18: Agarrar no se mezcla con apuntar Soplar y tiene feedback
   } finally { await guestContext.close(); }
 });
 
+test('Plan Condor 0.28: el reveal no se reinicia por snapshots de presencia y los FX caen en el beat correcto', async ({ browser, page }) => {
+  const { guestContext, guest, room, gameId, code } = await pair(browser, page);
+  try {
+    await page.getByRole('button',{name:'Tomar aire',exact:true}).click();
+    await guest.getByRole('button',{name:'Tomar aire',exact:true}).click();
+
+    await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','suspense',{timeout:5000});
+    const countdown = page.locator('[data-reveal-countdown]');
+    await expect(countdown).toHaveText(/[123]/);
+    await page.evaluate(() => {
+      const node = document.querySelector('[data-reveal-countdown]');
+      if (node) node.dataset.renderProbe = 'same-node';
+    });
+
+    // Move into another countdown slice, then force a harmless room snapshot.
+    // Before 0.28 the clock value lived in render HTML, so this snapshot replaced
+    // the entire game tree and restarted reveal animations.
+    await page.waitForTimeout(560);
+    await patch(`rooms/${code}`, { [`members.${room.hostId}.lastSeenAt`]: Timestamp.now() });
+    await page.waitForTimeout(180);
+    await expect(page.locator('[data-reveal-countdown]')).toHaveAttribute('data-render-probe','same-node');
+
+    await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','actions',{timeout:2500});
+    await expect(page.locator('.condor-chalk-burst')).toHaveCount(1);
+    await expect(page.locator('.phase-banner')).toHaveClass(/condor-reveal-actions/);
+
+    await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','impact',{timeout:2500});
+    await expect(page.locator('.result-callout')).toHaveClass(/condor-impact-pop/);
+    await expect(page.locator('.result')).toBeVisible();
+  } finally { await guestContext.close(); }
+});
+
 test('dos relojes distintos y cierre anticipado mantienen el siguiente turno sincronizado', async ({browser,page}) => {
   // Simulate a device with a clock one hour ahead before calibration.
   await page.addInitScript(() => {

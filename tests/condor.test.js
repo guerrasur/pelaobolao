@@ -107,3 +107,26 @@ test('0.27 no reinicia flechas de reveal en cada tick', async () => {
   assert.doesNotMatch(syncSource, /drawRevealAttackLines\(game, stage\);\s*if \(key === lastRevealStageKey\)/);
   assert.match(source, /if \(s\.game && revealStage\(s\.game, now\(\)\) === 'actions'\) drawRevealAttackLines\(s\.game, 'actions'\)/);
 });
+
+
+test('0.28 mantiene el countdown fuera del HTML autoritativo para no reiniciar la escena', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  const start = source.indexOf('function revealOverlayHtml');
+  const end = source.indexOf('function drawRevealAttackLines', start);
+  const overlay = source.slice(start, end);
+  assert.doesNotMatch(overlay, /revealCountdown\(/);
+  assert.match(overlay, /data-reveal-countdown><\/strong>/);
+  assert.match(overlay, /aria-hidden="true"/);
+});
+
+test('0.28 dispara tiza y énfasis cuando las jugadas son visibles, no debajo del suspense', async () => {
+  const js = await readFile('src/condor.js', 'utf8');
+  const css = await readFile('src/condor.css', 'utf8');
+  assert.match(js, /revealStageChanged/);
+  assert.match(js, /revealStage === 'actions'[\s\S]*chalkBurst\(board\)/);
+  assert.doesNotMatch(js, /phase === 'reveal'\) chalkBurst\(board\)/);
+  assert.doesNotMatch(js, /phase === 'locked'\) playCue\('lock'\)/);
+  assert.doesNotMatch(css, /data-phase="locked"\] \.players::after/);
+  assert.match(css, /condor-reveal-actions/);
+  assert.match(css, /condor-impact-pop/);
+});
