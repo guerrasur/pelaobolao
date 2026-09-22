@@ -1,5 +1,13 @@
 # Estado del MVP Spark
 
+## Lote en curso — pulido pre-playtest
+
+- Las jugadas locales pendientes ya no se pierden ante una desconexión breve: se conservan mientras el turno siga vigente y se reintentan al volver la conexión.
+- El modo de apuntado se cancela limpiamente si cae la conexión, evitando quedar visualmente en un estado de ataque imposible.
+- El stress multijugador ahora mete tráfico de presencia de todos los jugadores, no sólo del host, mientras entran jugadas y se resuelven rondas.
+- Se agregan regresiones para: `GUARDANDO…` vs `ELEGIDA`, relevo de host durante `locked`, timeout con jugador distraído, timer sin quedarse en 0, reconexión durante targeting, layout 6 jugadores a 320×568 sin scroll y combinación mechón + ataque + límite de Esconderse.
+- Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
+
 ## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
 
 - Se agrega una prueba de estrés de integración con 2, 3, 4 y 6 jugadores, cuatro rondas consecutivas por tamaño de sala y elecciones simultáneas.
