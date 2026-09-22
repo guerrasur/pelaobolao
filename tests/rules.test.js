@@ -81,6 +81,19 @@ test('reglas v2 conservan la disputa del objeto con Soplo',async()=>{
   }));
   await env.withSecurityRulesDisabled(ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{'rules.version':3}));
 });
+test('reglas bloquean una cuarta Escondida consecutiva',async()=>{
+  await env.withSecurityRulesDisabled(async ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{
+    'players.bob.hideStreak':3,
+    'rules.maxConsecutiveHides':3,
+  }));
+  await assertFails(setDoc(doc(b,'games',gameId,'intents','bob'),{
+    turn:1,action:'hide',target:null,requestId:'hide-four',revision:7,submittedAt:serverTimestamp(),
+  }));
+  await assertSucceeds(setDoc(doc(b,'games',gameId,'intents','bob'),{
+    turn:1,action:'air',target:null,requestId:'break-hide',revision:7,submittedAt:serverTimestamp(),
+  }));
+  await env.withSecurityRulesDisabled(async ctx=>updateDoc(doc(ctx.firestore(),'games',gameId),{'players.bob.hideStreak':0}));
+});
 test('ajenos no acceden a la partida; el código exacto permite descubrir una sala activa sin enumerarla',async()=>{
   const anonymous=env.unauthenticatedContext().firestore();
   for(const db of [outsider,anonymous]) {
