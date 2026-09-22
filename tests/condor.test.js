@@ -324,3 +324,16 @@ test('el lote de pulido: salida activa requiere segunda intención y limpia el i
   assert.match(main, /url\.searchParams\.delete\('s'\)/);
   assert.match(main, /clearInviteParam\(room\.code\)/);
 });
+
+
+test('el lote de pulido: una cola de intención vieja no puede bloquear una sala nueva', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /intentGeneration = 0, sendingGeneration = -1/);
+  assert.match(main, /const generation = intentGeneration/);
+  assert.match(main, /sending && sendingGeneration === generation/);
+  assert.match(main, /if \(generation !== intentGeneration\) break/);
+  assert.match(main, /if \(sendingGeneration === generation\)/);
+  const detachStart = main.indexOf('function detachGame');
+  const resetStart = main.indexOf('function resetRoomSession', detachStart);
+  assert.match(main.slice(detachStart, resetStart), /intentGeneration \+= 1/);
+});
