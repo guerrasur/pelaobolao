@@ -528,3 +528,26 @@ test('Plan Cóndor stress: 2, 3, 4 y 6 jugadores sostienen rondas concurrentes s
     }
   }
 });
+
+
+test('si alguien no elige, el deadline resuelve como Distraído sin trabar al resto', async () => {
+  const { a, players, gameId } = await started(4);
+  await choose(players[0], gameId, 1, 'air');
+  await choose(players[1], gameId, 1, 'hide');
+  await choose(players[2], gameId, 1, 'air');
+  // players[3] deja vencer el turno sin enviar intención.
+  await expire(gameId);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'choosing' })).advanced, true);
+  const resolved = await read(a.db, `games/${gameId}`);
+  assert.equal(resolved.phase, 'reveal');
+  assert.equal(resolved.resolvedTurn, 1);
+  assert.equal(resolved.lastResult.actions[players[3].uid].action, 'distracted');
+  assert.equal(resolved.lastResult.actions[players[0].uid].action, 'air');
+  assert.equal(resolved.lastResult.actions[players[1].uid].action, 'hide');
+  assert.equal((await getDocs(collection(a.db, `games/${gameId}/rounds`))).size, 1);
+  await expire(gameId, resolved.rules.revealMs);
+  assert.equal((await a.client.call('advanceGame', { gameId, turn:1, phase:'reveal' })).advanced, true);
+  const next = await read(a.db, `games/${gameId}`);
+  assert.equal(next.phase, 'choosing');
+  assert.equal(next.turn, 2);
+});
