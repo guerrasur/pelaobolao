@@ -3178,6 +3178,14 @@ header { min-height:48px; }
   white-space:nowrap;
   animation:pb-win-stamp .24s cubic-bezier(.2,.8,.3,1) both;
 }
+.lobby-win-count[data-wins="0"] {
+  background:#ece5d5;
+  color:#756d5c;
+  border-color:#8c8371;
+  box-shadow:none;
+}
+.lobby-win-count[data-wins="0"] i { color:#8c8371; }
+.lobby-win-count[data-wins="0"] small { color:#756d5c; }
 .lobby-win-count i {
   color:#a87500;
   font-size:8px;
