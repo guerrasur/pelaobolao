@@ -143,6 +143,9 @@ function showError(error) {
   };
   message(friendly[code] || error.message || 'No pudimos completar la operación.');
 }
+const showInternalError = error => {
+  if (!String(error?.code || '').endsWith('unavailable')) showError(error);
+};
 function clearDragFeedback() {
   document.getElementById('blow-drag-ghost')?.remove();
   document.getElementById('blow-drag-vector')?.remove();
@@ -961,6 +964,7 @@ function tick() {
   connection.classList.toggle('offline', !s.online);
   connection.classList.toggle('checking', checkingConnection);
   connection.classList.toggle('connecting', connecting);
+  if (!checkingConnection && notice.textContent === 'Comprobando conexión con el servidor…') message('');
   if (s.updateRequired) return;
   document.querySelectorAll('[data-presence]').forEach(el => {
     const online = memberOnline(el.dataset.presence);
@@ -984,7 +988,7 @@ function tick() {
   if (game.phase === 'finished' && returnSeconds === 0 && !returningLobby && s.room?.hostId === api?.uid
     && s.online && Date.now() - lastLobbyReturnAttempt > 1500) {
     returningLobby = true; lastLobbyReturnAttempt = Date.now();
-    boundedCall(roomCommand('lobby'), 3500).catch(showError).finally(() => { returningLobby = false; });
+    boundedCall(roomCommand('lobby'), 3500).catch(showInternalError).finally(() => { returningLobby = false; });
   }
   const deadline = phaseDeadline(game);
   const seconds = Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now()) / 1000)) : null;
@@ -1007,7 +1011,7 @@ function tick() {
     && game.memberIds?.includes(api.uid) && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
     acknowledging = true; lastAck = Date.now();
     boundedCall(call('acknowledgeRound', { gameId: s.gameId, turn: game.turn }), 3200)
-      .catch(showError).finally(() => { acknowledging = false; });
+      .catch(showInternalError).finally(() => { acknowledging = false; });
   }
   if (s.game.phase === 'choosing' && seconds === 0) {
     const status = document.querySelector('#turn-status');
@@ -1040,7 +1044,7 @@ function tick() {
   if (!advancing && s.room?.hostId === api?.uid && s.online && ['countdown', 'syncing', 'choosing', 'locked', 'reveal'].includes(game.phase) && (early || now() > deadline + 100) && Date.now() - lastNudge > 350) {
     lastNudge = Date.now(); advancing = true;
     boundedCall(call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase }), 4000)
-      .catch(showError).finally(() => { advancing = false; });
+      .catch(showInternalError).finally(() => { advancing = false; });
   }
 }
 
