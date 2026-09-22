@@ -17,6 +17,7 @@
 - Una escritura de jugada que queda colgada más de 3,2 s se trata como fallo transitorio y se reintenta con el mismo `requestId`, aprovechando la idempotencia de `submitIntent` sin duplicar la acción.
 - Heartbeat, `acknowledgeRound`, resolución de ronda y regreso automático al lobby también tienen límites de espera; un request colgado ya no puede dejar los flags `heartbeatBusy`, `acknowledging`, `advancing` o `returningLobby` trabados indefinidamente.
 - Se agrega cobertura E2E para cambios rápidos de acción: si un jugador toca una acción y enseguida otra antes del lock, la intención final debe quedar en la última elección con revisión creciente, sin dejar `GUARDANDO` residual.
+- El checkpoint rápido posterior a estos cambios vuelve a ejecutar `npm test` y build sobre la rama antes de seguir acumulando el lote.
 - Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
 - Checkpoint rápido del lote: `npm test` + build se ejecutan sobre la rama; integración/E2E/Firebase quedan reservados para el cierre.
 - La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
