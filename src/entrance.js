@@ -1,4 +1,5 @@
 import './entrance.css';
+import './condor30.css';
 import { playCue } from './sound.js';
 
 const app = document.querySelector('#app');
@@ -22,8 +23,28 @@ function screenName() {
   return 'state';
 }
 
+function trimMenuCopy() {
+  const selectors = [
+    '.entry-step',
+    '.home-copy',
+    '.home-create small',
+    '.join-heading span',
+    '.home-footnote',
+    '.profile-heading p',
+    '.entry-form button small',
+    '.entry-footnote',
+    '.entry-loading .muted',
+    '.room-loading .muted',
+    '.lobby-heading .eyebrow',
+    '.lobby-screen > h2',
+    '.lobby-help',
+  ];
+  for (const selector of selectors) app?.querySelectorAll(selector).forEach(node => node.remove());
+}
+
 function refreshScreen() {
   if (!app) return;
+  trimMenuCopy();
   const next = screenName();
   body.dataset.uiScreen = next;
   if (next === lastScreen) return;
@@ -70,7 +91,17 @@ function focusFeedback(event) {
 }
 
 if (app && typeof MutationObserver !== 'undefined') {
-  const observer = new MutationObserver(refreshScreen);
+  const requestFrame = window.requestAnimationFrame?.bind(window)
+    ?? (callback => window.setTimeout(callback, 16));
+  let refreshFrame = null;
+  const scheduleRefresh = () => {
+    if (refreshFrame !== null) return;
+    refreshFrame = requestFrame(() => {
+      refreshFrame = null;
+      refreshScreen();
+    });
+  };
+  const observer = new MutationObserver(scheduleRefresh);
   observer.observe(app, { childList:true, subtree:true });
   app.addEventListener('pointerdown', pressStart, { passive:true });
   app.addEventListener('pointerup', pressEnd, { passive:true });
