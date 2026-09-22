@@ -15,7 +15,7 @@
 - Se agrega un escenario E2E donde un jugador pierde una transición completa estando offline y, al reconectar, aterriza directamente en el turno vigente sin repetir reveal ni conservar una elección vieja.
 - Si `navigator.onLine` sigue en `true` pero pasan más de 30 s sin confirmación real de Firestore, las acciones dejan de aceptarse hasta recuperar contacto; snapshots autoritativos de sala/partida/intención renuevan ese contacto.
 - Una escritura de jugada que queda colgada más de 3,2 s se trata como fallo transitorio y se reintenta con el mismo `requestId`, aprovechando la idempotencia de `submitIntent` sin duplicar la acción.
-- Heartbeat, `acknowledgeRound`, resolución de ronda y regreso automático al lobby también tienen límites de espera; un request colgado ya no puede dejar los flags `heartbeatBusy`, `acknowledging`, `advancing` o `returningLobby` trabados indefinidamente.
+- Heartbeat, `acknowledgeRound`, resolución de ronda, limpieza por inactividad y regreso automático al lobby también tienen límites de espera; un request colgado ya no puede dejar los flags `heartbeatBusy`, `acknowledging`, `advancing`, `abandoning` o `returningLobby` trabados indefinidamente.
 - Se agrega cobertura E2E para cambios rápidos de acción: si un jugador toca una acción y enseguida otra antes del lock, la intención final debe quedar en la última elección con revisión creciente, sin dejar `GUARDANDO` residual.
 - El checkpoint rápido posterior a estos cambios vuelve a ejecutar `npm test` y build sobre la rama antes de seguir acumulando el lote.
 - La regresión de layout ahora recorre 2, 3, 4, 5 y 6 jugadores en todos los viewports ya definidos, incluyendo 320×568 y landscape.
