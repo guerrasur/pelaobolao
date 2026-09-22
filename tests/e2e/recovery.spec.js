@@ -365,3 +365,41 @@ test('salir de una partida activa requiere confirmación y recién el segundo to
     await guestContext.close();
   }
 });
+
+
+test('reconectar después de perderse una fase aterriza en el turno vigente sin repetir reveal', async ({ browser, page }) => {
+  const { guestContext, guest, room, gameId } = await pair(browser, page);
+  try {
+    await guest.getByRole('button', { name:'Tomar aire', exact:true }).click();
+    await expect(guest.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
+    await guestContext.setOffline(true);
+    await expect(guest.locator('#connection')).toContainText('Sin conexión');
+
+    const current = await read(`games/${gameId}`);
+    const actions = Object.fromEntries(current.memberIds.map(uid => [uid, { action:'air', target:null }]));
+    await patch(`games/${gameId}`, {
+      turn:2,
+      phase:'choosing',
+      resolvedTurn:1,
+      chosen:{},
+      ready:{},
+      deadline:Date.now()+60000,
+      nextTurnAt:null,
+      phaseStartedAt:Timestamp.now(),
+      lastProgressAt:Timestamp.now(),
+      lastResult:{ turn:1, actions, hits:[], losses:{}, heals:{}, item:null },
+    });
+
+    await guestContext.setOffline(false);
+    await expect(guest.getByRole('heading', { name:'Turno 2', exact:true })).toBeVisible({ timeout:6000 });
+    await expect(guest.locator('.game')).toHaveAttribute('data-phase', 'choosing');
+    await expect(guest.locator('.round-reveal-overlay')).toHaveCount(0);
+    await expect(guest.locator('.saving-action')).toHaveCount(0);
+    await expect(guest.locator('.chosen-action')).toHaveCount(0);
+    await expect(guest.locator('#selection')).toContainText('Si no elegís a tiempo');
+    await expect(guest.getByRole('button', { name:'Tomar aire', exact:true })).toBeEnabled();
+  } finally {
+    await guestContext.setOffline(false);
+    await guestContext.close();
+  }
+});
