@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { aimGuideGeometry, dragGuideGeometry, timerSeconds, shouldCountdownTick, phaseEntranceClass, viewportPixels, shouldHoldRenderForDrag } from '../src/condor-core.js';
 
 test('timerSeconds only accepts rendered second labels', () => {
@@ -86,4 +87,23 @@ test('mobile viewport prefers the visual viewport and has a safe layout fallback
   assert.deepEqual(viewportPixels(390, 844, 0, undefined), { width:390, height:844 });
   assert.equal(viewportPixels(0, 844), null);
   assert.equal(viewportPixels(390, NaN), null);
+});
+
+
+test('0.27 no deja que el teclado de Safari achique el menú al visualViewport', async () => {
+  const css = await readFile('src/condor20.css', 'utf8');
+  const js = await readFile('src/condor20.js', 'utf8');
+  assert.match(css, /body\[data-ui-screen="game"\],\s*body\[data-ui-screen="lobby"\]/);
+  assert.match(css, /body\s*\{\s*height:100dvh;\s*max-height:100dvh;/);
+  assert.match(js, /dataset\.keyboardOpen/);
+  assert.match(js, /if \(!keyboardOpen\) window\.dispatchEvent/);
+});
+
+test('0.27 no reinicia flechas de reveal en cada tick', async () => {
+  const source = await readFile('src/main.js', 'utf8');
+  const syncStart = source.indexOf('function syncRevealTimeline');
+  const syncEnd = source.indexOf('function selectionText', syncStart);
+  const syncSource = source.slice(syncStart, syncEnd);
+  assert.doesNotMatch(syncSource, /drawRevealAttackLines\(game, stage\);\s*if \(key === lastRevealStageKey\)/);
+  assert.match(syncSource, /render\(\);[\s\S]*drawRevealAttackLines\(game, stage\)/);
 });
