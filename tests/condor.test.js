@@ -430,3 +430,15 @@ test('el lote de pulido desactiva controles al detectar contacto stale y evita f
   assert.match(main, /code\.endsWith\('permission-denied'\)/);
   assert.match(main, /showInternalError/);
 });
+
+
+test('el lote de pulido: background cancela targeting no confirmado pero no una intención aceptada', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  const start = main.indexOf("document.addEventListener('visibilitychange'");
+  const end = main.indexOf("window.addEventListener('pagehide'", start);
+  const block = main.slice(start, end);
+  assert.match(block, /if \(document\.hidden\)/);
+  assert.match(block, /cancelDrag\(\)/);
+  assert.match(block, /if \(s\.targeting\) \{ s\.targeting = false; render\(\); \}/);
+  assert.doesNotMatch(block, /s\.intent\s*=\s*null/);
+});
