@@ -1,9 +1,9 @@
 import { millis } from './game.js';
 
 export const REVEAL_SEQUENCE_RULE_VERSION = 5;
-export const REVEAL_SUSPENSE_MS = 1650;
-export const REVEAL_ACTION_MS = 1250;
-export const REVEAL_IMPACT_MS = 1700;
+export const REVEAL_SUSPENSE_MS = 1500;
+export const REVEAL_ACTION_MS = 1200;
+export const REVEAL_IMPACT_MS = 1300;
 
 export function revealDurations(game) {
   const total = Math.max(2400, Number(game?.rules?.revealMs) || 3200);
