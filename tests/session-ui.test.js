@@ -439,10 +439,11 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   assert.match(html,/class="center-item hair-item free-pickup targetable/);
   assert.match(html,/data-center-item="__center_item__"/);
   assert.match(html,/class="hair-tuft"/);
-  assert.match(html,/>\+1 PELO<\/strong>/);
-  assert.match(html,/AGARRAR/);
-  assert.match(html,/gratis; al hacerlo quedás expuesto/);
-  assert.doesNotMatch(html,/1 SOPLO/);
+  const itemMarkup = html.match(/<button[^>]*class="center-item hair-item[\\s\\S]*?<\\/button>/)?.[0] ?? '';
+  assert.ok(itemMarkup);
+  assert.doesNotMatch(itemMarkup,/<small|<strong|<span|item-new-badge/);
+  assert.match(itemMarkup,/aria-label="\+1 Pelo\. Agarrar no cuesta Soplos, pero te deja expuesto\./);
+  assert.doesNotMatch(html,/class="item-notice/);
 });
 
 test('Plan Condor 0.25: el mechón parpadea en su tercera ronda y avisa que va a desaparecer', async () => {
@@ -465,8 +466,8 @@ test('Plan Condor 0.25: el mechón parpadea en su tercera ronda y avisa que va a
   const html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/center-item hair-item free-pickup targetable[^"]*is-expiring/);
   assert.match(html,/data-item-age="3"/);
-  assert.match(html,/ÚLTIMA RONDA/);
-  assert.match(html,/si nadie lo agarra ahora, desaparece/);
+  assert.match(html,/aria-label="[^"]*Última ronda antes de desaparecer\./);
+  assert.doesNotMatch(html,/class="item-notice/);
 });
 
 test('Plan Condor 0.25: Esconderse queda bloqueado después de tres defensas seguidas', async () => {
@@ -514,7 +515,8 @@ test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar desh
   let html=ui.nodes.get('#app').innerHTML;
   assert.match(html,/selected-grab/);
   assert.match(html,/aria-pressed="true"/);
-  assert.match(html,/>YENDO…<\/span>/);
+  assert.match(html,/class="hair-tuft"/);
+  assert.doesNotMatch(html,/>YENDO…<\/span>/);
   assert.doesNotMatch(html,/selected-target/);
 
   ui.s.choice=null;
@@ -607,10 +609,10 @@ test('Plan Aguila 0.17: el item explica riesgo gratuito y no se renderiza encima
   ui.s.game={...base,phase:'choosing'};
   ui.render();
   let html=ui.nodes.get('#app').innerHTML;
-  assert.match(html,/MECHÓN \+1/);
-  assert.match(html,/No cuesta Soplos/);
-  assert.match(html,/quedás expuesto/);
-  assert.match(html,/item-new-badge">NUEVO/);
+  assert.match(html,/class="hair-tuft"/);
+  assert.match(html,/aria-label="\+1 Pelo\. Agarrar no cuesta Soplos, pero te deja expuesto\./);
+  assert.doesNotMatch(html,/item-new-badge/);
+  assert.doesNotMatch(html,/class="item-notice/);
   assert.match(html,/aria-disabled="false"/);
 
   ui.s.game={...base,phase:'finished',winnerId:'me',draw:false,finishedAt:now,lastResult:{
