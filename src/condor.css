@@ -806,3 +806,14 @@
   from { transform:scale(.97); }
   to { transform:scale(1); }
 }
+
+
+/* Si el navegador sigue "online" pero Firestore deja de confirmar contacto,
+   el tablero conserva su geometría pero baja la intensidad de las acciones. */
+.game.connection-stale .controls {
+  opacity:.58;
+  filter:saturate(.62);
+}
+.game.connection-stale .controls button {
+  cursor:wait;
+}
