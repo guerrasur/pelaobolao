@@ -1,6 +1,6 @@
 # Estado del MVP Spark
 
-## Lote en curso — pulido pre-playtest
+## 0.36.0 — Plan Cóndor: pulido pre-playtest
 
 - Las jugadas locales pendientes ya no se pierden ante una desconexión breve: se conservan mientras el turno siga vigente y se reintentan al volver la conexión.
 - El modo de apuntado se cancela limpiamente si cae la conexión, evitando quedar visualmente en un estado de ataque imposible.
@@ -27,9 +27,9 @@
 - El click sintético que algunos navegadores móviles disparan al terminar un drag se consume tanto en `Soplar` como en tarjetas/ítems, evitando una segunda selección accidental.
 - La nueva confirmación de salida también respeta `prefers-reduced-motion`; no introduce una animación obligatoria para usuarios que la desactivan.
 - Después del endurecimiento táctil se vuelve a correr el checkpoint rápido de tests y build antes de sumar más cambios.
-- Este lote permanece en una rama de trabajo y no se publica hasta cerrar el paquete de pulido.
-- Checkpoint rápido del lote: `npm test` + build se ejecutan sobre la rama; integración/E2E/Firebase quedan reservados para el cierre.
+- El cierre de 0.36.0 usa el pipeline de `main`: unitarios + build + integración Firestore + E2E de navegador antes del deploy de Hosting, Rules e índices.
 - La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
+- La auditoría final fuerza carreras en la última ronda: una partida sólo puede finalizar una vez, sólo crea un documento de ronda y el regreso concurrente al lobby queda idempotente.
 
 ## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
 
