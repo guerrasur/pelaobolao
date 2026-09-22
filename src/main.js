@@ -533,7 +533,8 @@ function centerItemHtml(game, choice) {
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
   const selectedGrab = freePickup && choice?.action === 'grab' && choice.target === CENTER_ITEM_TARGET;
   const selectedLegacyTarget = !freePickup && choice?.action === 'blow' && choice.target === CENTER_ITEM_TARGET;
-  // A free pickup is contextual: while aiming a Soplo the item stops acting like a control.
+  // The hit-area stays stable; only the tuft is visible. While aiming a Soplo,
+  // a free pickup stops acting like a control so it cannot steal the gesture.
   const targetable = Boolean(canChoose() && (freePickup ? !s.targeting : s.targeting));
   const itemAgeRounds = Number.isInteger(game.centerItem.spawnedTurn)
     ? Math.max(1, game.turn - game.centerItem.spawnedTurn + 1)
@@ -544,34 +545,14 @@ function centerItemHtml(game, choice) {
     ? `+1 Pelo. Agarrar no cuesta Soplos, pero te deja expuesto.${isExpiring ? ' Última ronda antes de desaparecer.' : ''}`
     : `+1 Pelo, cuesta 1 Soplo.${isExpiring ? ' Última ronda antes de desaparecer.' : ''}`;
   return `<button type="button" class="center-item hair-item ${freePickup ? 'free-pickup' : 'legacy-blow-item'} ${targetable ? 'targetable' : ''} ${selectedGrab ? 'selected-grab' : ''} ${selectedLegacyTarget ? 'selected-target' : ''} ${isNew ? 'is-new' : ''} ${isExpiring ? 'is-expiring' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" data-item-age="${itemAgeRounds}" aria-disabled="${targetable ? 'false' : 'true'}" aria-pressed="${selectedGrab || selectedLegacyTarget ? 'true' : 'false'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
-    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>${isExpiring ? 'ÚLTIMA RONDA' : 'OBJETO EN EL AULA'}</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${selectedGrab ? 'YENDO…' : freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
+    <i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i>
   </button>`;
 }
 
-function centerItemNotice(game, me) {
-  if (game.phase !== 'choosing' || game.centerItem?.kind !== HAIR_ITEM_KIND) return '';
-  const maxHair = Number(game.rules?.maxHair || 4);
-  const freePickup = Number(game.rules?.version ?? 0) >= 3;
-  const itemAgeRounds = Number.isInteger(game.centerItem.spawnedTurn)
-    ? Math.max(1, game.turn - game.centerItem.spawnedTurn + 1)
-    : 1;
-  const expiring = itemAgeRounds >= 3;
-  if (!freePickup) {
-    const detail = !me || me.hair <= 0
-      ? 'Los jugadores pueden disputarlo con 1 Soplo.'
-      : me.breath < 1
-        ? 'Necesitás 1 Soplo para disputarlo.'
-        : me.hair >= maxHair
-          ? 'Tenés Pelo al máximo: todavía podés disputarlo para negárselo a otro.'
-          : 'Cuesta 1 Soplo. Si van 2 o más, nadie se lo lleva.';
-    return `<div class="item-notice ${expiring ? 'item-notice-expiring' : ''}" role="status"><b>${expiring ? 'ÚLTIMA RONDA DEL MECHÓN' : '+1 PELO EN JUEGO'}</b><span>${detail}${expiring ? ' Si nadie lo agarra ahora, desaparece.' : ''}</span></div>`;
-  }
-  const detail = !me || me.hair <= 0
-    ? 'No cuesta Soplos. Quien lo intente queda expuesto a ataques.'
-    : me.hair >= maxHair
-      ? 'No cuesta Soplos: podés negárselo a otro, pero quedás expuesto.'
-      : 'Tocalo para agarrarlo gratis. No te escondés: si te Soplan, recibís el golpe.';
-  return `<div class="item-notice item-notice-free ${expiring ? 'item-notice-expiring' : ''}" role="status"><b>${expiring ? 'ÚLTIMA RONDA DEL MECHÓN' : 'MECHÓN +1'}</b><span>${detail} Si van 2 o más, nadie se lo lleva.${expiring ? ' Está parpadeando: si nadie lo agarra ahora, desaparece.' : ''}</span></div>`;
+function centerItemNotice() {
+  // Plan Cóndor 0.29: the pickup has no visual copy or card. Its mechanics remain
+  // available to assistive technology through the center button's aria-label.
+  return '';
 }
 
 function outcomeKind(game, uid) {
