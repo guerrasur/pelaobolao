@@ -703,6 +703,7 @@ function render() {
     const lateSpectator = !me && !(game.memberIds || []).includes(api.uid);
     const terminal = ['finished', 'abandoned'].includes(game.phase);
     const choice = s.choice?.turn === game.turn ? s.choice : accepted();
+    const choiceSaving = Boolean(s.choice?.turn === game.turn);
     const outcome = terminal && game.phase === 'finished' && !finalRevealPending ? outcomeKind(game, api.uid) : null;
     const title = finalRevealPending ? `Turno ${game.turn}` : terminal ? game.phase === 'abandoned' ? 'Partida abandonada' : 'Fin de la partida' : game.phase === 'countdown' ? 'Preparados' : `Turno ${game.turn}`;
     const seats = game.memberIds || Object.keys(game.players);
@@ -734,7 +735,7 @@ function render() {
     const actionHint = hideBlocked && !s.targeting
       ? `${baseActionHint} · Esconderse bloqueado: ya van 3 seguidas.`
       : baseActionHint;
-    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action, hideBlocked)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
+    const playControls = game.phase === 'choosing' && me?.hair > 0 ? `<div class="play-hint ${s.targeting ? 'is-targeting' : ''}"><strong>${actionPrompt}</strong><span>${actionHint}</span></div>${actionControls(canChoose(), me.breath, s.targeting, choice?.action, hideBlocked, choiceSaving)}<p id="selection" aria-live="polite">${selectionText(choice)}</p>` : '';
     const stagedReveal = ['reveal', 'finished'].includes(game.phase) && Number(game.rules?.version ?? 0) >= 5;
     const phaseLabel = stagedReveal
       ? revealStep === 'suspense' ? 'JUGADAS SELLADAS' : revealStep === 'actions' ? '¡JUGADAS!' : game.phase === 'finished' ? 'PARTIDA TERMINADA' : 'RESULTADO'
