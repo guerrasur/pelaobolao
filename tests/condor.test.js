@@ -175,3 +175,19 @@ test('0.30 limpia el menú y estabiliza el lobby sin copy auxiliar', async () =>
   assert.match(css, /\.presence-text\s*\{[\s\S]*?font-size:0!important/);
   assert.match(css, /@keyframes entry-surface-in/);
 });
+
+
+test('0.31 centra nombre, recompone el menú y limpia el código de sala', async () => {
+  const [source, css] = await Promise.all([
+    readFile('src/main.js', 'utf8'),
+    readFile('src/condor30.css', 'utf8'),
+  ]);
+  assert.match(source, /¿Cuál es tu nombre\?/);
+  assert.match(source, /class="profile-map"/);
+  assert.match(source, /class="home-title-mark"/);
+  assert.match(source, /No te quedes pelao/);
+  assert.match(source, /lobby-room-label">SALA/);
+  assert.match(css, /\.home-mascot\s*\{[\s\S]*?animation:pb-home-mascot-idle/);
+  assert.match(css, /\.lobby-heading \.code\s*\{[\s\S]*?background:transparent!important/);
+  assert.doesNotMatch(source, /BUENAS PARTIDAS AQUÍ|ESTRATEGIA RISAS AMIGOS|MISMO JUEGO MÁS AMIGOS|QUE COMIENCE LA JUGADA/);
+});
