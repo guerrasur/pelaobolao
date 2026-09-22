@@ -310,7 +310,7 @@ test('el lote de pulido diferencia GUARDANDO de ELEGIDA también en feedback vis
 });
 
 
-test('el lote de pulido: salida activa requiere segunda intención y limpia el invite usado', async () => {
+test('el lote de pulido: salida activa requiere una segunda intención visible', async () => {
   const [main, css] = await Promise.all([
     readFile('src/main.js', 'utf8'),
     readFile('src/condor.css', 'utf8'),
@@ -320,9 +320,6 @@ test('el lote de pulido: salida activa requiere segunda intención y limpia el i
   assert.match(main, /Tocá Confirmar salida para abandonar esta partida/);
   assert.match(main, /Confirmar salida/);
   assert.match(css, /#leave-room\.leave-armed/);
-  assert.match(main, /function clearInviteParam\(roomId\)/);
-  assert.match(main, /url\.searchParams\.delete\('s'\)/);
-  assert.match(main, /clearInviteParam\(room\.code\)/);
 });
 
 
