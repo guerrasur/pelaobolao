@@ -371,6 +371,12 @@ function choose(action, target = null) {
   if (action === 'blow' && (s.game.players[api.uid].breath < 1 || !validBlowTarget(target))) return;
   if (action === 'hide' && isHideLocked()) { message(`Solo podés esconderte ${hideLimit()} veces seguidas. Elegí otra acción.`); return; }
   if (action === 'grab' && (!freeCenterPickup() || target !== CENTER_ITEM_TARGET || !centerItemActive())) return;
+  const current = s.choice?.turn === s.game.turn ? s.choice : accepted();
+  if (current?.action === action && (current.target ?? null) === (target ?? null)) {
+    s.targeting = false;
+    render();
+    return;
+  }
   s.targeting = false;
   s.choice = { action, target, turn: s.game.turn };
   vibrate(action === 'blow' ? 16 : action === 'grab' ? [12, 20, 28] : 9);
