@@ -419,3 +419,14 @@ test('el lote de pulido respeta movimiento reducido también en la confirmación
   const css = await readFile('src/condor.css', 'utf8');
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)[\s\S]*?#leave-room\.leave-armed[\s\S]*?animation:none!important/);
 });
+
+
+test('el lote de pulido desactiva controles al detectar contacto stale y evita falsos errores de takeover', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /lastCheckingConnection = false/);
+  assert.match(main, /checkingConnection !== lastCheckingConnection/);
+  assert.match(main, /if \(checkingConnection\) \{ cancelDrag\(\); s\.targeting = false; \}/);
+  assert.match(main, /render\(\);\n    return;/);
+  assert.match(main, /code\.endsWith\('permission-denied'\)/);
+  assert.match(main, /showInternalError/);
+});
