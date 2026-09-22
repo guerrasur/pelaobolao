@@ -551,3 +551,35 @@ test('si alguien no elige, el deadline resuelve como Distraído sin trabar al re
   assert.equal(next.phase, 'choosing');
   assert.equal(next.turn, 2);
 });
+
+
+test('relevo de host en locked conserva todas las jugadas y resuelve una sola vez', async () => {
+  const { a, b, players, gameId, roomId } = await started(3);
+  await choose(players[0], gameId, 1, 'air');
+  await choose(players[1], gameId, 1, 'hide');
+  await choose(players[2], gameId, 1, 'air');
+  await patch(`games/${gameId}`, { phase:'locked', lastProgressAt:Timestamp.now() });
+  await patch(`rooms/${roomId}`, { [`members.${a.uid}.lastSeenAt`]:Timestamp.fromMillis(Date.now()-10000) });
+
+  await b.client.call('roomCommand', { command:'touch', roomId });
+  const room = await read(b.db, `rooms/${roomId}`);
+  assert.equal(room.hostId, b.uid);
+  assert.equal(room.status, 'playing');
+
+  const race = await Promise.allSettled([
+    a.client.call('advanceGame', { gameId, turn:1, phase:'locked' }),
+    b.client.call('advanceGame', { gameId, turn:1, phase:'locked' }),
+    b.client.call('advanceGame', { gameId, turn:1, phase:'locked' }),
+  ]);
+  assert.equal(race[0].status, 'rejected');
+  const winners = race.slice(1).filter(result => result.status === 'fulfilled' && result.value.advanced);
+  assert.equal(winners.length, 1);
+
+  const game = await read(b.db, `games/${gameId}`);
+  assert.equal(game.phase, 'reveal');
+  assert.equal(game.resolvedTurn, 1);
+  assert.equal(game.lastResult.actions[players[0].uid].action, 'air');
+  assert.equal(game.lastResult.actions[players[1].uid].action, 'hide');
+  assert.equal(game.lastResult.actions[players[2].uid].action, 'air');
+  assert.equal((await getDocs(collection(b.db, `games/${gameId}/rounds`))).size, 1);
+});
