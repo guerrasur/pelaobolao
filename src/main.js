@@ -337,7 +337,7 @@ async function heartbeat(force = false) {
   const generation = roomGeneration;
   lastHeartbeatAt = wallNow;
   heartbeatBusy = true;
-  try { await roomCommand('touch'); }
+  try { await boundedCall(roomCommand('touch'), 3200); }
   catch (error) {
     if (generation !== roomGeneration) return;
     if (error.code?.endsWith('not-found')) {
@@ -984,7 +984,7 @@ function tick() {
   if (game.phase === 'finished' && returnSeconds === 0 && !returningLobby && s.room?.hostId === api?.uid
     && s.online && Date.now() - lastLobbyReturnAttempt > 1500) {
     returningLobby = true; lastLobbyReturnAttempt = Date.now();
-    roomCommand('lobby').catch(showError).finally(() => { returningLobby = false; });
+    boundedCall(roomCommand('lobby'), 3500).catch(showError).finally(() => { returningLobby = false; });
   }
   const deadline = phaseDeadline(game);
   const seconds = Number.isFinite(deadline) ? Math.max(0, Math.ceil((deadline - now()) / 1000)) : null;
@@ -1006,7 +1006,7 @@ function tick() {
   if (!acknowledging && Date.now() - lastAck > 1000 && s.nameConfirmed && !document.hidden && s.online && game.protocolVersion === 2
     && game.memberIds?.includes(api.uid) && ['countdown', 'syncing'].includes(game.phase) && !game.ready?.[api.uid]) {
     acknowledging = true; lastAck = Date.now();
-    call('acknowledgeRound', { gameId: s.gameId, turn: game.turn })
+    boundedCall(call('acknowledgeRound', { gameId: s.gameId, turn: game.turn }), 3200)
       .catch(showError).finally(() => { acknowledging = false; });
   }
   if (s.game.phase === 'choosing' && seconds === 0) {
@@ -1039,7 +1039,7 @@ function tick() {
     || game.phase === 'choosing' && allMarked(game, 'chosen'));
   if (!advancing && s.room?.hostId === api?.uid && s.online && ['countdown', 'syncing', 'choosing', 'locked', 'reveal'].includes(game.phase) && (early || now() > deadline + 100) && Date.now() - lastNudge > 350) {
     lastNudge = Date.now(); advancing = true;
-    call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase })
+    boundedCall(call('advanceGame', { gameId: s.gameId, turn: s.game.turn, phase: s.game.phase }), 4000)
       .catch(showError).finally(() => { advancing = false; });
   }
 }
