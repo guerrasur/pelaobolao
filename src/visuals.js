@@ -79,8 +79,8 @@ const icons = {
   air: svg('<path d="M29 7v23L17 48M35 7v23l13 18" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M23 20C10 20 4 43 8 52c4 8 17 2 19-4V24Zm18 0c13 0 19 23 15 32-4 8-17 2-19-4V24Z" fill="currentColor"/>'),
   hide: svg('<path d="M17 31V23c0-21 32-21 32 0v8" fill="#302038" stroke="currentColor" stroke-width="2"/><path d="M24 21q8-8 17 1v12H23Z" fill="#ffccaa"/><path d="M27 26h1m8 0h1" stroke="#20232e" stroke-width="3"/><path d="M7 34h50v9H7Zm6 10h38v15H13Z" fill="currentColor" stroke="#402360" stroke-width="2"/>'),
 };
-export function actionControls(enabled, breath, aiming, selectedAction = null, hideLocked = false) {
-  const state = action => selectedAction === action ? '<small class="action-state">ELEGIDA</small>' : '';
+export function actionControls(enabled, breath, aiming, selectedAction = null, hideLocked = false, saving = false) {
+  const state = action => selectedAction === action ? `<small class="action-state">${saving ? 'GUARDANDO…' : 'ELEGIDA'}</small>` : '';
   const pressed = action => selectedAction === action ? 'true' : 'false';
   const hideState = hideLocked ? '<small class="action-state action-limit">LÍMITE 3</small>' : state('hide');
   return `<div class="controls" aria-label="Elegí tu acción">

@@ -186,8 +186,10 @@ export function createClient(db, uid, clock = Date.now) {
       const gameRef = doc(db, 'games', data.gameId);
       const game = (await tx.get(gameRef)).data();
       requireThat(game?.memberIds.includes(uid), 'No pertenecés a esta partida.');
-      const room = (await tx.get(doc(db, 'rooms', game.roomId))).data();
-      requireThat(room?.gameId === data.gameId && room.members[uid] && !room.members[uid].left, 'Volvé a la sala.');
+      // Keep the room heartbeat out of this transaction's read set. The active host
+      // touches its room frequently, and reading that document here can force the
+      // intent transaction to retry until the turn expires. Firestore Rules still
+      // verify current room membership atomically when these writes commit.
       const ref = doc(db, 'games', data.gameId, 'intents', uid), old = (await tx.get(ref)).data();
       validateIntent(game, uid, data, now());
       if (old?.turn === data.turn && old.requestId === data.requestId) return old;
@@ -198,7 +200,7 @@ export function createClient(db, uid, clock = Date.now) {
       tx.set(ref, { ...intent, submittedAt: serverTimestamp() });
       if (game.protocolVersion === 2) tx.update(gameRef, { [`chosen.${uid}`]: true });
       return intent;
-    });
+    }, { maxAttempts: 10 });
   }
   async function acknowledgeRound({ gameId, turn }) {
     validId(gameId);

@@ -1,5 +1,14 @@
 # Estado del MVP Spark
 
+## 0.34.0 — Plan Cóndor: jugadas del host confiables
+
+- Se corrige un bloqueo específico del host al guardar una jugada: `submitIntent` ya no lee el documento de sala dentro de la misma transacción. El heartbeat activo del host actualiza esa sala cada ~1,8 s y podía invalidar/reintentar la transacción repetidamente hasta que vencía el turno.
+- La pertenencia vigente a la sala sigue validándose al commit mediante Firestore Rules; se mantiene el write atómico de intención + marca `chosen`.
+- La transacción de intención admite hasta 10 reintentos para absorber contención real sobre el documento de partida cuando varios jugadores eligen casi al mismo tiempo.
+- La UI deja de mostrar “ELEGIDA” durante el estado optimista local: mientras Firestore todavía está confirmando aparece “GUARDANDO…”. “ELEGIDA” queda reservado para una intención ya aceptada.
+- Se agrega una regresión que impide volver a incorporar el documento de sala al read-set de `submitIntent` y verifica versión/caché pública 0.34.0.
+- Código, versión pública, lockfile y Service Worker quedan alineados en v0.34.0.
+
 ## 0.32.0 — Plan Cóndor: código de sala + regresión de lobby
 
 - Se recupera el resaltado amarillo del código de sala tal como estaba antes, pero el rótulo “SALA” permanece neutro y fuera del bloque resaltado.
