@@ -379,3 +379,11 @@ body[data-ui-screen="lobby"] #app {
     animation:none!important;
   }
 }
+
+
+/* El estado normal no necesita un cartel permanente. Los estados de error siguen visibles. */
+body[data-ui-screen="home"] #connection:not(.offline):not(.checking):not(.connecting),
+body[data-ui-screen="profile"] #connection:not(.offline):not(.checking):not(.connecting),
+body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.connecting) {
+  display:none;
+}
