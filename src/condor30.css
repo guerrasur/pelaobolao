@@ -387,3 +387,208 @@ body[data-ui-screen="profile"] #connection:not(.offline):not(.checking):not(.con
 body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.connecting) {
   display:none;
 }
+
+
+/* Plan Águila 0.31.0 — identidad de entrada, menú principal y código de sala. */
+
+/* Nombre: composición centrada, con avatar a la izquierda y mapa/pin a la derecha. */
+.profile-heading {
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:116px;
+  margin:4px 0 14px;
+  padding:0 92px;
+  text-align:center;
+}
+.profile-heading h1 {
+  margin:0;
+  max-width:8ch;
+  font-size:clamp(34px,8.7vw,48px);
+  line-height:.88;
+  letter-spacing:-1.8px;
+}
+.profile-heading .profile-doodle {
+  position:absolute;
+  left:5px;
+  bottom:7px;
+  width:72px;
+  height:72px;
+}
+.profile-map {
+  position:absolute;
+  right:2px;
+  top:3px;
+  width:84px;
+  height:84px;
+  opacity:.32;
+  transform:rotate(-8deg);
+  background:
+    linear-gradient(38deg,transparent 46%,#dbe8dd 47% 51%,transparent 52%) 0 0/30px 30px,
+    linear-gradient(-38deg,transparent 46%,#dbe8dd 47% 51%,transparent 52%) 0 0/30px 30px;
+  pointer-events:none;
+}
+.profile-map::after {
+  content:'';
+  position:absolute;
+  inset:10px 8px 12px 11px;
+  border-top:3px solid #dbe8dd;
+  border-bottom:3px solid #dbe8dd;
+  transform:rotate(17deg);
+  opacity:.55;
+}
+.profile-map b {
+  position:absolute;
+  z-index:2;
+  right:17px;
+  top:23px;
+  width:16px;
+  height:16px;
+  border:3px solid #7b1e31;
+  border-radius:50%;
+  background:#e84b65;
+  box-shadow:1px 2px 0 #111d20,0 0 0 4px #e84b651f;
+}
+
+/* Menú: título a la izquierda, mascota más chica y viva en el ángulo inferior derecho. */
+.home-hero {
+  position:relative;
+  display:block;
+  place-items:initial;
+}
+.home-title-mark {
+  position:absolute;
+  z-index:3;
+  left:clamp(16px,5vw,28px);
+  top:50%;
+  transform:translateY(-50%) rotate(-1deg);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+}
+.home-title-mark strong {
+  display:block;
+  color:#ffda4d;
+  font-size:clamp(29px,8vw,46px);
+  line-height:.78;
+  font-weight:1000;
+  letter-spacing:-2px;
+  -webkit-text-stroke:1.2px #202633;
+  text-shadow:2px 3px 0 #202633;
+}
+.home-title-mark strong:nth-child(2) {
+  margin-top:5px;
+  color:#fff8df;
+}
+.home-title-mark span {
+  position:relative;
+  margin-top:12px;
+  color:#fff8df;
+  font-size:clamp(11px,3.1vw,15px);
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.15px;
+  transform:rotate(-2deg);
+}
+.home-title-mark span::after {
+  content:'';
+  position:absolute;
+  left:2%;
+  right:-8%;
+  bottom:-7px;
+  height:5px;
+  border-top:3px solid #ffda4d;
+  border-radius:50%;
+  transform:rotate(-2deg);
+}
+.home-mascot {
+  position:absolute;
+  right:4%;
+  bottom:5%;
+  width:min(30vw,118px);
+  max-width:none;
+  transform:rotate(3deg);
+  transform-origin:54% 88%;
+  animation:pb-home-mascot-idle 3.2s ease-in-out infinite;
+}
+.home-mascot .mascot-gust {
+  animation:pb-home-gust 1.9s ease-in-out infinite;
+}
+@keyframes pb-home-mascot-idle {
+  0%,100% { transform:translateY(0) rotate(3deg); }
+  48% { transform:translateY(-5px) rotate(0deg); }
+  58% { transform:translateY(-5px) rotate(-1deg) scale(1.025,.98); }
+}
+@keyframes pb-home-gust {
+  0%,100% { opacity:.65; transform:translateX(-3px); }
+  50% { opacity:1; transform:translateX(4px); }
+}
+
+/* Lobby: "SALA" integra el código y el código deja de funcionar como resaltado amarillo. */
+.lobby-heading h1 {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+}
+.lobby-room-label {
+  flex:0 0 auto;
+  color:#202633;
+  font-size:clamp(10px,2.8vw,13px);
+  line-height:1;
+  font-weight:1000;
+  letter-spacing:2.2px;
+}
+.lobby-heading .code {
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:#202633!important;
+  box-shadow:none!important;
+}
+
+@media(max-width:380px) {
+  .profile-heading {
+    min-height:102px;
+    padding-inline:76px;
+  }
+  .profile-heading h1 { font-size:32px; }
+  .profile-heading .profile-doodle {
+    left:1px;
+    width:62px;
+    height:62px;
+  }
+  .profile-map {
+    right:0;
+    width:70px;
+    height:70px;
+  }
+  .home-title-mark strong { font-size:30px; }
+  .home-title-mark span { margin-top:10px; font-size:11px; }
+  .home-mascot { width:min(29vw,104px); right:3%; }
+}
+
+@media(max-width:519px) {
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .profile-map {
+    display:none;
+  }
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .profile-heading {
+    min-height:auto;
+    padding:0;
+    justify-content:center;
+    margin-bottom:6px;
+  }
+  body[data-keyboard-open="true"][data-ui-screen="profile"] .profile-heading h1 {
+    max-width:none;
+    text-align:center;
+  }
+}
+
+@media(max-height:620px) {
+  .profile-heading { min-height:82px; margin-bottom:6px; }
+  .profile-heading .profile-doodle { width:56px; height:56px; }
+  .profile-map { width:60px; height:60px; }
+  .home-title-mark strong { font-size:29px; }
+  .home-title-mark span { margin-top:8px; font-size:10px; }
+  .home-mascot { width:min(25vw,92px); }
+}
