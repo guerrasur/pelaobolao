@@ -74,6 +74,24 @@ test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({p
         });
         expect(failures,`${count} jugadores ${width}x${height} ${phase}`).toEqual([]);
       }
+      if(count===6 && width===320 && height===568) {
+        await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+        await expect(page.locator('#connection')).toContainText('Sin conexión');
+        const offlineLayout = await page.evaluate(() => {
+          const game = document.querySelector('.game')?.getBoundingClientRect();
+          return {
+            pageScroll: document.documentElement.scrollHeight - innerHeight,
+            pageWidth: document.documentElement.scrollWidth - innerWidth,
+            gameTop: game?.top ?? -1,
+            gameBottom: game?.bottom ?? innerHeight + 1,
+          };
+        });
+        expect(offlineLayout.pageScroll).toBeLessThanOrEqual(1);
+        expect(offlineLayout.pageWidth).toBeLessThanOrEqual(1);
+        expect(offlineLayout.gameTop).toBeGreaterThanOrEqual(0);
+        expect(offlineLayout.gameBottom).toBeLessThanOrEqual(568);
+        await page.evaluate(() => window.dispatchEvent(new Event('online')));
+      }
       if(count===6 && width===390 && height===664) await page.screenshot({path:'test-results/fullscreen-six-mobile.png'});
     }
   }
