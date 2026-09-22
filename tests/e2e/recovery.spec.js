@@ -131,9 +131,11 @@ test('Plan Condor 0.18: Agarrar no se mezcla con apuntar Soplar y tiene feedback
     expect((await read(`games/${gameId}`)).players[room.hostId].breath).toBe(1);
 
     await guest.getByRole('button',{name:'Esconderse',exact:true}).click();
-    await expect(page.locator('.result')).toBeVisible({timeout:5000});
+    await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','actions',{timeout:5000});
     await expect(page.locator('[data-player].self .fx-grab')).toHaveCount(1);
     await expect(page.locator('[data-player].self .fx-label-grab')).toContainText('AGARRA');
+    await expect(page.locator('.result')).toBeVisible({timeout:5000});
+    await expect(page.locator('[data-player].self .fx-grab')).toHaveCount(0);
   } finally { await guestContext.close(); }
 });
 
