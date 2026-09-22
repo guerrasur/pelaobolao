@@ -60,14 +60,6 @@ const orderedLobbyMembers = members => Object.entries(members ?? {}).sort(([uidA
 });
 const vibrate = pattern => { try { if (!document.hidden && typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
 const matchStillRunning = () => s.room?.status === 'playing' && s.game && !['finished', 'abandoned'].includes(s.game.phase);
-function clearInviteParam(roomId) {
-  try {
-    const url = new URL(location.href);
-    if ((url.searchParams.get('s') || '').toUpperCase() !== String(roomId || '').toUpperCase()) return;
-    url.searchParams.delete('s');
-    history.replaceState(history.state, '', url);
-  } catch {}
-}
 function leaveMatchButton() {
   const armed = matchStillRunning() && Date.now() < leaveArmedUntil;
   return `<button id="leave-room" class="quiet${armed ? ' leave-armed' : ''}">${armed ? 'Confirmar salida' : 'Salir de la partida'}</button>`;
@@ -312,7 +304,6 @@ function subscribeRoom(id) {
     }
     const previousStatus = s.room?.status;
     s.room = { ...room, members: Object.fromEntries(Object.entries(room.members).map(([uid, m]) => [uid, { ...m, lastSeenAt: millis(m.lastSeenAt) }])) };
-    clearInviteParam(room.code);
     if (room.status === 'lobby' && previousStatus && previousStatus !== 'lobby') {
       returningLobby = false; lastLobbyReturnAttempt = 0; message('');
     }
