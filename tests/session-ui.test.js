@@ -423,6 +423,52 @@ test('+1 Pelo aparece como mechón flotante y se agarra gratis sin mover tarjeta
   assert.doesNotMatch(html,/1 SOPLO/);
 });
 
+test('Plan Condor 0.25: el mechón parpadea en su tercera ronda y avisa que va a desaparecer', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:6,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other'],chosen:{},ready:{},
+    centerItem:{kind:HAIR_ITEM_KIND,spawnedTurn:4,source:'random'},
+    players:{me:{name:'Ana',hair:2,breath:0,hideStreak:0},other:{name:'Beto',hair:3,breath:0,hideStreak:0}},
+    rules:{version:4,maxHair:4,maxBreath:2,maxConsecutiveHides:3,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/center-item hair-item free-pickup targetable[^"]*is-expiring/);
+  assert.match(html,/data-item-age="3"/);
+  assert.match(html,/ÚLTIMA RONDA/);
+  assert.match(html,/si nadie lo agarra ahora, desaparece/);
+});
+
+test('Plan Condor 0.25: Esconderse queda bloqueado después de tres defensas seguidas', async () => {
+  const ui = await setup();
+  const now = Date.now();
+  ui.s.roomId='ABCD';
+  ui.s.room={code:'ABCD',status:'playing',hostId:'me',members:{
+    me:{name:'Ana',ready:true,lastSeenAt:now},
+    other:{name:'Beto',ready:true,lastSeenAt:now},
+  }};
+  ui.s.gameId='g1';
+  ui.s.game={
+    phase:'choosing',turn:7,protocolVersion:2,phaseStartedAt:now,deadline:now+8000,
+    memberIds:['me','other'],chosen:{},ready:{},centerItem:null,
+    players:{me:{name:'Ana',hair:2,breath:1,hideStreak:3},other:{name:'Beto',hair:3,breath:0,hideStreak:0}},
+    rules:{version:4,maxHair:4,maxBreath:2,maxConsecutiveHides:3,turnMs:8000,countdownMs:3000,revealMs:2500,centerItems:true},
+  };
+  ui.render();
+  const html=ui.nodes.get('#app').innerHTML;
+  assert.match(html,/data-action="hide" class="hide-locked /);
+  assert.match(html,/LÍMITE 3/);
+  assert.match(html,/Esconderse bloqueado: ya van 3 seguidas/);
+});
+
 test('Plan Condor 0.18: elegir Agarrar usa estado verde y al apuntar Soplar deshabilita el mechón', async () => {
   const ui = await setup();
   const now = Date.now();
