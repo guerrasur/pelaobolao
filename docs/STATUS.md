@@ -10,6 +10,7 @@
 - La insignia amarilla con estrella queda subordinada al nombre y a la presencia, se compacta a `★ N` en pantallas de hasta 360 px y respeta `prefers-reduced-motion`.
 - Firestore Rules aceptan el marcador nuevo manteniendo compatibilidad con salas schema 3 creadas por versiones anteriores.
 - Se agregan pruebas de integración y UI para persistencia, idempotencia, empates, visibilidad sólo después de la primera partida y estabilidad del orden del lobby.
+- La pasada Cóndor suma regresión E2E de 6 jugadores a 320 px para impedir overflow horizontal del marcador y eleva el CI de pull requests a unitarios + integración Firestore + E2E + build antes de permitir el merge.
 - Versión pública, paquete, lockfile y caché del Service Worker quedan alineados en v0.37.0.
 
 
