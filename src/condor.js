@@ -255,15 +255,20 @@ export function startCondor(root = document) {
   };
 
   const observer = new MutationObserver(scheduleEnhance);
+  const resumeEnhance = () => { if (!document.hidden) scheduleEnhance(); };
   observer.observe(app, { subtree: true, childList: true, characterData: true });
   root.addEventListener('pointerdown', addPressRipple, { passive: true });
   window.addEventListener('resize', scheduleEnhance, { passive: true });
+  window.visualViewport?.addEventListener('resize', scheduleEnhance, { passive: true });
+  document.addEventListener('visibilitychange', resumeEnhance, { passive: true });
   enhance();
 
   return () => {
     observer.disconnect();
     root.removeEventListener('pointerdown', addPressRipple);
     window.removeEventListener('resize', scheduleEnhance);
+    window.visualViewport?.removeEventListener('resize', scheduleEnhance);
+    document.removeEventListener('visibilitychange', resumeEnhance);
     window.clearTimeout(tickCleanup);
     if (enhanceFrame !== null) cancelFrame(enhanceFrame);
     lastBoard?.querySelector('.condor-aim-guide')?.remove();
