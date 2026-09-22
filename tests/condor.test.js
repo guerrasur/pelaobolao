@@ -385,7 +385,7 @@ test('el lote de pulido: ningún request interno puede dejar congelado heartbeat
   assert.match(main, /boundedCall\(call\('acknowledgeRound'[\s\S]*?3200\)/);
   assert.match(main, /boundedCall\(call\('advanceGame'[\s\S]*?4000\)/);
   assert.match(main, /finally\(\(\) => \{ advancing = false; \}\)/);
-  assert.match(main, /finally\(\(\) => \{ heartbeatBusy = false; \}\)/);
+  assert.match(main, /finally \{ heartbeatBusy = false; \}/);
 });
 
 
