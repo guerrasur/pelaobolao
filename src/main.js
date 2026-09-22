@@ -30,6 +30,7 @@ let renderedHtml;
 let lastRevealStageKey = null;
 let lastRevealCountdown = null;
 let pending = null, sending = false, drag = null, suppressClick = false, lastNudge = 0;
+let leaveArmedUntil = 0, leaveArmTimer = 0;
 const now = () => api?.now() ?? Date.now();
 const setText = (node, value) => {
   if (!node) return false;
@@ -57,6 +58,19 @@ const orderedLobbyMembers = members => Object.entries(members ?? {}).sort(([uidA
   return joinedA - joinedB || uidA.localeCompare(uidB);
 });
 const vibrate = pattern => { try { if (typeof navigator.vibrate === 'function') navigator.vibrate(pattern); } catch {} };
+const matchStillRunning = () => s.room?.status === 'playing' && s.game && !['finished', 'abandoned'].includes(s.game.phase);
+function clearInviteParam(roomId) {
+  try {
+    const url = new URL(location.href);
+    if ((url.searchParams.get('s') || '').toUpperCase() !== String(roomId || '').toUpperCase()) return;
+    url.searchParams.delete('s');
+    history.replaceState(history.state, '', url);
+  } catch {}
+}
+function leaveMatchButton() {
+  const armed = matchStillRunning() && Date.now() < leaveArmedUntil;
+  return `<button id="leave-room" class="quiet${armed ? ' leave-armed' : ''}">${armed ? 'Confirmar salida' : 'Salir de la partida'}</button>`;
+}
 appMeta.textContent = `MVP · v${APP_VERSION}`;
 
 async function checkVersion() {
@@ -167,6 +181,7 @@ function cancelDrag() {
 }
 function detachGame() {
   gameGeneration += 1; cancelDrag(); returningLobby = false; lastLobbyReturnAttempt = 0;
+  window.clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   gameOff?.(); intentOff?.(); gameOff = null; intentOff = null;
   s.gameId = null; s.game = null; s.intent = null; s.gameError = null;
   s.choice = null; pending = null; s.targeting = false;
@@ -181,6 +196,19 @@ function resetRoomSession(text = '') {
   if (oldRoomId) void call('clearRoomSession', { roomId: oldRoomId }).catch(() => {});
 }
 function leaveRoom() {
+  if (matchStillRunning() && Date.now() >= leaveArmedUntil) {
+    leaveArmedUntil = Date.now() + 2600;
+    window.clearTimeout(leaveArmTimer);
+    leaveArmTimer = window.setTimeout(() => {
+      if (Date.now() < leaveArmedUntil) return;
+      leaveArmedUntil = 0; leaveArmTimer = 0;
+      message(''); render();
+    }, 2700);
+    message('Tocá Confirmar salida para abandonar esta partida.');
+    render();
+    return;
+  }
+  window.clearTimeout(leaveArmTimer); leaveArmTimer = 0; leaveArmedUntil = 0;
   const roomId = s.roomId;
   resetRoomSession();
   if (roomId) void call('roomCommand', { command: 'leave', roomId }).catch(() => {});
@@ -256,7 +284,12 @@ function subscribeRoom(id) {
       void resetRoomSession('Esa sala ya no está disponible. Podés crear otra o volver con un código.');
       return;
     }
+    const previousStatus = s.room?.status;
     s.room = { ...room, members: Object.fromEntries(Object.entries(room.members).map(([uid, m]) => [uid, { ...m, lastSeenAt: millis(m.lastSeenAt) }])) };
+    clearInviteParam(room.code);
+    if (room.status === 'lobby' && previousStatus && previousStatus !== 'lobby') {
+      returningLobby = false; lastLobbyReturnAttempt = 0; message('');
+    }
     subscribeGame(room.gameId);
     render();
   }, error => {
@@ -779,7 +812,7 @@ function render() {
                 : game.phase === 'reveal' ? 'Resultado del turno'
                   : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.'
                     : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}<button id="leave-room" class="quiet">Salir de la partida</button></section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}${leaveMatchButton()}</section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
