@@ -1,4 +1,5 @@
 import './condor20.css';
+import './condor30.css';
 import { viewportPixels } from './condor-core.js';
 
 const requestFrame = window.requestAnimationFrame?.bind(window)
