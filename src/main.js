@@ -544,7 +544,7 @@ function centerItemHtml(game, choice) {
     ? `+1 Pelo. Agarrar no cuesta Soplos, pero te deja expuesto.${isExpiring ? ' Última ronda antes de desaparecer.' : ''}`
     : `+1 Pelo, cuesta 1 Soplo.${isExpiring ? ' Última ronda antes de desaparecer.' : ''}`;
   return `<button type="button" class="center-item hair-item ${freePickup ? 'free-pickup' : 'legacy-blow-item'} ${targetable ? 'targetable' : ''} ${selectedGrab ? 'selected-grab' : ''} ${selectedLegacyTarget ? 'selected-target' : ''} ${isNew ? 'is-new' : ''} ${isExpiring ? 'is-expiring' : ''}" data-center-item="${CENTER_ITEM_TARGET}" data-item-turn="${esc(game.centerItem.spawnedTurn)}" data-item-age="${itemAgeRounds}" aria-disabled="${targetable ? 'false' : 'true'}" aria-pressed="${selectedGrab || selectedLegacyTarget ? 'true' : 'false'}" tabindex="${targetable ? '0' : '-1'}" ${targetable ? '' : 'disabled'} aria-label="${label}">
-    ${isNew ? '<i class="item-new-badge">NUEVO</i>' : ''}<small>${isExpiring ? 'ÚLTIMA RONDA' : 'OBJETO EN EL AULA'}</small><i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b></i><strong class="item-label">+1 PELO</strong><span>${selectedGrab ? 'YENDO…' : freePickup ? 'AGARRAR' : '1 SOPLO'}</span>
+    <i class="hair-tuft" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></i>
   </button>`;
 }
 
