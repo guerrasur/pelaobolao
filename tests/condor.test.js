@@ -470,7 +470,6 @@ test('cierre del lote 0.36 alinea versión y auditoría terminal', async () => {
     readFile('public/version.json', 'utf8').then(JSON.parse),
   ]);
   assert.match(integration, /fin de partida no puede resolverse dos veces ni reabrir una ronda/);
-  assert.equal(packageInfo.version, '0.36.0');
-  assert.equal(publicVersion.version, '0.36.0');
-  assert.match(sw, /pelaobolao-shell-0\.36\.0/);
+  assert.equal(packageInfo.version, publicVersion.version);
+  assert.match(sw, new RegExp(`pelaobolao-shell-${packageInfo.version.replaceAll('.', '\\.')}`));
 });
