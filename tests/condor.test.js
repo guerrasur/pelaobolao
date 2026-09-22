@@ -376,3 +376,14 @@ test('el lote de pulido reintenta una jugada que queda colgada antes de que venz
   assert.match(main, /3200/);
   assert.match(main, /pending = pending \?\? next/);
 });
+
+
+test('el lote de pulido: ningún request interno puede dejar congelado heartbeat o resolución', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /boundedCall\(roomCommand\('touch'\), 3200\)/);
+  assert.match(main, /boundedCall\(roomCommand\('lobby'\), 3500\)/);
+  assert.match(main, /boundedCall\(call\('acknowledgeRound'[\s\S]*?3200\)/);
+  assert.match(main, /boundedCall\(call\('advanceGame'[\s\S]*?4000\)/);
+  assert.match(main, /finally\(\(\) => \{ advancing = false; \}\)/);
+  assert.match(main, /finally\(\(\) => \{ heartbeatBusy = false; \}\)/);
+});
