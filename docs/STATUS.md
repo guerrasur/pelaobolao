@@ -30,6 +30,7 @@
 - El cierre de 0.36.0 usa el pipeline de `main`: unitarios + build + integración Firestore + E2E de navegador antes del deploy de Hosting, Rules e índices.
 - La salida confirmada no depende de APIs de timer presentes en el harness de pruebas; en navegador mantiene el desarme automático de 2,6 s.
 - La auditoría final fuerza carreras en la última ronda: una partida sólo puede finalizar una vez, sólo crea un documento de ronda y el regreso concurrente al lobby queda idempotente.
+- El commit de cierre en `main` dispara la validación completa y el deploy único de la v0.36.0.
 
 ## 0.35.0 — Plan Cóndor: stress multijugador y resolución robusta
 
