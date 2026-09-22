@@ -241,7 +241,7 @@ export function createClient(db, uid, clock = Date.now) {
         if (now() < phaseDeadline(game) && !allMarked(game, 'chosen')) return false;
         tx.update(ref, { phase: 'locked', lastProgressAt: serverTimestamp() });
         return true;
-      });
+      }, { maxAttempts: 10 });
       if (!locked) return { advanced: false };
       phase = 'locked';
     }
@@ -291,7 +291,7 @@ export function createClient(db, uid, clock = Date.now) {
         if (result.finished) tx.update(roomRef, { status: 'finished', updatedAt: serverTimestamp() });
       }
       return { advanced: true };
-    });
+    }, { maxAttempts: 10 });
   }
   const commands = { saveProfile, roomCommand, clearRoomSession, submitIntent, acknowledgeRound, abandonGame, advanceGame };
   return { now, syncClock, call: async (name, data) => {
