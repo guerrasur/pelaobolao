@@ -4,7 +4,15 @@
   --pb-viewport-height:100dvh;
 }
 
+/* visualViewport is useful for the no-scroll game board, but Safari shrinks it
+   to the keyboard. Entry/profile screens must keep their layout viewport instead
+   of collapsing the whole menu around the focused input. */
 body {
+  height:100dvh;
+  max-height:100dvh;
+}
+body[data-ui-screen="game"],
+body[data-ui-screen="lobby"] {
   height:var(--pb-viewport-height,100dvh);
   max-height:var(--pb-viewport-height,100dvh);
 }
@@ -12,8 +20,17 @@ body {
 @media(max-width:519px) {
   body {
     inset:0 0 auto 0;
+    height:100dvh;
+    max-height:100dvh;
+  }
+  body[data-ui-screen="game"],
+  body[data-ui-screen="lobby"] {
     height:var(--pb-viewport-height,100dvh);
     max-height:var(--pb-viewport-height,100dvh);
+  }
+  body[data-keyboard-open="true"] #app > .entry-screen {
+    height:100%;
+    min-height:0;
   }
 }
 
