@@ -413,3 +413,9 @@ test('el lote de pulido consume el click sintético posterior al drag sin duplic
   assert.match(main, /if \(consumeSuppressedClick\(\)\) return;[\s\S]*?s\.targeting/);
   assert.match(main, /if \(consumeSuppressedClick\(\)\) return;[\s\S]*?dataset\.centerItem/);
 });
+
+
+test('el lote de pulido respeta movimiento reducido también en la confirmación de salida', async () => {
+  const css = await readFile('src/condor.css', 'utf8');
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)[\s\S]*?#leave-room\.leave-armed[\s\S]*?animation:none!important/);
+});
