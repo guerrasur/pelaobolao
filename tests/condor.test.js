@@ -365,3 +365,14 @@ test('el lote de pulido bloquea decisiones si el navegador dice online pero Fire
   assert.match(main, /classList\.toggle\('connection-stale', checkingConnection\)/);
   assert.match(css, /\.game\.connection-stale \.controls/);
 });
+
+
+test('el lote de pulido reintenta una jugada que queda colgada antes de que venza el turno', async () => {
+  const main = await readFile('src/main.js', 'utf8');
+  assert.match(main, /async function boundedCall\(promise, ms\)/);
+  assert.match(main, /error\.code = 'unavailable'/);
+  assert.match(main, /Promise\.race\(\[promise, timeout\]\)/);
+  assert.match(main, /boundedCall\([\s\S]*?call\('submitIntent'/);
+  assert.match(main, /3200/);
+  assert.match(main, /pending = pending \?\? next/);
+});
