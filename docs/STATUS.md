@@ -1,5 +1,11 @@
 # Estado del MVP Spark
 
+## 0.38.1 — corrección del asset del menú
+
+- Reemplaza el WebP degradado por PNG optimizado con transparencia real, preservando trazo y sombras.
+- Elimina `mix-blend-mode:multiply` para evitar el rectángulo blanco y diferencias de composición en Safari/iPhone.
+- Actualiza ruta del asset, dimensiones intrínsecas, caché del Service Worker y versión pública.
+
 ## 0.38.0 — Plan Águila: ilustración original en el menú
 
 - La mascota construida con CSS del menú principal se reemplaza por el dibujo entregado para Pelao Bolao, recortado y optimizado como WebP liviano para móvil.
