@@ -265,12 +265,10 @@ export function createClient(db, uid, clock = Date.now) {
     if (phase === 'choosing' || phase === 'locked') {
       const preview = (await getDocFromServer(doc(db, 'games', gameId))).data();
       if (!preview || preview.turn !== turn || preview.phase !== phase || (phase === 'choosing' && now() < phaseDeadline(preview))) return { advanced: false };
-      const snapshots = [];
-      // Keep these reads sequential: Firestore applies a stricter rules lookup budget to
-      // batched reads. At most six small documents are loaded once per completed turn.
-      for (const memberId of preview.memberIds) {
-        snapshots.push(await getDocFromServer(doc(db, 'games', gameId, 'intents', memberId)));
-      }
+      // These are independent server reads, not one batched get. Resolve them concurrently so
+      // a six-player reveal pays roughly one network RTT instead of up to six in series.
+      const snapshots = await Promise.all(preview.memberIds.map(memberId =>
+        getDocFromServer(doc(db, 'games', gameId, 'intents', memberId))));
       resolvedIntents = Object.fromEntries(snapshots.filter(snapshot => snapshot.exists()).map(snapshot => [snapshot.id, snapshot.data()]));
     }
     return runTransaction(db, async tx => {
