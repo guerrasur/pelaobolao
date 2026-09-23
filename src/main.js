@@ -27,6 +27,7 @@ const HOST_TAKEOVER_RETRY_MS = 1200;
 let roomGeneration = 0, gameGeneration = 0, advancing = false, acknowledging = false, abandoning = false, returningLobby = false, lastAck = 0, lastAbandonAttempt = 0, lastLobbyReturnAttempt = 0, lastPhase;
 let operationGeneration = 0;
 let renderedHtml;
+let lobbyPresenceKey = null;
 let lastRevealStageKey = null;
 let lastRevealCountdown = null;
 let pending = null, sending = false, intentGeneration = 0, sendingGeneration = -1, drag = null, suppressClick = false, lastNudge = 0;
@@ -755,6 +756,7 @@ function render() {
   let html;
   const active = document.activeElement;
   const focusId = active?.id;
+  const drafts = [...document.querySelectorAll('#app input[id]')].map(input => [input.id, input.value]);
   const inputValue = active instanceof HTMLInputElement ? active.value : null;
   const selection = inputValue !== null ? [active.selectionStart, active.selectionEnd] : null;
   const disabled = s.busy || s.resetting || !s.online ? 'disabled' : '';
@@ -859,6 +861,10 @@ function render() {
   // overlays before replacing the captured button.
   if (drag) cancelDrag();
   app.innerHTML = html; renderedHtml = html;
+  for (const [id, value] of drafts) {
+    const input = document.getElementById(id);
+    if (input instanceof HTMLInputElement) input.value = value;
+  }
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) {
@@ -981,6 +987,14 @@ function tick() {
   }
   lastCheckingConnection = checkingConnection;
   if (s.updateRequired) return;
+  const presenceKey = s.room?.status === 'lobby'
+    ? Object.keys(s.room.members || {}).map(uid => `${uid}:${memberOnline(uid)}`).join('|')
+    : null;
+  if (presenceKey !== lobbyPresenceKey) {
+    lobbyPresenceKey = presenceKey;
+    render();
+    return;
+  }
   document.querySelectorAll('[data-presence]').forEach(el => {
     const online = memberOnline(el.dataset.presence);
     setText(el, online ? 'Conectado' : 'Reconectando…');
@@ -1062,6 +1076,12 @@ function tick() {
       .catch(showInternalError).finally(() => { advancing = false; });
   }
 }
+
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || (!drag && !s.targeting)) return;
+  event.preventDefault();
+  cancelDrag(); s.targeting = false; render();
+});
 
 document.querySelector('.brand')?.addEventListener('click', event => {
   if (!s.roomId) return;

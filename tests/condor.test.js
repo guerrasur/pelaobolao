@@ -489,6 +489,5 @@ test('0.38.1 integra el asset ilustrado con transparencia real y sin blend mode'
   assert.doesNotMatch(css, /mix-blend-mode\s*:\s*multiply/);
   assert.match(css, /prefers-reduced-motion:reduce/);
   assert.match(sw, /\/assets\/menu-hero\.png/);
-  assert.equal(packageInfo.version, '0.38.1');
-  assert.equal(publicVersion.version, '0.38.1');
+  assert.equal(publicVersion.version, packageInfo.version);
 });

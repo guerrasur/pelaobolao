@@ -1,12 +1,12 @@
 {
   "name": "pelaobolao",
-  "version": "0.38.1",
+  "version": "0.39.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test tests/game.test.js tests/version.test.js tests/session-ui.test.js tests/condor.test.js tests/reveal.test.js",
+    "test": "node --test tests/game.test.js tests/version.test.js tests/session-ui.test.js tests/condor.test.js tests/reveal.test.js tests/platform.test.js",
     "test:integration": "firebase emulators:exec --project demo-pelaobolao --only firestore \"node --test --test-concurrency=1 tests/integration.test.js tests/rules.test.js\"",
     "emulators": "firebase emulators:start --project demo-pelaobolao",
     "deploy": "npm run build && firebase deploy --only firestore:rules,firestore:indexes,hosting --project pelaobolao",

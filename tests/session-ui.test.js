@@ -720,3 +720,23 @@ test('Plan Condor: heartbeat pasivo se limita y el heartbeat forzado evita esper
   touches = ui.calls.filter(call => call.name === 'roomCommand' && call.data.command === 'touch');
   assert.equal(touches.length, 2);
 });
+
+test('el lobby actualiza presencia y bloquea inicio cuando un jugador vence sin snapshot nuevo', async () => {
+  const ui = await setup();
+  ui.s.roomId = 'ABCD';
+  ui.s.room = { code:'ABCD', status:'lobby', hostId:'me', members: {
+    me: {name:'Ana', ready:true, joinedAt:1, lastSeenAt:Date.now()},
+    other: {name:'Beto', ready:true, joinedAt:2, lastSeenAt:Date.now()},
+  }};
+  ui.render();
+  assert.match(ui.nodes.get('#app').innerHTML, /2 conectados/);
+  assert.match(ui.nodes.get('#app').innerHTML, /id="start-game" >Iniciar/);
+  ui.s.room.members.other.lastSeenAt = Date.now() - 26000;
+  ui.tick();
+  assert.match(ui.nodes.get('#app').innerHTML, /1 conectados/);
+  assert.match(ui.nodes.get('#app').innerHTML, /id="start-game" disabled/);
+  ui.s.room.members.other.lastSeenAt = Date.now();
+  ui.tick();
+  assert.match(ui.nodes.get('#app').innerHTML, /2 conectados/);
+  assert.match(ui.nodes.get('#app').innerHTML, /id="start-game" >Iniciar/);
+});
