@@ -1479,6 +1479,22 @@ main#app { min-height:0; overflow:hidden; }
 }
 
 
+/* v0.39.1 — keep the taped logo geometrically centered without covering HUD controls. */
+#sound-toggle {
+  position:absolute;
+  z-index:3;
+  left:2px;
+  top:50%;
+  transform:translateY(-50%);
+  width:auto;
+  min-width:0;
+  min-height:30px;
+  padding:4px 7px;
+  font-size:9px;
+  line-height:1;
+  white-space:nowrap;
+}
+
 /* v0.6.6 — taped classroom logo and clearer global status */
 header {
   position:relative;
