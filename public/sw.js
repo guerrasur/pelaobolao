@@ -1,4 +1,4 @@
-const CACHE = 'pelaobolao-static-0.39.1-r1';
+const CACHE = 'pelaobolao-shell-0.39.1-r1';
 const CORE = ['/manifest.webmanifest', '/icon-192.png', '/icon.svg', '/assets/menu-hero.png'];
 
 self.addEventListener('install', event => {
@@ -23,7 +23,10 @@ self.addEventListener('fetch', event => {
 
   // The application shell must always come from Hosting. Caching index.html can
   // strand mobile clients on an old or incomplete bundle after a deploy.
-  if (request.mode === 'navigate' || request.destination === 'document') return;
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   event.respondWith((async () => {
     const immutable = /^\/assets\/.+-[\w-]{8,}\.(?:js|css)$/.test(url.pathname);
