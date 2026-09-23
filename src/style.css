@@ -510,9 +510,17 @@ header { padding:0; min-height:32px; justify-content:space-between; }
 main#app { min-height:0; overflow:hidden; }
 .game[data-phase="choosing"] { box-shadow:inset 0 0 0 4px #ffdf4f; }
 .game[data-phase="locked"] { box-shadow:inset 0 0 0 4px #8f6bc0; }
-.game[data-phase="reveal"] {
+.game[data-phase="reveal"],
+.game[data-phase="finished"][data-reveal-stage="suspense"],
+.game[data-phase="finished"][data-reveal-stage="actions"] {
   box-shadow:inset 0 0 0 4px #6f4aa0;
   background:repeating-linear-gradient(4deg,transparent 0 10px,#6f4aa020 11px,transparent 13px 38px),repeating-linear-gradient(90deg,#b899d8 0 105px,#9f7cc0 106px,#aa8ac9 109px,#bea5d5 210px);
+}
+.game[data-phase="finished"][data-reveal-stage="suspense"] .phase-banner,
+.game[data-phase="finished"][data-reveal-stage="actions"] .phase-banner {
+  background:#d8c6ff;
+  border-color:#55307c;
+  color:#36214e;
 }
 .game[data-phase="reveal"] .players { opacity:.72; }
 .game[data-phase="reveal"] .result { background:#f3eaff; border-color:#55307c; overflow:auto; max-height:min(22dvh,150px); }

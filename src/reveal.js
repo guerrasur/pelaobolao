@@ -1,16 +1,22 @@
 import { millis } from './game.js';
 
 export const REVEAL_SEQUENCE_RULE_VERSION = 5;
-export const REVEAL_SUSPENSE_MS = 1500;
+export const REVEAL_SUSPENSE_MS = 2100;
 export const REVEAL_ACTION_MS = 1200;
-export const REVEAL_IMPACT_MS = 1300;
+export const REVEAL_IMPACT_MS = 1500;
 
 export function revealDurations(game) {
   const total = Math.max(2400, Number(game?.rules?.revealMs) || 3200);
   const version = Number(game?.rules?.version ?? 0);
+  if (version >= 7) {
+    const suspense = Math.min(REVEAL_SUSPENSE_MS, Math.round(total * .44));
+    const actions = Math.min(REVEAL_ACTION_MS, Math.round(total * .25));
+    return { suspense, actions, impact: Math.max(700, total - suspense - actions) };
+  }
   if (version >= 6) {
-    const suspense = Math.min(REVEAL_SUSPENSE_MS, Math.round(total * .4));
-    const actions = Math.min(REVEAL_ACTION_MS, Math.round(total * .3));
+    // Preserve already-running v6 matches exactly as they were authored.
+    const suspense = Math.min(1500, Math.round(total * .4));
+    const actions = Math.min(1200, Math.round(total * .3));
     return { suspense, actions, impact: Math.max(500, total - suspense - actions) };
   }
   // v5 matches already in progress keep fitting inside their snapshotted 3.2 s reveal.

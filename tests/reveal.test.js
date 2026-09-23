@@ -7,7 +7,7 @@ function game(overrides = {}) {
   return {
     phase: 'reveal',
     phaseStartedAt: 1000,
-    rules: { version: 6, maxHair: 4, revealMs: 4000 },
+    rules: { version: 7, maxHair: 4, revealMs: 4800 },
     players: {
       a: { name:'Ana', hair:1, breath:0 },
       b: { name:'Beto', hair:3, breath:1 },
@@ -28,7 +28,7 @@ function game(overrides = {}) {
   };
 }
 
-test('0.27 da tiempo real para leer 3-2-1, jugadas y consecuencias', () => {
+test('0.41 da una cadencia pareja a 3-2-1, jugadas y consecuencias', () => {
   const g = game();
   assert.deepEqual(revealDurations(g), {
     suspense:REVEAL_SUSPENSE_MS,
@@ -41,6 +41,11 @@ test('0.27 da tiempo real para leer 3-2-1, jugadas y consecuencias', () => {
   assert.equal(revealCountdown(g, 1000 + REVEAL_SUSPENSE_MS * 2 / 3 + 1), 1);
   assert.equal(revealStage(g, 1000 + REVEAL_SUSPENSE_MS), 'actions');
   assert.equal(revealStage(g, 1000 + REVEAL_SUSPENSE_MS + REVEAL_ACTION_MS), 'impact');
+});
+
+test('partidas v6 en curso conservan su coreografía de 4 s', () => {
+  const g = game({ rules:{ version:6, maxHair:4, revealMs:4000 } });
+  assert.deepEqual(revealDurations(g), { suspense:1500, actions:1200, impact:1300 });
 });
 
 test('partidas v5 ya iniciadas ajustan la coreografía a sus 3.2 s sin quedar sin impacto', () => {
