@@ -1,26 +1,42 @@
 let context;
+let enabled = true;
+try { enabled = globalThis.localStorage?.getItem('pb-sound') !== 'off'; } catch {}
+
+export const soundEnabled = () => enabled;
+export function setSoundEnabled(value) {
+  enabled = Boolean(value);
+  try { globalThis.localStorage?.setItem('pb-sound', enabled ? 'on' : 'off'); } catch {}
+  if (!enabled && context?.state === 'running') void context.suspend().catch(() => {});
+  return enabled;
+}
+
+function unlockAudio() {
+  if (!enabled) return;
+  try {
+    const audio = getContext();
+    if (audio?.state === 'suspended') void audio.resume().catch(() => {});
+  } catch { /* Unsupported audio must never break input. */ }
+}
 
 function getContext() {
   if (typeof window === 'undefined') return null;
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return null;
-  context ||= new AudioContext();
+  if (!context || context.state === 'closed') context = new AudioContext();
   return context;
 }
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('pointerdown', () => {
-    const audio = getContext();
-    if (audio?.state === 'suspended') void audio.resume();
-  }, { passive: true });
+  document.addEventListener('pointerdown', unlockAudio, { passive: true });
+  document.addEventListener('keydown', unlockAudio);
 }
 
 export function playCue(kind) {
   try {
-    if (typeof document !== 'undefined' && document.hidden) return;
+    if (!enabled || (typeof document !== 'undefined' && document.hidden)) return;
     const audio = getContext();
     if (!audio) return;
-    if (audio.state === 'suspended') void audio.resume();
+    if (audio.state === 'suspended') void audio.resume().catch(() => {});
     const start = audio.currentTime;
     const patterns = {
       start: { notes:[392,523.25,659.25], step:.09, length:.18, type:'triangle', gain:.07 },
@@ -58,6 +74,7 @@ export function playCue(kind) {
       gain.gain.exponentialRampToValueAtTime(pattern.gain, at + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, at + pattern.length);
       oscillator.connect(gain).connect(audio.destination);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
       oscillator.start(at); oscillator.stop(at + pattern.length + .02);
     });
   } catch { /* Audio is an enhancement; it must never block a round. */ }

@@ -1,6 +1,6 @@
 import './entrance.css';
 import './condor30.css';
-import { playCue } from './sound.js';
+import { playCue, soundEnabled, setSoundEnabled } from './sound.js';
 
 const app = document.querySelector('#app');
 const body = document.body;
@@ -110,3 +110,24 @@ if (app && typeof MutationObserver !== 'undefined') {
   document.addEventListener('pointerdown', () => { interacted = true; }, { once:true, passive:true });
   refreshScreen();
 }
+
+const soundToggle = document.querySelector('#sound-toggle');
+function refreshSoundToggle() {
+  if (!soundToggle) return;
+  const enabled = soundEnabled();
+  soundToggle.setAttribute('aria-pressed', String(enabled));
+  soundToggle.setAttribute('aria-label', enabled ? 'Silenciar sonido' : 'Activar sonido');
+  soundToggle.textContent = enabled ? 'SONIDO ON' : 'SONIDO OFF';
+}
+soundToggle?.addEventListener('click', () => {
+  setSoundEnabled(!soundEnabled());
+  refreshSoundToggle();
+  if (soundEnabled()) playCue('menuSoft');
+});
+window.addEventListener('storage', event => {
+  if (event.key === 'pb-sound') {
+    setSoundEnabled(event.newValue !== 'off');
+    refreshSoundToggle();
+  }
+});
+refreshSoundToggle();

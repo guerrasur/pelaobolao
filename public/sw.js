@@ -1,4 +1,4 @@
-const CACHE = 'pelaobolao-shell-0.38.1';
+const CACHE = 'pelaobolao-shell-0.39.0';
 const CORE = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon.svg', '/assets/menu-hero.png'];
 
 self.addEventListener('install', event => {
@@ -17,12 +17,29 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname === '/version.json' || url.pathname === '/sw.js') return;
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        if (response.ok) caches.open(CACHE).then(cache => cache.put(request, response.clone())).catch(() => {});
-        return response;
-      })
-      .catch(async () => (await caches.match(request)) || (request.mode === 'navigate' ? caches.match('/') : undefined))
-  );
+  event.respondWith((async () => {
+    // Vite fingerprints these files. Reuse them without a network round trip.
+    const immutable = /^\/assets\/.+-[\w-]{8,}\.(?:js|css)$/.test(url.pathname);
+    if (immutable) {
+      try {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+      } catch { /* Storage may be unavailable in private browsing. */ }
+    }
+    try {
+      const response = await fetch(request);
+      if (response.ok) {
+        // Clone before returning: the browser can consume the body immediately.
+        const copy = response.clone();
+        event.waitUntil(caches.open(CACHE).then(cache => cache.put(request, copy)).catch(() => {}));
+      }
+      return response;
+    } catch {
+      try {
+        return (await caches.match(request))
+          || (request.mode === 'navigate' ? await caches.match('/') : null)
+          || Response.error();
+      } catch { return Response.error(); }
+    }
+  })());
 });

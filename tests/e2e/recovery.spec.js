@@ -471,3 +471,26 @@ test('doble toque sobre la misma acción no crea una revisión extra', async ({ 
     await guestContext.close();
   }
 });
+
+test('sonido persistente y campos conservados al reconectar con el foco fuera del formulario', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#player-name').fill('Lucio');
+  await page.locator('#sound-toggle').click();
+  await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await expect(page.locator('#player-name')).toHaveValue('Lucio');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('#player-name')).toHaveValue('Lucio');
+  await page.locator('#profile-form button').click();
+  await page.locator('#room-code').fill('AB7K');
+  await page.locator('#sound-toggle').focus();
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await expect(page.locator('#room-code')).toHaveValue('AB7K');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.locator('#room-code')).toHaveValue('AB7K');
+  await page.reload();
+  await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#sound-toggle')).toHaveAccessibleName('Activar sonido');
+  await page.locator('#sound-toggle').click();
+  await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'true');
+});

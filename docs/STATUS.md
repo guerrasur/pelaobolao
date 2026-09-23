@@ -1,5 +1,14 @@
 # Estado del MVP Spark
 
+## 0.39.0 — Plan Cóndor: conexión, carga y controles
+
+- Sonido ON/OFF accesible desde todas las pantallas, persistente entre recargas y sincronizado entre pestañas. Los nodos de cada efecto se desconectan al terminar.
+- El lobby actualiza lista, cantidad de conectados y disponibilidad de inicio cuando vence o se recupera la presencia, incluso sin recibir otro snapshot.
+- Nombre y código escritos sobreviven a renders por conexión aunque el foco ya esté en otro control.
+- El Service Worker clona las respuestas antes de entregarlas al navegador y mantiene viva la escritura de caché. Reutiliza JS/CSS con hash sin pedirlos de nuevo, pero HTML y control de versión conservan su actualización por red.
+- Escape cancela la selección de rival conservando la jugada previa; foco visible, nombres accesibles y estado del objetivo mejoran el uso con teclado/lector.
+- Validación local: 118 pruebas unitarias y build correctos. Se añade regresión E2E de sonido y borradores. Integración y navegador se ejecutan en el workflow antes del deploy.
+
 ## 0.38.1 — corrección del asset del menú
 
 - Reemplaza el WebP degradado por PNG optimizado con transparencia real, preservando trazo y sombras.
