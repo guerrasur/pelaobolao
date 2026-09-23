@@ -50,6 +50,10 @@ test('la versión actual se instala como app móvil y mantiene fresco el gate de
   assert.ok(worker.includes(`pelaobolao-shell-${packageInfo.version}`));
   assert.match(worker, /skipWaiting/);
   assert.match(worker, /url\.pathname === '\/version\.json'/);
+  assert.match(worker, /request\.mode === 'navigate'/);
+  assert.match(worker, /request\.destination === 'document'/);
+  assert.doesNotMatch(worker, /const CORE = \['\/'/);
+  assert.match(worker, /!contentType\.includes\('text\/html'\)/);
   const icon = Buffer.from(encodedIcon, 'base64');
   assert.ok(icon.length > 1000);
   assert.deepEqual([...icon.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
