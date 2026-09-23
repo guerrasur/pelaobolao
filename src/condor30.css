@@ -629,7 +629,7 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
 }
 
 
-/* Plan Águila 0.38.0 — asset ilustrado original en el menú principal. */
+/* Plan Águila 0.38.1 — asset ilustrado original con transparencia real. */
 .home-hero {
   isolation:isolate;
 }
@@ -652,7 +652,6 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   display:block;
   width:100%;
   height:auto;
-  mix-blend-mode:multiply;
   filter:contrast(1.06);
 }
 @keyframes pb-home-art-idle {
