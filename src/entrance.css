@@ -605,18 +605,7 @@ body[data-ui-screen="update"] #connection.offline::before { background:#f08a67; 
   border-radius:50% 50% 42% 42%;
   background:#f1c196;
 }
-.door-loader::after {
-  content:'';
-  position:absolute;
-  right:-16px;
-  top:27px;
-  width:22px;
-  height:38px;
-  border:3px solid var(--entry-ink);
-  border-left:0;
-  border-radius:0 8px 8px 0;
-  background:var(--entry-yellow);
-}
+/* The room loader uses the same clean circular mark as boot; no side tab/artifact. */
 
 .entry-arrive .home-hero,
 .entry-arrive .entry-form,
