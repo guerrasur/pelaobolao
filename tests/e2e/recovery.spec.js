@@ -146,6 +146,7 @@ test('Plan Condor 0.28: el reveal no se reinicia por snapshots de presencia y lo
     await guest.getByRole('button',{name:'Tomar aire',exact:true}).click();
 
     await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','suspense',{timeout:5000});
+    await expect(page.locator('.player.self .breath-resource b')).toHaveText('0');
     const countdown = page.locator('[data-reveal-countdown]');
     await expect(countdown).toHaveText(/[123]/);
     await page.evaluate(() => {
@@ -164,9 +165,12 @@ test('Plan Condor 0.28: el reveal no se reinicia por snapshots de presencia y lo
     await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','actions',{timeout:2500});
     await expect(page.locator('.condor-chalk-burst')).toHaveCount(1);
     await expect(page.locator('.phase-banner')).toHaveClass(/condor-reveal-actions/);
+    await expect(page.locator('.player.self .breath-resource b')).toHaveText('0');
 
     await expect(page.locator('.game')).toHaveAttribute('data-reveal-stage','impact',{timeout:2500});
     await expect(page.locator('.result-callout')).toHaveClass(/condor-impact-pop/);
+    await expect(page.locator('.player.self .breath-resource b')).toHaveText('1');
+    await expect(page.locator('.player.self .fx-breath-delta')).toHaveText('+1 SOPLO');
     await expect(page.locator('.result')).toBeVisible();
   } finally { await guestContext.close(); }
 });
@@ -274,6 +278,9 @@ test('desconexión mientras apunta cancela el targeting y al volver deja elegir 
     await expect(page.locator('#blow')).toBeEnabled();
     await page.getByRole('button', { name: 'Tomar aire', exact: true }).click();
     await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
+    await page.locator('[data-action="hide"]').click();
+    await expect(page.locator('.game')).toHaveAttribute('data-confirmed-choice', /:1:2$/);
+    await expect(page.locator('[data-action="hide"]')).toHaveClass(/condor-choice-locked/);
   } finally {
     await guestContext.close();
   }
@@ -305,6 +312,7 @@ test('GUARDANDO es local y ELEGIDA requiere confirmación real del servidor', as
     await expect(page.locator('[data-action="air"] .action-state')).toHaveText('ELEGIDA');
     await expect(page.locator('[data-player].self small')).toContainText('Ya eligió');
     await expect(page.locator('#selection')).toContainText('Elegido: Tomar aire');
+    await expect(page.locator('.game')).toHaveAttribute('data-confirmed-choice', /:1:1$/);
     await expect.poll(async () => (await read(`games/${gameId}`)).chosen?.[room.hostId]).toBe(true);
     await expect.poll(async () => (await read(`games/${gameId}/intents/${room.hostId}`))?.action).toBe('air');
   } finally {

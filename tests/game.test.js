@@ -391,3 +391,23 @@ test('cooldown del item empieza cuando sale del escritorio aunque haya quedado v
   assert.equal(oneMoreRound.centerItem, null);
   assert.equal(oneMoreRound.lastItemSpawnTurn, 8);
 });
+
+
+test('reveal conserva Soplos previos y deltas reales incluso al llegar al tope', () => {
+  const state = game(3);
+  state.players['0'].breath = 1;
+  state.players['1'].breath = 2;
+  const resolved = resolveRound(state, { '0': choice('blow', '1'), '1': choice('air'), '2': choice('air') });
+  assert.deepEqual(resolved.result.breathBefore, { '0': 1, '1': 2, '2': 0 });
+  assert.deepEqual(resolved.result.breathDeltas, { '0': -1, '1': 0, '2': 1 });
+  assert.equal(state.players['0'].breath, 1);
+});
+
+
+test('el regreso al lobby da tres segundos al desenlace antes del conteo de cinco', () => {
+  const state = { phase: 'finished', finishedAt: 10000, rules: RULES };
+  assert.equal(lobbyReturnSeconds(state, 16299), null);
+  assert.equal(lobbyReturnSeconds(state, 16300), 5);
+  assert.equal(lobbyReturnSeconds(state, 17300), 4);
+  assert.equal(lobbyReturnSeconds(state, 21300), 0);
+});

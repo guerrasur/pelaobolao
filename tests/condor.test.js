@@ -325,7 +325,8 @@ test('el lote de pulido diferencia GUARDANDO de ELEGIDA también en feedback vis
   assert.match(visuals, /saving \? 'saving-action' : 'chosen-action'/);
   assert.match(css, /button\.saving-action/);
   assert.match(css, /@keyframes condor-saving-pulse/);
-  assert.match(condor, /classList\.contains\('self'\)\) playCue\('confirm'\)/);
+  assert.match(condor, /confirmedChoice && confirmedChoice !== lastConfirmedChoice/);
+  assert.match(condor, /playCue\('confirm'\)/);
   assert.match(sound, /confirm: \{ notes:/);
 });
 
@@ -534,7 +535,7 @@ test('0.41 resuelve sin latencia serial y conserva la coreografía final', async
   assert.match(style, /data-phase="finished"\]\[data-reveal-stage="suspense"\]/);
   assert.match(style, /data-phase="finished"\]\[data-reveal-stage="actions"\]/);
   assert.doesNotMatch(entrance, /\.door-loader::after\s*\{/);
-  assert.match(game, /version:\s*7[\s\S]*?revealMs:\s*4800/);
+  assert.match(game, /version:\s*8[\s\S]*?revealMs:\s*4800/);
   assert.equal(packageInfo.version, publicVersion.version);
 });
 

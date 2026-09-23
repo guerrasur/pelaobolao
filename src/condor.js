@@ -109,6 +109,7 @@ export function startCondor(root = document) {
   let lastGrabSelected = false;
   let chosenInitialized = false;
   let chosenIds = new Set();
+  let lastConfirmedChoice = null;
   let enhanceFrame = null;
   const enhanceLobby = () => {
     const list = app.querySelector('.lobby-list');
@@ -154,6 +155,7 @@ export function startCondor(root = document) {
       lastGrabSelected = false;
       chosenInitialized = false;
       chosenIds = new Set();
+      lastConfirmedChoice = null;
       enhanceLobby();
       return;
     }
@@ -202,11 +204,17 @@ export function startCondor(root = document) {
         const card = [...board.querySelectorAll('.player.has-chosen[data-player]')]
           .find(node => node.dataset.player === uid);
         pulseClass(card, 'condor-choice-locked', 520);
-        if (card?.classList.contains('self')) playCue('confirm');
+
       }
     }
     chosenIds = nextChosenIds;
     chosenInitialized = true;
+    const confirmedChoice = board.dataset.confirmedChoice;
+    if (confirmedChoice && confirmedChoice !== lastConfirmedChoice) {
+      lastConfirmedChoice = confirmedChoice;
+      pulseClass(board.querySelector('.controls .chosen-action') || board.querySelector('.player.self'), 'condor-choice-locked', 520);
+      playCue('confirm');
+    }
 
     const centerItem = board.querySelector('[data-center-item]');
     const grabSelected = Boolean(centerItem?.classList.contains('selected-grab'));
