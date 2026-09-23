@@ -76,3 +76,16 @@ test('la ronda final también usa la secuencia antes de mostrar el desenlace', (
   assert.equal(revealStage(g, 1000), 'suspense');
   assert.equal(revealStage(g, 1000 + REVEAL_SUSPENSE_MS + REVEAL_ACTION_MS), 'impact');
 });
+
+
+test('Soplos quedan ocultos hasta el impacto sin modificar el estado autoritativo', () => {
+  const g = game();
+  g.lastResult.breathBefore = { a: 1, b: 0 };
+  for (const stage of ['suspense', 'actions']) {
+    const view = revealViewGame(g, stage);
+    assert.equal(view.players.a.breath, 1);
+    assert.equal(view.players.b.breath, 0);
+  }
+  assert.equal(revealViewGame(g, 'impact').players.a.breath, 0);
+  assert.equal(g.players.b.breath, 1);
+});

@@ -42,16 +42,20 @@ function revealClockNow(game) {
     return now();
   }
   const serverStarted = millis(game.phaseStartedAt);
-  const observedNow = now();
-  if (!Number.isFinite(serverStarted) || serverStarted <= 0) return observedNow;
+  const observedNow = globalThis.performance?.now() ?? Date.now();
+  if (!Number.isFinite(serverStarted) || serverStarted <= 0) return now();
   const key = `${s.gameId || 'game'}:${game.turn}:${game.phase}:${serverStarted}`;
   if (!revealVisualAnchor || revealVisualAnchor.key !== key) {
     // Firestore delivery latency used to eat most of the visible "3". Anchor the
     // choreography when this client first sees the authoritative reveal snapshot;
     // the host deadline stays server-authored and remains the source of truth.
-    revealVisualAnchor = { key, observedAt: observedNow, serverStarted };
+    const deliveryLag = Math.max(0, now() - serverStarted);
+    // A late reconnect must catch up instead of replaying a full countdown that
+    // the next authoritative turn would cut off before its consequences.
+    const elapsed = deliveryLag > 700 || document.hidden ? deliveryLag : 0;
+    revealVisualAnchor = { key, observedAt: observedNow, serverStarted, elapsed };
   }
-  return revealVisualAnchor.serverStarted + Math.max(0, observedNow - revealVisualAnchor.observedAt);
+  return revealVisualAnchor.serverStarted + revealVisualAnchor.elapsed + Math.max(0, observedNow - revealVisualAnchor.observedAt);
 }
 const connectionFresh = () => !s.roomId || !lastContact || Date.now() - lastContact <= 30000;
 const setText = (node, value) => {
@@ -304,10 +308,13 @@ function subscribeGame(id) {
     }
     cancelDrag(); s.game = null; s.gameError = 'No pudimos cargar la partida.'; render(); showError(error);
   });
-  intentOff = onSnapshot(doc(api.db, 'games', id, 'intents', api.uid), snap => {
-    if (generation !== gameGeneration) return;
-    if (!snap.metadata?.fromCache) lastContact = Date.now();
-    s.intent = snap.data() ?? null;
+  intentOff = onSnapshot(doc(api.db, 'games', id, 'intents', api.uid), { includeMetadataChanges: true }, snap => {
+    if (generation !== gameGeneration || snap.metadata?.hasPendingWrites || snap.metadata?.fromCache) return;
+    lastContact = Date.now();
+    const intent = snap.data() ?? null;
+    if (intent && s.intent && (intent.turn < s.intent.turn
+      || intent.turn === s.intent.turn && intent.revision < s.intent.revision)) return;
+    s.intent = intent;
     render();
   }, error => {
     if (generation === gameGeneration) showError(error);
@@ -493,6 +500,7 @@ function playerEffects(game, uid, stage = 'impact') {
     action: Number(game.rules?.version ?? 0) >= 5 ? null : action,
     loss,
     healed,
+    breathDelta: Number(result.breathDeltas?.[uid] || 0),
     hit: loss > 0,
     blockedDefense: incoming.some(hit => hit.blocked),
     blockedAttack: outgoing?.blocked === true,
@@ -593,11 +601,11 @@ function syncRevealTimeline(game) {
   if (stage === 'suspense') {
     const value = revealCountdown(game, visualNow);
     const countdown = document.querySelector('[data-reveal-countdown]');
+    if (countdown) setText(countdown, value ?? '');
     if (countdown && value !== lastRevealCountdown) {
       lastRevealCountdown = value;
-      setText(countdown, value ?? '');
       try {
-        countdown.animate?.(
+        if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) countdown.animate?.(
           [{ opacity:.45, transform:'scale(.78)' }, { opacity:1, transform:'scale(1)' }],
           { duration:240, easing:'cubic-bezier(.2,.9,.3,1.18)' }
         );
@@ -881,7 +889,7 @@ function render() {
                 : game.phase === 'reveal' ? 'Resultado del turno'
                   : lateSpectator ? 'Estás mirando esta partida. Entrás en la próxima cuando vuelvan al lobby.'
                     : me?.hair > 0 ? 'Elegí en secreto. Cuando todos eligen, se revela.' : 'Estás Pelado.';
-    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}${leaveMatchButton()}</section>`;
+    html = `<section class="game ${outcome ? `outcome-${outcome}` : ''}" data-phase="${esc(game.phase)}" data-impact="${revealStep === 'impact' ? roundImpact(game) : 'none'}" data-reveal-stage="${esc(revealStep)}" data-confirmed-choice="${game.phase === 'choosing' && !choiceSaving && accepted() ? esc(`${s.gameId}:${game.turn}:${accepted().revision}`) : ''}" data-targeting="${s.targeting ? 'true' : 'false'}">${countdownSplash}${revealOverlay}${revealStep === 'impact' ? endCelebrationHtml(game, api.uid) : ''}${lobbyReturn}<div class="phase-banner"><span>${phaseLabel}</span><strong>${phaseDetail}</strong></div><div class="turn-meter" aria-hidden="true"><i></i></div><div class="turn-header"><div><p class="eyebrow">Sala ${esc(s.room.code)}</p><h1>${title}</h1></div><div class="turn-tools">${nextMatchQueue}${game.phase === 'choosing' ? '<span id="timer" role="timer" aria-label="Tiempo restante"></span>' : ''}</div></div><p id="turn-status" aria-live="polite">${esc(turnStatus)}</p>${itemNotice}<div class="players ${centerItem ? 'has-center-item' : ''}" data-count="${order.length}">${order.map(uid => playerCard({ uid, player: viewGame.players[uid], index: seats.indexOf(uid), self: uid === api.uid, selected: choice?.target === uid, chosen: game.chosen?.[uid], connected: memberOnline(uid), winner: Boolean(outcome) && game.winnerId === uid, targetable: Boolean(s.targeting && canChoose() && uid !== api.uid && game.players[uid]?.hair > 0), rules: game.rules, effects: playerEffects(game, uid, revealStep) })).join('')}${centerItem}${revealStep === 'actions' && ['reveal','finished'].includes(game.phase) ? '<div class="reveal-attack-lines" aria-hidden="true"></div>' : ''}<div class="desk-doodle" aria-hidden="true">RIVALES<br>pero compis ♡</div></div>${spectatorStrip}${sealedChoiceHtml(game, choice, me)}${playControls}${showResult ? resultHtml(game) : ''}${terminal ? game.phase === 'abandoned' ? '<p>La sala se cerrará después de un período de inactividad.</p>' : '' : ''}${leaveMatchButton()}</section>`;
   }
   // Heartbeats and metadata acknowledgements must not detach active controls.
   if (html === renderedHtml) { tick(); return; }
@@ -1133,7 +1141,8 @@ document.addEventListener('visibilitychange', () => {
     if (s.targeting) { s.targeting = false; render(); }
     return;
   }
-  resyncClock(); void heartbeat(true); tick(); void checkVersion(); void flushIntent();
+  revealVisualAnchor = null;
+  resyncClock(); void heartbeat(true); render(); void checkVersion(); void flushIntent();
 });
 window.addEventListener('pagehide', () => {
   cancelDrag();
@@ -1142,6 +1151,7 @@ window.addEventListener('pagehide', () => {
 window.addEventListener('pageshow', event => {
   if (!event.persisted) return;
   s.online = navigator.onLine;
+  revealVisualAnchor = null;
   resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
 });
 setInterval(tick, 100);

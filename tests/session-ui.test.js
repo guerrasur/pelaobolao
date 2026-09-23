@@ -35,7 +35,7 @@ async function setup(handler = async () => ({})) {
     playerCard: () => '', actionControls: () => '', playCue: () => {}, packageInfo: { version: 'test' },
   });
   const source = (await readFile('src/main.js', 'utf8')).replace(/^import .*;\n/gm, '');
-  const ui = await vm.runInContext(`(async () => { ${source}\nreturn { s, leaveRoom, resetRoomSession, roomCommand, subscribeRoom, subscribeGame, operation, heartbeat, tick, render }; })()`, context);
+  const ui = await vm.runInContext(`(async () => { ${source}\nreturn { s, leaveRoom, resetRoomSession, roomCommand, subscribeRoom, subscribeGame, operation, heartbeat, tick, render, revealClockNow, syncRevealTimeline }; })()`, context);
   Object.assign(ui.s, { ready: true, nameConfirmed: true, profile: { name: 'Ana' } });
   ui.render();
   return { ...ui, nodes, calls, subscriptions, events };
@@ -739,4 +739,41 @@ test('el lobby actualiza presencia y bloquea inicio cuando un jugador vence sin 
   ui.tick();
   assert.match(ui.nodes.get('#app').innerHTML, /2 conectados/);
   assert.match(ui.nodes.get('#app').innerHTML, /id="start-game" >Iniciar/);
+});
+
+
+test('intenciones pendientes, cacheadas o antiguas no reemplazan la confirmación vigente', async () => {
+  const ui = await setup();
+  ui.subscribeGame('g');
+  const subscription = ui.subscriptions.find(sub => sub.path === 'games/g/intents/me');
+  const emit = (intent, metadata = {}) => subscription.next({ metadata, data: () => intent });
+  const accepted = { turn: 2, revision: 3, action: 'hide' };
+  emit(accepted);
+  emit({ turn: 2, revision: 4, action: 'air' }, { hasPendingWrites: true });
+  emit({ turn: 2, revision: 4, action: 'air' }, { fromCache: true });
+  emit({ turn: 2, revision: 2, action: 'air' });
+  emit({ turn: 1, revision: 9, action: 'air' });
+  assert.equal(ui.s.intent.action, 'hide');
+  emit({ turn: 2, revision: 4, action: 'air' });
+  assert.equal(ui.s.intent.action, 'air');
+});
+
+test('una revelación recibida tarde se incorpora al beat vigente', async () => {
+  const ui = await setup();
+  const started = Date.now() - 3500;
+  const g = { phase: 'reveal', turn: 1, phaseStartedAt: started, rules: { version: 7, revealMs: 4800 }, lastResult: {} };
+  assert.equal(revealStage(g, ui.revealClockNow(g)), 'impact');
+});
+
+test('reemplazar el DOM durante el mismo número restaura el conteo sin esperar al siguiente', async () => {
+  const ui = await setup();
+  const g = { phase: 'reveal', turn: 1, phaseStartedAt: Date.now(), rules: { version: 7, revealMs: 4800 }, lastResult: {} };
+  const first = { textContent: '' };
+  ui.nodes.set('[data-reveal-countdown]', first);
+  ui.syncRevealTimeline(g);
+  assert.equal(first.textContent, '3');
+  const replacement = { textContent: '' };
+  ui.nodes.set('[data-reveal-countdown]', replacement);
+  ui.syncRevealTimeline(g);
+  assert.equal(replacement.textContent, '3');
 });

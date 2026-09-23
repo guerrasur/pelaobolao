@@ -1,5 +1,17 @@
 # Estado del MVP Spark
 
+## 0.42.0 — Plan Cóndor general
+
+- Reveal con reloj monotónico: las calibraciones no alteran su cadencia. Una entrega tardía o regreso desde segundo plano se incorpora al momento vigente, sin reiniciar un conteo que quedaría cortado.
+- Si un cambio real de presencia reemplaza el DOM durante un número, éste se restaura en el mismo tick. El conteo respeta movimiento reducido.
+- Intenciones: se ignoran snapshots pendientes, cacheados y revisiones antiguas. La confirmación visual y sonora distingue cada revisión aceptada, también al cambiar de acción.
+- Los Soplos previos se conservan hasta el impacto; los deltas muestran sólo cambios reales. Tomar aire con el recurso lleno ya no anuncia una ganancia inexistente. Reglas de Firestore actualizadas para los dos campos de resultado.
+- Audio con prioridad: confirmaciones y resultados atenúan los sonidos menores; los taps rápidos no apilan efectos.
+- Partidas nuevas (reglas v8): la espera del regreso al lobby comienza después de revelar las consecuencias. Las partidas anteriores conservan su tiempo.
+- Se conservan las posiciones, marcador, controles táctiles y flujo de revancha; la suite existente cubre estos comportamientos y el relevo de host con varios jugadores.
+- Validación local: 128 pruebas unitarias, 44 de integración Firestore y build aprobados. El navegador no pudo arrancar: el entorno deniega el socket de Chromium, por lo que E2E queda pendiente del pipeline.
+- Publicación autorizada por el usuario: PR con CI completo antes del merge y workflow Firebase con validación previa al deploy.
+
 ## 0.39.0 — Plan Cóndor: conexión, carga y controles
 
 - Sonido ON/OFF accesible desde todas las pantallas, persistente entre recargas y sincronizado entre pestañas. Los nodos de cada efecto se desconectan al terminar.

@@ -143,3 +143,26 @@
     transition:none!important;
   }
 }
+
+/* Resource changes occupy the lower edge, away from hair impact labels. */
+.fx-breath-delta {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #c9f3ff;
+  background: #243d49;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 10px;
+  line-height: 1.2;
+  animation: breath-delta-in 350ms ease-out both;
+}
+@keyframes breath-delta-in {
+  from { opacity: 0; transform: translate(-50%, 5px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-breath-delta { animation: none; }
+}

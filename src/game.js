@@ -3,7 +3,7 @@ export const CENTER_ITEM_TARGET = '__center_item__';
 export const HAIR_ITEM_KIND = 'hair_plus_1';
 
 export const RULES = Object.freeze({
-  version: 7, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
+  version: 8, resultPresentationMs: 3300, initialHair: 3, maxHair: 4, initialBreath: 0, maxBreath: 2,
   minPlayers: 2, maxPlayers: 6, turnMs: 8000, revealMs: 4800,
   countdownMs: 3000,
   maxConsecutiveHides: 3,
@@ -41,7 +41,8 @@ export function lobbyReturnSeconds(game, currentTime) {
   if (game?.phase !== 'finished') return null;
   const finishedAt = millis(game.finishedAt);
   if (!Number.isFinite(finishedAt) || finishedAt <= 0 || !Number.isFinite(currentTime)) return null;
-  const elapsed = Math.max(0, currentTime - finishedAt);
+  const presentation = Math.max(0, Number(game.rules?.resultPresentationMs) || 0);
+  const elapsed = Math.max(0, currentTime - finishedAt - presentation);
   if (elapsed < END_LOBBY_DELAY_MS) return null;
   return Math.max(0, Math.ceil((AUTO_LOBBY_MS - elapsed) / 1000));
 }
@@ -246,7 +247,10 @@ export function resolveRound(game, intents) {
     players, centerItem, finished: survivors.length <= 1,
     winnerId: survivors.length === 1 ? survivors[0] : null,
     draw: survivors.length === 0,
-    result: { turn: game.turn, actions, hits, losses, heals, item },
+    result: { turn: game.turn, actions, hits, losses, heals, item,
+      breathBefore: Object.fromEntries(Object.entries(game.players).map(([uid, player]) => [uid, player.breath])),
+      breathDeltas: Object.fromEntries(Object.entries(players).map(([uid, player]) => [uid, player.breath - game.players[uid].breath])),
+    },
   };
 }
 

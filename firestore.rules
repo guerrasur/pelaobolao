@@ -247,7 +247,7 @@ service cloud.firestore {
           return signed() && request.auth.uid in g.memberIds && member(r) && r.hostId == request.auth.uid
             && (synced(g) ? g.phase == 'locked' : g.phase == 'choosing' && request.time.toMillis() >= g.deadline)
             && turnId == string(g.turn)
-            && d.keys().hasOnly(['turn','actions','hits','losses','heals','item','resolvedBy','resolvedAt'])
+            && d.keys().hasOnly(['turn','actions','hits','losses','heals','item','breathBefore','breathDeltas','resolvedBy','resolvedAt'])
             && d.turn == g.turn && d.resolvedBy == request.auth.uid && d.resolvedAt == request.time;
         }
       }

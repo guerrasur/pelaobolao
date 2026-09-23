@@ -56,7 +56,10 @@ export function revealViewGame(game, stage = revealStage(game)) {
   const maxHair = Math.max(1, Number(game.rules?.maxHair || 4));
   const players = Object.fromEntries(Object.entries(game.players || {}).map(([uid, player]) => {
     const beforeHair = Number(player.hair || 0) + Number(losses[uid] || 0) - Number(heals[uid] || 0);
-    return [uid, { ...player, hair: Math.max(0, Math.min(maxHair, beforeHair)) }];
+    const breath = game.lastResult.breathBefore?.[uid];
+    return [uid, { ...player, hair: Math.max(0, Math.min(maxHair, beforeHair)),
+      ...(Number.isFinite(breath) ? { breath } : {}),
+    }];
   }));
 
   let centerItem = game.centerItem ?? null;

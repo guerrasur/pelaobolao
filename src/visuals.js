@@ -42,10 +42,13 @@ function avatar(index, hair, effects = {}) {
 function effectMarkup(effects = {}) {
   const bits = [];
   if (effects.action === 'blow') bits.push('<span class="fx fx-wind"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">¡SOPLA!</b>');
-  if (effects.action === 'air') bits.push('<span class="fx fx-air"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">+1 SOPLO</b>');
+  if (effects.action === 'air') bits.push('<span class="fx fx-air"><i></i><i></i><i></i></span><b class="fx-label fx-label-action">TOMA AIRE</b>');
   if (effects.action === 'hide') bits.push('<span class="fx fx-desk"><i></i></span><b class="fx-label fx-label-action">¡ABAJO!</b>');
   if (effects.action === 'grab') bits.push('<span class="fx fx-grab"><i></i></span><b class="fx-label fx-label-action fx-label-grab">¡AGARRA!</b>');
   if (effects.action === 'distracted') bits.push('<span class="fx fx-distracted">…</span>');
+  if (effects.breathDelta) {
+    bits.push(`<b class="fx-breath-delta">${effects.breathDelta > 0 ? '+' : '−'}${Math.abs(effects.breathDelta)} SOPLO</b>`);
+  }
   if (effects.hit) {
     bits.push('<span class="fx fx-hair"><i></i><i></i><i></i><i></i></span>');
     bits.push('<b class="fx-label fx-label-hit">−' + Math.max(1, Number(effects.loss || 1)) + ' PELO</b>');

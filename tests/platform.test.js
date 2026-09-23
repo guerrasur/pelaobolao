@@ -69,3 +69,34 @@ test('sonido silenciado persiste y no crea audio; al activarlo libera cada nodo'
   assert.equal(stored, 'off'); assert.equal(oscillators.length, 1);
   sound.setSoundEnabled(true); sound.playCue('tick'); assert.equal(resumed, 1);
 });
+
+test('el impacto atenúa taps y la victoria conserva prioridad sobre otros efectos', async () => {
+  let notes = 0, faded = 0;
+  class AudioContext {
+    state = 'running'; currentTime = 0;
+    createOscillator() {
+      notes++;
+      return { frequency: {}, connect(gain) { return gain; }, start() {}, stop() {}, disconnect() {} };
+    }
+    createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {},
+      cancelScheduledValues() {}, setTargetAtTime() { faded++; } }, connect() {}, disconnect() {} }; }
+  }
+  const source = (await readFile('src/sound.js', 'utf8')).replace(/export /g, '');
+  const sound = vm.runInNewContext(`${source}\n;({playCue})`, {
+    window: { AudioContext }, document: { hidden: false, addEventListener() {} },
+  });
+  sound.playCue('gameTap');
+  assert.equal(notes, 2);
+  sound.playCue('gameTap');
+  assert.equal(notes, 2);
+  sound.playCue('hit');
+  assert.equal(notes, 5);
+  assert.equal(faded, 2);
+  sound.playCue('confirm');
+  assert.equal(notes, 5);
+  sound.playCue('win');
+  assert.equal(notes, 9);
+  assert.equal(faded, 5);
+  sound.playCue('hit');
+  assert.equal(notes, 9);
+});

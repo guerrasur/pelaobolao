@@ -1,4 +1,8 @@
 let context;
+let activeCue = null;
+const cuePriority = kind => ['win', 'lose', 'end'].includes(kind) ? 4
+  : ['hit', 'block', 'heal', 'swing', 'itemClash', 'itemClaim', 'reveal', 'lock', 'start'].includes(kind) ? 3
+    : ['confirm', 'tick'].includes(kind) ? 2 : 1;
 let enabled = true;
 try { enabled = globalThis.localStorage?.getItem('pb-sound') !== 'off'; } catch {}
 
@@ -38,6 +42,17 @@ export function playCue(kind) {
     if (!audio) return;
     if (audio.state === 'suspended') void audio.resume().catch(() => {});
     const start = audio.currentTime;
+    const priority = cuePriority(kind);
+    if (activeCue && activeCue.until > start) {
+      // Keep decisive feedback legible when DOM updates trigger several cues.
+      if (priority < activeCue.priority || (priority === 1 && start - activeCue.started < .1)) return;
+      if (priority > activeCue.priority) {
+        for (const gain of activeCue.gains) {
+          gain.gain.cancelScheduledValues(start);
+          gain.gain.setTargetAtTime(.0001, start, .012);
+        }
+      }
+    }
     const patterns = {
       start: { notes:[392,523.25,659.25], step:.09, length:.18, type:'triangle', gain:.07 },
       reveal: { notes:[523.25,659.25], step:.08, length:.16, type:'triangle', gain:.06 },
@@ -64,9 +79,13 @@ export function playCue(kind) {
       end: { notes:[659.25,523.25,392], step:.09, length:.18, type:'triangle', gain:.07 },
     };
     const pattern = patterns[kind] || patterns.reveal;
+    const cue = { priority, started: start,
+      until: start + (pattern.notes.length - 1) * pattern.step + pattern.length + .02, gains: [] };
+    activeCue = cue;
     pattern.notes.forEach((frequency, index) => {
       const oscillator = audio.createOscillator();
       const gain = audio.createGain();
+      cue.gains.push(gain);
       const at = start + index * pattern.step;
       oscillator.type = pattern.type;
       oscillator.frequency.value = frequency;
