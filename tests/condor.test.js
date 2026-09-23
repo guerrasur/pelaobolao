@@ -475,7 +475,7 @@ test('cierre del lote 0.36 alinea versión y auditoría terminal', async () => {
 });
 
 
-test('0.38 integra el asset ilustrado real en el menú sin depender de la mascota CSS', async () => {
+test('0.38.1 integra el asset ilustrado con transparencia real y sin blend mode', async () => {
   const [main, css, sw, packageInfo, publicVersion] = await Promise.all([
     readFile('src/main.js', 'utf8'),
     readFile('src/condor30.css', 'utf8'),
@@ -484,11 +484,11 @@ test('0.38 integra el asset ilustrado real en el menú sin depender de la mascot
     readFile('public/version.json', 'utf8').then(JSON.parse),
   ]);
   assert.match(main, /class="home-art"/);
-  assert.match(main, /\/assets\/menu-hero\.webp/);
+  assert.match(main, /\/assets\/menu-hero\.png/);
   assert.doesNotMatch(main, /class="home-mascot"/);
-  assert.match(css, /mix-blend-mode:multiply/);
+  assert.doesNotMatch(css, /mix-blend-mode\s*:\s*multiply/);
   assert.match(css, /prefers-reduced-motion:reduce/);
-  assert.match(sw, /\/assets\/menu-hero\.webp/);
-  assert.equal(packageInfo.version, '0.38.0');
-  assert.equal(publicVersion.version, '0.38.0');
+  assert.match(sw, /\/assets\/menu-hero\.png/);
+  assert.equal(packageInfo.version, '0.38.1');
+  assert.equal(publicVersion.version, '0.38.1');
 });
