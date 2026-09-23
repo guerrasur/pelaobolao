@@ -148,10 +148,23 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   for (const page of [a, b]) {
     await expect(page.locator('.lobby-list li')).toHaveCount(2, { timeout: 9000 });
   }
-  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
+  const rematchStartButtons = [
+    a.getByRole('button', { name: 'Iniciar partida' }),
+    b.getByRole('button', { name: 'Iniciar partida' }),
+  ];
+  await expect.poll(async () => {
+    const counts = await Promise.all(rematchStartButtons.map(button => button.count()));
+    return counts.reduce((total, count) => total + count, 0);
+  }, { timeout: 9000 }).toBe(1);
+  const hostIsA = await rematchStartButtons[0].count() === 1;
+  const rematchHost = hostIsA ? a : b;
+  const rematchGuest = hostIsA ? b : a;
+  const rematchStart = rematchHost.getByRole('button', { name: 'Iniciar partida' });
+  await expect(rematchGuest.getByRole('button', { name: 'Iniciar partida' })).toHaveCount(0);
+  await expect(rematchStart).toBeDisabled();
   for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
-  await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
-  await a.getByRole('button', { name: 'Iniciar partida' }).click();
+  await expect(rematchStart).toBeEnabled();
+  await rematchStart.click();
   await turn(1);
   await expect(a.locator('[data-player]').filter({ hasText: 'Ana' })).toContainText('Pelo 3/4');
   expect(errors).toEqual([]);
