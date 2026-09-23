@@ -143,7 +143,11 @@ test('dos celulares: identidad, lobby, drag, tap, reconexión, partida completa 
   await b.screenshot({ path: 'test-results/loser-tomatoes.png', fullPage: true });
   await expect(a.locator('[data-lobby-return]')).toBeVisible({ timeout: 5000 });
   await expect(a.locator('[data-lobby-return]')).toContainText(/Regresando al lobby en [1-5]s|Regresando al lobby…/);
-  await expect(b.locator('.lobby-list li')).toHaveCount(2, { timeout: 9000 });
+  // Cada cliente vuelve al lobby por su propio snapshot. Esperar a ambos evita
+  // confundir una diferencia normal de entrega con una regresión del host.
+  for (const page of [a, b]) {
+    await expect(page.locator('.lobby-list li')).toHaveCount(2, { timeout: 9000 });
+  }
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeDisabled();
   for (const page of [a, b]) await page.getByRole('button', { name: 'Estoy listo' }).click();
   await expect(a.getByRole('button', { name: 'Iniciar partida' })).toBeEnabled();
