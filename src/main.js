@@ -324,6 +324,17 @@ async function roomCommand(command, extra = {}) {
   const generation = roomGeneration;
   const result = await call('roomCommand', { command, ...(!['create', 'join'].includes(command) ? { roomId: s.roomId } : {}), ...extra });
   if (result.roomId) lastHeartbeatAt = Date.now();
+  if (generation === roomGeneration && command === 'lobby' && s.roomId === result.roomId && s.room) {
+    s.room = {
+      ...s.room,
+      status: 'lobby',
+      gameId: null,
+      members: Object.fromEntries(Object.entries(s.room.members || {}).map(([memberId, member]) => [memberId, { ...member, ready: false }])),
+    };
+    detachGame();
+    message('');
+    render();
+  }
   if (generation === roomGeneration && command !== 'touch') subscribeRoom(result.roomId);
 }
 async function heartbeat(force = false) {

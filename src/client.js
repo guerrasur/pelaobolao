@@ -1,4 +1,4 @@
-import { doc, FieldPath, deleteField, getDocFromServer, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, FieldPath, deleteField, getDocFromServer, runTransaction, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { RULES, LOBBY_LEASE_MS, GAME_HOST_LEASE_MS, ABANDON_MS, SYNC_WAIT_MS, newGame, resolveRound, scheduleCenterItem, validateIntent, requireThat, validId, exactObject, millis, phaseDeadline, allMarked } from './game.js';
 import { createServerClock, clockSample } from './clock.js';
 
@@ -54,6 +54,21 @@ export function createClient(db, uid, clock = Date.now) {
     requireThat(['create','join','touch','leave','ready','start','lobby','rename'].includes(command), 'Comando inválido.');
     if (command === 'join') requireThat(ROOM_CODE_PATTERN.test(data.code), 'El código tiene 4 letras o números.');
     if (!['create','join'].includes(command)) validId(data.roomId);
+    if (command === 'touch') {
+      const ref = doc(db, 'rooms', data.roomId);
+      const old = (await getDocFromServer(ref)).data();
+      requireThat(old && old.status !== 'closed', 'La sala ya no está disponible.', 'not-found');
+      requireThat(old.schemaVersion === 3, 'Esta sala pertenece a una versión anterior. Creá una sala nueva.');
+      requireThat(old.members[uid] && !old.members[uid].left, 'Volvé a entrar con el código.', 'permission-denied');
+      const lease = ['playing','finished'].includes(old.status) ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS;
+      if (old.hostId !== uid && live(old.members[old.hostId], now(), lease)) {
+        await updateDoc(ref,
+          new FieldPath('members', uid, 'lastSeenAt'), serverTimestamp(),
+          'updatedAt', serverTimestamp());
+        return { roomId: data.roomId };
+      }
+      // Sólo el caso excepcional de relevo de host necesita la transacción completa.
+    }
     const gameRef = doc(db, 'games', crypto.randomUUID());
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate = createRoomCode();
