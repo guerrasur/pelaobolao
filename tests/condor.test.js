@@ -513,3 +513,28 @@ test('0.38.1 integra el asset ilustrado con transparencia real y sin blend mode'
   assert.match(sw, /\/assets\/menu-hero\.png/);
   assert.equal(publicVersion.version, packageInfo.version);
 });
+
+test('0.41 resuelve sin latencia serial y conserva la coreografía final', async () => {
+  const [client, main, style, entrance, game, packageInfo, publicVersion] = await Promise.all([
+    readFile('src/client.js', 'utf8'),
+    readFile('src/main.js', 'utf8'),
+    readFile('src/style.css', 'utf8'),
+    readFile('src/entrance.css', 'utf8'),
+    readFile('src/game.js', 'utf8'),
+    readFile('package.json', 'utf8').then(JSON.parse),
+    readFile('public/version.json', 'utf8').then(JSON.parse),
+  ]);
+  const start = client.indexOf('async function advanceGame');
+  const end = client.indexOf('const commands', start);
+  const advanceGame = client.slice(start, end);
+  assert.match(advanceGame, /Promise\.all\(preview\.memberIds\.map/);
+  assert.doesNotMatch(advanceGame, /for \(const memberId of preview\.memberIds\)/);
+  assert.match(main, /function revealClockNow\(game\)/);
+  assert.match(main, /setInterval\(tick, 100\)/);
+  assert.match(style, /data-phase="finished"\]\[data-reveal-stage="suspense"\]/);
+  assert.match(style, /data-phase="finished"\]\[data-reveal-stage="actions"\]/);
+  assert.doesNotMatch(entrance, /\.door-loader::after\s*\{/);
+  assert.match(game, /version:\s*7[\s\S]*?revealMs:\s*4800/);
+  assert.equal(packageInfo.version, publicVersion.version);
+});
+
