@@ -1,10 +1,16 @@
 name: Deploy Firebase Hosting
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: firebase-hosting-live
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -17,6 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
