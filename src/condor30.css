@@ -678,19 +678,3 @@ body[data-ui-screen="lobby"] #connection:not(.offline):not(.checking):not(.conne
   .home-art { animation:none!important; }
 }
 
-/* Compact controls remain available in class and during a match. */
-#sound-toggle {
-  flex:0 0 auto; min-height:32px; min-width:76px; padding:6px 8px;
-  margin:0 8px 0 auto; border:1px solid #d6ddbd75; border-radius:6px;
-  background:#142d27; color:#f3efd7; box-shadow:none;
-  font:700 10px/1.1 system-ui,sans-serif; letter-spacing:.035em;
-}
-#sound-toggle[aria-pressed="false"] { color:#c5cbb8; border-style:dashed; }
-#sound-toggle:focus-visible, #app button:focus-visible, #app input:focus-visible {
-  outline:3px solid #f3c94d; outline-offset:3px;
-}
-@media (pointer:coarse) { #sound-toggle { min-height:36px; } }
-
-body:is([data-ui-screen="loading"],[data-ui-screen="profile"],[data-ui-screen="home"],[data-ui-screen="room"],[data-ui-screen="update"]) #sound-toggle {
-  position:absolute; right:0; top:0; margin:0;
-}

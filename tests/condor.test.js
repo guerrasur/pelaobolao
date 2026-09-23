@@ -228,6 +228,28 @@ test('0.33 refuerza tactilidad y jerarquía de fase sin mover la geometría', as
 });
 
 
+
+test('0.40 compacta el chrome global y mantiene el sonido accesible', async () => {
+  const [html, entrance, css, main] = await Promise.all([
+    readFile('index.html', 'utf8'),
+    readFile('src/entrance.js', 'utf8'),
+    readFile('src/condor40.css', 'utf8'),
+    readFile('src/main.js', 'utf8'),
+  ]);
+  assert.match(html, /id="sound-toggle"[\s\S]*?class="sound-on"/);
+  assert.match(html, /class="sound-off"/);
+  assert.doesNotMatch(html, />SONIDO (?:ON|OFF)</);
+  assert.match(entrance, /import '\.\/condor40\.css';/);
+  assert.match(entrance, /soundToggle\.dataset\.sound = enabled \? 'on' : 'off'/);
+  assert.doesNotMatch(entrance, /soundToggle\.textContent = enabled \? 'SONIDO ON'/);
+  assert.match(css, /--condor40-header-control:34px/);
+  assert.match(css, /#sound-toggle[\s\S]*?width:var\(--condor40-header-control\)!important/);
+  assert.match(css, /#sound-toggle\[aria-pressed="false"\] \.sound-off/);
+  assert.match(css, /#start-game[\s\S]*?background:#ffdf4f!important/);
+  assert.match(main, /appMeta\.textContent = `v\$\{APP_VERSION\}`/);
+});
+
+
 test('0.34 evita que el heartbeat del host bloquee su jugada y no confirma antes del servidor', async () => {
   const [client, main, visuals, sw, packageInfo, publicVersion] = await Promise.all([
     readFile('src/client.js', 'utf8'),

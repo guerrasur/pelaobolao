@@ -1,5 +1,6 @@
 import './entrance.css';
 import './condor30.css';
+import './condor40.css';
 import { playCue, soundEnabled, setSoundEnabled } from './sound.js';
 
 const app = document.querySelector('#app');
@@ -115,9 +116,11 @@ const soundToggle = document.querySelector('#sound-toggle');
 function refreshSoundToggle() {
   if (!soundToggle) return;
   const enabled = soundEnabled();
+  const label = enabled ? 'Silenciar sonido' : 'Activar sonido';
   soundToggle.setAttribute('aria-pressed', String(enabled));
-  soundToggle.setAttribute('aria-label', enabled ? 'Silenciar sonido' : 'Activar sonido');
-  soundToggle.textContent = enabled ? 'SONIDO ON' : 'SONIDO OFF';
+  soundToggle.setAttribute('aria-label', label);
+  soundToggle.setAttribute('title', label);
+  soundToggle.dataset.sound = enabled ? 'on' : 'off';
 }
 soundToggle?.addEventListener('click', () => {
   setSoundEnabled(!soundEnabled());

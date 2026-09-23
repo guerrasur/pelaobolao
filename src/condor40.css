@@ -1,0 +1,294 @@
+/* Plan Cóndor 0.40.0 — chrome compacto, jerarquía móvil y pulido visual. */
+
+:root {
+  --condor40-header-control:34px;
+  --condor40-shadow:#132524;
+}
+
+/* El sonido sigue a un toque de distancia, pero deja de competir con el juego. */
+#sound-toggle {
+  position:absolute!important;
+  z-index:6!important;
+  left:max(4px,env(safe-area-inset-left))!important;
+  right:auto!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  display:grid!important;
+  place-items:center!important;
+  width:var(--condor40-header-control)!important;
+  min-width:var(--condor40-header-control)!important;
+  max-width:var(--condor40-header-control)!important;
+  height:var(--condor40-header-control)!important;
+  min-height:var(--condor40-header-control)!important;
+  padding:0!important;
+  margin:0!important;
+  border:1.5px solid #e5ead08a!important;
+  border-radius:50%!important;
+  background:#142d27cc!important;
+  color:#f7f1d8!important;
+  box-shadow:0 2px 0 #10221f,0 0 0 1px #ffffff0b!important;
+  font-size:0!important;
+  line-height:0!important;
+  opacity:.88;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .12s ease,opacity .12s ease,background .12s ease;
+}
+#sound-toggle svg {
+  width:18px;
+  height:18px;
+  overflow:visible;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  pointer-events:none;
+}
+#sound-toggle svg path:first-child { fill:currentColor; stroke:none; }
+#sound-toggle .sound-off { display:none; }
+#sound-toggle[aria-pressed="false"] {
+  color:#b9c1b0!important;
+  background:#102621b8!important;
+  border-style:dashed!important;
+}
+#sound-toggle[aria-pressed="false"] .sound-on { display:none; }
+#sound-toggle[aria-pressed="false"] .sound-off { display:block; }
+#sound-toggle:active {
+  transform:translateY(-50%) scale(.92)!important;
+  opacity:1;
+}
+#sound-toggle:focus-visible {
+  outline:3px solid #f3c94d!important;
+  outline-offset:2px!important;
+}
+@media(hover:hover) {
+  #sound-toggle:hover {
+    opacity:1;
+    background:#1b3b33!important;
+  }
+}
+
+/* El header es identidad, no una barra de herramientas. */
+header {
+  min-height:50px;
+  padding:3px 0 1px;
+}
+#app-meta {
+  right:max(4px,env(safe-area-inset-right))!important;
+  bottom:4px!important;
+  padding:2px 4px;
+  border-radius:4px;
+  background:#10252173;
+  color:#e7e3d0!important;
+  font-size:7.5px!important;
+  line-height:1!important;
+  font-weight:800;
+  letter-spacing:.2px;
+  opacity:.72;
+}
+.brand {
+  transition:transform .16s ease;
+}
+.brand:active {
+  transform:rotate(-2.2deg) scale(.97);
+}
+
+/* Conexión: silenciosa cuando está bien, inequívoca cuando importa. */
+#connection.offline,
+#connection.checking,
+#connection.connecting {
+  width:max-content;
+  max-width:calc(100vw - 24px);
+  margin:1px auto 2px;
+  padding:2px 8px;
+  border-radius:999px;
+  background:#1025218f;
+}
+#connection.offline { color:#ffd9cf!important; }
+#connection.checking { color:#ffe9ad!important; }
+
+/* Menú principal: menos marco, más cartel y acción. */
+#app > .home-screen {
+  gap:clamp(10px,2vh,16px);
+}
+.home-hero {
+  border-radius:14px!important;
+  box-shadow:2px 3px 0 #122323,inset 0 0 0 1px #ffffff10!important;
+}
+.home-title-mark strong {
+  text-shadow:1.7px 2.4px 0 #202633;
+}
+.home-art {
+  filter:drop-shadow(2px 3px 0 #17282752);
+}
+.home-create {
+  min-height:58px!important;
+  border-width:2px!important;
+  border-radius:10px!important;
+  box-shadow:0 4px 0 #202633,inset 0 1px 0 #fff8ae!important;
+}
+.home-create span {
+  font-size:17px!important;
+  letter-spacing:.35px;
+}
+.join-card {
+  border-width:1.5px!important;
+  box-shadow:2px 3px 0 #152626!important;
+}
+.join-heading label {
+  font-size:9px!important;
+  letter-spacing:1px;
+}
+.join-row #room-code {
+  min-height:49px!important;
+  border-width:1.5px!important;
+}
+.join-row button {
+  min-height:49px!important;
+  border-width:1.5px!important;
+  box-shadow:0 3px 0 #202633!important;
+}
+
+/* Pantalla de nombre: reduce la sensación de formulario pesado. */
+.entry-form {
+  padding:13px!important;
+  border-width:2px!important;
+  box-shadow:3px 4px 0 #132525!important;
+}
+.entry-form input {
+  min-height:54px!important;
+  border-width:1.5px!important;
+}
+.entry-form button {
+  min-height:56px!important;
+  border-width:2px!important;
+  box-shadow:0 4px 0 #202633!important;
+}
+
+/* Lobby: el código manda; compartir, salir y metadatos pasan a segundo plano. */
+#app > .lobby-screen {
+  border-width:1.5px!important;
+  box-shadow:2px 3px 0 #152322!important;
+}
+.lobby-heading .code {
+  box-shadow:1px 2px 0 #202633!important;
+}
+.compact-button {
+  min-width:78px!important;
+  min-height:34px!important;
+  padding:5px 8px!important;
+  border-width:1.5px!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+  font-size:9px!important;
+}
+.ready-progress span {
+  opacity:.72;
+}
+.lobby-list li {
+  border-width:1.25px!important;
+  box-shadow:none!important;
+}
+#ready-toggle,
+#start-game {
+  min-height:43px!important;
+  border-width:1.5px!important;
+  box-shadow:0 3px 0 #202633!important;
+}
+#ready-toggle {
+  background:#f6f4e9!important;
+  color:#202633!important;
+}
+#ready-toggle.ready-toggle-on {
+  background:#dff5e6!important;
+  border-color:#4b9b70!important;
+}
+#start-game {
+  background:#ffdf4f!important;
+  color:#202633!important;
+}
+#app > .lobby-screen > .quiet {
+  opacity:.58!important;
+}
+#app > .lobby-screen > .quiet:focus-visible,
+#app > .lobby-screen > .quiet:hover {
+  opacity:1!important;
+}
+
+/* Juego: reforzar elección y dejar el resto del chrome atrás. */
+.game .phase-banner {
+  box-shadow:none!important;
+}
+.play-hint {
+  min-height:25px!important;
+  border-width:1.5px!important;
+  box-shadow:none!important;
+}
+.controls {
+  gap:6px!important;
+}
+.controls button {
+  border-width:1.5px!important;
+  box-shadow:0 3px 0 #202633!important;
+}
+.controls button:active:not(:disabled) {
+  transform:translateY(2px)!important;
+  box-shadow:0 1px 0 #202633!important;
+}
+#selection {
+  margin-block:4px!important;
+  text-align:center;
+  opacity:.86;
+}
+.game > #leave-room {
+  width:auto!important;
+  align-self:center;
+  min-height:25px!important;
+  margin:1px auto 0!important;
+  padding:2px 10px!important;
+  font-size:9px!important;
+  opacity:.52;
+  text-decoration:none!important;
+}
+.game > #leave-room.leave-armed {
+  opacity:1;
+}
+
+/* Resultado: mantiene lectura pero no vuelve a ocupar el centro de la escena. */
+.result {
+  border-top-width:1.5px!important;
+  box-shadow:none!important;
+}
+.result-callout {
+  letter-spacing:.25px;
+}
+.result-summary span {
+  box-shadow:none!important;
+}
+
+/* Teléfonos bajos/angostos: el chrome cede todavía más espacio al tablero. */
+@media(max-height:700px) {
+  :root { --condor40-header-control:30px; }
+  #sound-toggle svg { width:16px; height:16px; }
+  #app-meta { font-size:7px!important; bottom:2px!important; }
+  .home-create { min-height:50px!important; }
+  .join-row #room-code,
+  .join-row button { min-height:44px!important; }
+  #ready-toggle,
+  #start-game { min-height:38px!important; }
+}
+@media(max-width:340px) {
+  :root { --condor40-header-control:30px; }
+  #sound-toggle { left:2px!important; }
+  #app-meta { right:2px!important; padding-inline:3px; }
+  .compact-button { min-width:70px!important; }
+}
+
+/* Movimiento reducido también cubre el chrome nuevo. */
+@media(prefers-reduced-motion:reduce) {
+  #sound-toggle,
+  .brand,
+  .controls button {
+    transition:none!important;
+  }
+}

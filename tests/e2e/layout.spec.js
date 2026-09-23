@@ -9,6 +9,17 @@ test.afterAll(async () => { await env.cleanup(); });
 
 test('el tablero y sus controles caben completos con 2 y 6 jugadores', async ({page}) => {
   await page.goto('/');
+  await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-label', /sonido/i);
+  await expect(page.locator('#sound-toggle')).toHaveText('');
+  const soundChrome = await page.locator('#sound-toggle').evaluate(el => {
+    const r = el.getBoundingClientRect();
+    const brand = document.querySelector('.brand')?.getBoundingClientRect();
+    return { width:r.width, height:r.height, right:r.right, brandLeft:brand?.left ?? innerWidth, pageWidth:document.documentElement.scrollWidth, viewport:innerWidth };
+  });
+  expect(soundChrome.width).toBeLessThanOrEqual(36);
+  expect(soundChrome.height).toBeLessThanOrEqual(36);
+  expect(soundChrome.right).toBeLessThan(soundChrome.brandLeft);
+  expect(soundChrome.pageWidth).toBeLessThanOrEqual(soundChrome.viewport + 1);
   await page.locator('#player-name').fill('Nombre de veinticuatro');
   await page.locator('#profile-form button').click();
   await page.locator('#create-room').click();

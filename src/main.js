@@ -66,7 +66,7 @@ function leaveMatchButton() {
   const armed = matchStillRunning() && Date.now() < leaveArmedUntil;
   return `<button id="leave-room" class="quiet${armed ? ' leave-armed' : ''}">${armed ? 'Confirmar salida' : 'Salir de la partida'}</button>`;
 }
-appMeta.textContent = `MVP · v${APP_VERSION}`;
+appMeta.textContent = `v${APP_VERSION}`;
 
 async function checkVersion() {
   try {
