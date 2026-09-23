@@ -30,9 +30,29 @@ let renderedHtml;
 let lobbyPresenceKey = null;
 let lastRevealStageKey = null;
 let lastRevealCountdown = null;
+let revealVisualAnchor = null;
 let pending = null, sending = false, intentGeneration = 0, sendingGeneration = -1, drag = null, suppressClick = false, lastNudge = 0;
 let leaveArmedUntil = 0, leaveArmTimer = 0, lastCheckingConnection = false;
 const now = () => api?.now() ?? Date.now();
+function revealClockNow(game) {
+  const staged = Boolean(game?.lastResult) && ['reveal', 'finished'].includes(game.phase)
+    && Number(game.rules?.version ?? 0) >= 7;
+  if (!staged) {
+    revealVisualAnchor = null;
+    return now();
+  }
+  const serverStarted = millis(game.phaseStartedAt);
+  const observedNow = now();
+  if (!Number.isFinite(serverStarted) || serverStarted <= 0) return observedNow;
+  const key = `${s.gameId || 'game'}:${game.turn}:${game.phase}:${serverStarted}`;
+  if (!revealVisualAnchor || revealVisualAnchor.key !== key) {
+    // Firestore delivery latency used to eat most of the visible "3". Anchor the
+    // choreography when this client first sees the authoritative reveal snapshot;
+    // the host deadline stays server-authored and remains the source of truth.
+    revealVisualAnchor = { key, observedAt: observedNow, serverStarted };
+  }
+  return revealVisualAnchor.serverStarted + Math.max(0, observedNow - revealVisualAnchor.observedAt);
+}
 const connectionFresh = () => !s.roomId || !lastContact || Date.now() - lastContact <= 30000;
 const setText = (node, value) => {
   if (!node) return false;
@@ -566,11 +586,12 @@ function syncRevealTimeline(game) {
     return false;
   }
 
-  const stage = revealStage(game, now());
+  const visualNow = revealClockNow(game);
+  const stage = revealStage(game, visualNow);
   const key = `${s.gameId || 'game'}:${game.turn}:${game.phase}:${stage}`;
 
   if (stage === 'suspense') {
-    const value = revealCountdown(game, now());
+    const value = revealCountdown(game, visualNow);
     const countdown = document.querySelector('[data-reveal-countdown]');
     if (countdown && value !== lastRevealCountdown) {
       lastRevealCountdown = value;
@@ -589,7 +610,7 @@ function syncRevealTimeline(game) {
   lastRevealStageKey = key;
 
   if (stage === 'suspense') {
-    lastRevealCountdown = revealCountdown(game, now());
+    lastRevealCountdown = revealCountdown(game, visualNow);
     playCue('lock');
     return false;
   }
@@ -628,7 +649,7 @@ function sealedChoiceHtml(game, choice, me) {
 }
 
 function centerItemHtml(game, choice) {
-  const stagedFinalReveal = game.phase === 'finished' && revealStage(game, now()) !== 'impact';
+  const stagedFinalReveal = game.phase === 'finished' && revealStage(game, revealClockNow(game)) !== 'impact';
   if (game.centerItem?.kind !== HAIR_ITEM_KIND || !(['choosing', 'locked', 'reveal'].includes(game.phase) || stagedFinalReveal)) return '';
   const freePickup = Number(game.rules?.version ?? 0) >= 3;
   const selectedGrab = freePickup && choice?.action === 'grab' && choice.target === CENTER_ITEM_TARGET;
@@ -798,7 +819,7 @@ function render() {
     html = `<section class="state"><div class="spinner" aria-hidden="true"></div><h1>${s.gameError ? esc(s.gameError) : 'Cargando la partida…'}</h1><button id="leave-room" class="quiet">Salir de la sala</button><button id="reset-session" class="quiet">Volver al inicio</button></section>`;
   } else {
     const game = s.game;
-    const revealStep = revealStage(game, now());
+    const revealStep = revealStage(game, revealClockNow(game));
     const viewGame = revealViewGame(game, revealStep);
     const finalRevealPending = game.phase === 'finished' && revealStep !== 'impact';
     const me = viewGame.players?.[api.uid];
@@ -884,7 +905,7 @@ function render() {
     }
   }
   bind();
-  if (s.game && revealStage(s.game, now()) === 'actions') drawRevealAttackLines(s.game, 'actions');
+  if (s.game && revealStage(s.game, revealClockNow(s.game)) === 'actions') drawRevealAttackLines(s.game, 'actions');
   tick();
 }
 
@@ -1123,7 +1144,7 @@ window.addEventListener('pageshow', event => {
   s.online = navigator.onLine;
   resyncClock(); void heartbeat(true); void checkVersion(); render(); void flushIntent();
 });
-setInterval(tick, 200);
+setInterval(tick, 100);
 setInterval(heartbeat, 2000);
 setInterval(checkVersion, 60000);
 setInterval(resyncClock, 60000);
