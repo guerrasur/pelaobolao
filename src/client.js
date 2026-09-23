@@ -61,7 +61,7 @@ export function createClient(db, uid, clock = Date.now) {
       requireThat(old.schemaVersion === 3, 'Esta sala pertenece a una versión anterior. Creá una sala nueva.');
       requireThat(old.members[uid] && !old.members[uid].left, 'Volvé a entrar con el código.', 'permission-denied');
       const lease = ['playing','finished'].includes(old.status) ? GAME_HOST_LEASE_MS : LOBBY_LEASE_MS;
-      if (live(old.members[old.hostId], now(), lease)) {
+      if (old.hostId !== uid && live(old.members[old.hostId], now(), lease)) {
         await updateDoc(ref,
           new FieldPath('members', uid, 'lastSeenAt'), serverTimestamp(),
           'updatedAt', serverTimestamp());
